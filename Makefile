@@ -1,4 +1,4 @@
-include makefile.common
+include Makefile.common
 
 EXENAME=main_$(NID)_deb.exe
 SRCDIR=src
