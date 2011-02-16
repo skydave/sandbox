@@ -25,3 +25,25 @@ add_executable(fem ${fem_sources} ${base_math_sources} ${base_ui_sources})
 
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
+
+#
+# set link dependecies
+#
+if( CMAKE_SYSTEM_NAME MATCHES Linux )
+	find_package(X11)
+
+	if(NOT X11_FOUND)
+		message(FATAL_ERROR "Failed to find X11 which is required to build under linux")
+	endif(NOT X11_FOUND)
+
+	find_library( GL_LIBRARY GL )
+
+
+
+	if(GL_LIBRARY MATCHES NOT_FOUND)
+		message(FATAL_ERROR "Failed to find OpenGL which is required to build under linux")
+	endif(GL_LIBRARY MATCHES NOT_FOUND)
+
+	target_link_libraries(fem ${X11_LIBRARIES} ${gl})
+
+endif( CMAKE_SYSTEM_NAME MATCHES Linux )
