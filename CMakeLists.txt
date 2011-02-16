@@ -39,7 +39,6 @@ if( CMAKE_SYSTEM_NAME MATCHES Linux )
 	find_library( GL_LIBRARY GL )
 
 
-
 	if(GL_LIBRARY MATCHES NOT_FOUND)
 		message(FATAL_ERROR "Failed to find OpenGL which is required to build under linux")
 	endif(GL_LIBRARY MATCHES NOT_FOUND)
