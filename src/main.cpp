@@ -9,7 +9,6 @@
 #include <iostream>
 
 #include <math/Vec3f.h>
-#include <gl/gl.h>
 #include <ui/GLWindow.h>
 
 //#ifdef WINDOWS
