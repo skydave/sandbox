@@ -11,6 +11,10 @@ file(GLOB_RECURSE base_math_sources src/base/math/*.cpp src/base/math/*.h)
 source_group( src\\base\\math FILES ${base_math_sources} )
 file(GLOB_RECURSE base_ui_sources src/base/ui/*.cpp src/base/ui/*.h)
 source_group( src\\base\\ui FILES ${base_ui_sources} )
+file(GLOB_RECURSE base_gfx_sources src/base/gfx/*.cpp src/base/gfx/*.h)
+source_group( src\\base\\gfx FILES ${base_gfx_sources} )
+file(GLOB_RECURSE base_gltools_sources src/base/gltools/*.cpp src/base/gltools/*.h)
+source_group( src\\base\\gltools FILES ${base_gltools_sources} )
 
 #
 # build fem application
@@ -21,7 +25,7 @@ file(GLOB app_sources src/*.cpp)
 source_group( src FILES ${app_sources} )
 
 # Create an executable
-add_executable(fem ${app_sources} ${base_math_sources} ${base_ui_sources})
+add_executable(fem ${app_sources} ${base_math_sources} ${base_ui_sources} ${base_gfx_sources} ${base_gltools_sources})
 
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
