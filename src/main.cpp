@@ -68,7 +68,7 @@ void render( base::CameraPtr cam )
 		default:
 		case base::Geometry::POINT:
 		{
-			for( int i=0; i<geo->numPrimitives();++i )
+			for( unsigned int i=0; i<geo->numPrimitives();++i )
 			{
 				glBegin( GL_POINTS );
 				glColor3f(1.0f, 0.0f, 0.0f);
@@ -155,8 +155,8 @@ int main(int argc, char ** argv)
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -298,7 +298,7 @@ int main(int argc, char ** argv)
 	//
 	int numSamples = 4000;
 	//float center = -1.6f;
-	float center = 2.64e-03;
+	float center = 2.64e-03f;
 
 	for( int i=0; i< numSamples; ++i )
 	{
