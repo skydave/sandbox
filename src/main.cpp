@@ -15,11 +15,12 @@
 #include <gltools/gl.h>
 #include <gltools/misc.h>
 #include <util/StringManip.h>
+#include <gfx/Geometry.h>
 
-
+base::GeometryPtr geo;
 std::vector<math::Vec3f> positions;
 
-void render( base::Camera *cam )
+void render( base::CameraPtr cam )
 {
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -36,7 +37,7 @@ void render( base::Camera *cam )
 	base::drawGrid(false);
 
 	glPointSize(5.0f);
-
+/*
 	int numSamples = 20;
 
 	for(int i=0;i<numSamples;++i)
@@ -57,7 +58,62 @@ void render( base::Camera *cam )
 		glVertex3f( v.x, v.y, v.z );
 	}
 	glEnd();
+*/
 
+	//
+	base::AttributePtr a = geo->getAttr("P");
+
+	switch( geo->primitiveType() )
+	{
+		default:
+		case base::Geometry::POINT:
+		{
+			for( int i=0; i<geo->numPrimitives();++i )
+			{
+				glBegin( GL_POINTS );
+				glColor3f(1.0f, 0.0f, 0.0f);
+				math::Vec3f &v=a->get<math::Vec3f>(i);
+				glVertex3f( v.x, v.y, v.z );
+				glEnd();
+			}
+		}break;
+		case base::Geometry::TRIANGLE:
+		{
+			std::vector<unsigned int>::iterator it = geo->m_indexBuffer.begin();
+			std::vector<unsigned int>::iterator end = geo->m_indexBuffer.end();
+			while( it != end )
+			{
+				glBegin( GL_TRIANGLES );
+				glColor3f(1.0f, 0.0f, 0.0f);
+				math::Vec3f &v0=a->get<math::Vec3f>(*it++);
+				math::Vec3f &v1=a->get<math::Vec3f>(*it++);
+				math::Vec3f &v2=a->get<math::Vec3f>(*it++);
+				glVertex3f( v0.x, v0.y, v0.z );
+				glVertex3f( v1.x, v1.y, v1.z );
+				glVertex3f( v2.x, v2.y, v2.z );
+				glEnd();
+			}
+		}break;
+		case base::Geometry::QUAD:
+		{
+			std::vector<unsigned int>::iterator it = geo->m_indexBuffer.begin();
+			std::vector<unsigned int>::iterator end = geo->m_indexBuffer.end();
+			while( it != end )
+			{
+				glBegin( GL_QUADS );
+				glColor3f(1.0f, 0.0f, 0.0f);
+				math::Vec3f &v0=a->get<math::Vec3f>(*it++);
+				math::Vec3f &v1=a->get<math::Vec3f>(*it++);
+				math::Vec3f &v2=a->get<math::Vec3f>(*it++);
+				math::Vec3f &v3=a->get<math::Vec3f>(*it++);
+				glVertex3f( v0.x, v0.y, v0.z );
+				glVertex3f( v1.x, v1.y, v1.z );
+				glVertex3f( v2.x, v2.y, v2.z );
+				glVertex3f( v3.x, v3.y, v3.z );
+				glEnd();
+			}
+		}break;
+	};
 
 
 	glMatrixMode( GL_PROJECTION );
@@ -99,7 +155,8 @@ int main(int argc, char ** argv)
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -256,6 +313,10 @@ int main(int argc, char ** argv)
 		//if( r > .0f )
 		positions.push_back(p);
 	}
+
+	//geo = base::geo_pointCloud();
+	//geo = base::geo_quad();
+	geo = base::geo_grid( 50, 50 );
 
 
 	return app.exec();
