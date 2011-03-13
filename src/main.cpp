@@ -16,8 +16,12 @@
 #include <gltools/misc.h>
 #include <util/StringManip.h>
 #include <gfx/Geometry.h>
+#include <gfx/Shader.h>
+#include <gfx/Context.h>
 
+base::ContextPtr context;
 base::GeometryPtr geo;
+base::ShaderPtr shader;
 std::vector<math::Vec3f> positions;
 
 void render( base::CameraPtr cam )
@@ -123,6 +127,22 @@ void render( base::CameraPtr cam )
 	glPopMatrix();
 }
 
+void render2( base::CameraPtr cam )
+{
+
+	glDisable( GL_CULL_FACE );
+	glEnable( GL_DEPTH_TEST );
+
+	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
+
+
+	// render to screen
+	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	context->renderScreen( shader );
+	//context->render( geo, shader );
+}
+
 // angle in rad
 float phase( float theta, const std::vector<float> &samples )
 {
@@ -136,7 +156,7 @@ float phase( float theta, const std::vector<float> &samples )
 	if(index <0)
 		index = 0;
 	if(index >= samples.size())
-		index = samples.size() - 1;
+		index = (int) samples.size() - 1;
 
 	// TODO: linear interp?
 	//std::cout << theta << " " << samples[index] << std::endl;
@@ -146,7 +166,7 @@ float phase( float theta, const std::vector<float> &samples )
 
 int main(int argc, char ** argv)
 {
-	base::GLViewer window( 800, 600, "test", render ); 
+	base::GLViewer window( 800, 600, "test", render2 ); 
 	window.show();
 	base::Application app;
 
@@ -314,9 +334,24 @@ int main(int argc, char ** argv)
 		positions.push_back(p);
 	}
 
+
+	GLenum err = glewInit();
+	if (GLEW_OK != err)
+	{
+		std::cout << "glew init failed\n";
+	}
+
+
+	context = base::ContextPtr( new base::Context() );
+
 	//geo = base::geo_pointCloud();
 	//geo = base::geo_quad();
 	geo = base::geo_grid( 50, 50 );
+
+
+
+
+	shader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
 
 
 	return app.exec();
