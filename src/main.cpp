@@ -17,10 +17,12 @@
 #include <util/StringManip.h>
 #include <gfx/Geometry.h>
 #include <gfx/Shader.h>
+#include <gfx/Texture2d.h>
 #include <gfx/Context.h>
 
 base::ContextPtr context;
 base::GeometryPtr geo;
+base::Texture2dPtr texture;
 base::ShaderPtr shader;
 std::vector<math::Vec3f> positions;
 
@@ -344,9 +346,27 @@ int main(int argc, char ** argv)
 
 	context = base::ContextPtr( new base::Context() );
 
+	texture = base::Texture2d::createRGBA8();
+
+	int xres = 128;
+	int yres = 128;
+	char *tex = (char *)malloc(128*128*4);
+	for(int j=0;j<yres;++j)
+		for(int i=0;i<xres;++i)
+		{
+			int index = xres*j + i;
+			tex[index*4] = (int)(((float)(i)/(float)(xres))*255.0f);
+			tex[index*4+1] = 255;
+			tex[index*4+2] = 0;
+			tex[index*4+3] = 255;
+		}
+	texture->uploadRGBA8( xres, yres, tex );
+
+
+
 	//geo = base::geo_pointCloud();
-	//geo = base::geo_quad();
-	geo = base::geo_grid( 50, 50 );
+	geo = base::geo_quad();
+	//geo = base::geo_grid( 50, 50 );
 
 
 
@@ -354,6 +374,7 @@ int main(int argc, char ** argv)
 	//shader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
 	shader = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_ps.glsl" );
 
+	shader->setUniform( "input", texture->getUniform() );
 
 	return app.exec();
 }
