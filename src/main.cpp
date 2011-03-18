@@ -22,7 +22,8 @@
 
 base::ContextPtr context;
 base::GeometryPtr geo;
-base::Texture2dPtr texture;
+base::Texture1dPtr texture1d;
+base::Texture2dPtr texture2d;
 base::Texture3dPtr texture3d;
 base::ShaderPtr shader;
 base::ShaderPtr shader_screen;
@@ -143,8 +144,8 @@ void render2( base::CameraPtr cam )
 	// render to screen
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	context->renderScreen( shader_screen );
-	//context->render( geo, shader );
+	//context->renderScreen( shader_screen );
+	context->render( geo, shader );
 }
 
 // angle in rad
@@ -348,11 +349,29 @@ int main(int argc, char ** argv)
 
 	context = base::ContextPtr( new base::Context() );
 
-	texture = base::Texture2d::createRGBA8();
+
+	texture1d = base::Texture1d::createRGBA8();
 
 	int xres = 128;
+	char *tex = (char *)malloc(xres*4);
+	for(int i=0;i<xres;++i)
+	{
+		int index = i;
+		tex[index*4] = 255 - (int)(((float)(i)/(float)(xres))*255.0f);
+		tex[index*4+1] = 255;
+		tex[index*4+2] = 0;
+		tex[index*4+3] = 255;
+	}
+	texture1d->uploadRGBA8( xres, tex );
+	free(tex);
+
+
+
+	texture2d = base::Texture2d::createRGBA8();
+
+	xres = 128;
 	int yres = 128;
-	char *tex = (char *)malloc(xres*yres*4);
+	tex = (char *)malloc(xres*yres*4);
 	for(int j=0;j<yres;++j)
 		for(int i=0;i<xres;++i)
 		{
@@ -362,7 +381,7 @@ int main(int argc, char ** argv)
 			tex[index*4+2] = 0;
 			tex[index*4+3] = 255;
 		}
-	texture->uploadRGBA8( xres, yres, tex );
+	texture2d->uploadRGBA8( xres, yres, tex );
 	free(tex);
 
 
@@ -383,8 +402,8 @@ int main(int argc, char ** argv)
 	free(tex);
 
 	//geo = base::geo_pointCloud();
-	//geo = base::geo_quad();
-	geo = base::geo_cube();
+	geo = base::geo_quad();
+	//geo = base::geo_cube();
 	//geo = base::geo_grid( 50, 50 );
 
 
@@ -394,7 +413,8 @@ int main(int argc, char ** argv)
 	shader = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_ps.glsl" );
 	shader_screen = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/screen_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/volume_ps.glsl" );
 
-	//shader->setUniform( "input", texture3d->getUniform() );
+	//shader->setUniform( "input", texture->getUniform() );
+	shader->setUniform( "input", texture2d->getUniform() );
 
 	return app.exec();
 }
