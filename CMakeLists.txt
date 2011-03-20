@@ -5,29 +5,69 @@ cmake_minimum_required(VERSION 2.8)
 
 
 #
-# get base sources
+# assigns sourcegroup from path
 #
-file(GLOB_RECURSE base_math_sources src/base/math/*.cpp src/base/math/*.h)
-source_group( src\\base\\math FILES ${base_math_sources} )
-file(GLOB_RECURSE base_ui_sources src/base/ui/*.cpp src/base/ui/*.h)
-source_group( src\\base\\ui FILES ${base_ui_sources} )
-file(GLOB_RECURSE base_gfx_sources src/base/gfx/*.cpp src/base/gfx/*.h)
-source_group( src\\base\\gfx FILES ${base_gfx_sources} )
-file(GLOB_RECURSE base_gltools_sources src/base/gltools/*.cpp src/base/gltools/*.h)
-source_group( src\\base\\gltools FILES ${base_gltools_sources} )
-file(GLOB_RECURSE base_util_sources src/base/util/*.cpp src/base/util/*.h)
-source_group( src\\base\\util FILES ${base_util_sources} )
+MACRO (sourceGroups sources)
+	FOREACH (src ${${sources}})
+
+		#delete source directory
+		string(REGEX REPLACE ${CMAKE_CURRENT_SOURCE_DIR} "" last_dir ${src})
+		#delete last slash and filename
+		string(REGEX REPLACE "[\\\\/][^\\\\/]*$" "" last_dir ${last_dir})
+		#delete first slash
+		string(REGEX REPLACE "^[\\\\/]" "" last_dir ${last_dir})
+		#replace forward with backslash
+		string(REGEX REPLACE "/" "\\\\" last_dir ${last_dir})
+		# assign sourcegroup
+		source_group(${last_dir} FILES ${src})
+
+	ENDFOREACH (src)
+ENDMACRO (sourceGroups)
+
+#
+# create custom build command for glsl files
+#
+MACRO (generateCppFromGLSL sources outputs)
+	FOREACH (src ${${sources}})
+	
+	# filter glsl files
+	if(${src} MATCHES "\\.glsl$")
+
+		# strip of path and just leave filename
+		string(REGEX REPLACE "(.)*[\\\\/]" "" filename ${src})
+		# assemble output filename
+		set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${filename}.cpp )
+		
+		# add custom command
+		add_custom_command( OUTPUT ${outfile}
+							COMMAND python.exe ${CMAKE_CURRENT_SOURCE_DIR}/src/base/buildtools/glsl2cpp.py ${src} > ${outfile}
+							DEPENDS ${src} )
+
+		# assign source group
+		source_group(generated FILES ${outfile})
+		
+		# store output
+		set( ${outputs} ${${outputs}} ${outfile} )
+		
+	endif(${src} MATCHES "\\.glsl$")
+
+	ENDFOREACH (src)
+ENDMACRO (generateCppFromGLSL)
+
 
 #
 # build app application
 #
 
 #specify app sources
-file(GLOB app_sources src/*.cpp)
-source_group( src FILES ${app_sources} )
+file(GLOB_RECURSE app_sources src/*.cpp src/*.h src/*.glsl)
+sourceGroups( app_sources )
+
+#glsl build commands
+generateCppFromGLSL(app_sources glsl_outputs)
 
 # Create an executable
-add_executable(app ${app_sources} ${base_math_sources} ${base_ui_sources} ${base_gfx_sources} ${base_gltools_sources} ${base_util_sources})
+add_executable(app ${app_sources} ${glsl_outputs})
 
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )

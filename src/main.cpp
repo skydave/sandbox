@@ -180,8 +180,8 @@ int main(int argc, char ** argv)
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -409,9 +409,10 @@ int main(int argc, char ** argv)
 
 
 
-	//shader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
-	shader = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_ps.glsl" );
-	shader_screen = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/screen_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/volume_ps.glsl" );
+	shader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
+	shader_screen = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\screen_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\volume_ps.glsl" );
+	//shader = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_ps.glsl" );
+	//shader_screen = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/screen_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/volume_ps.glsl" );
 
 	//shader->setUniform( "input", texture->getUniform() );
 	shader->setUniform( "input", texture2d->getUniform() );
