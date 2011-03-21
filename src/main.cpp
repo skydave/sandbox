@@ -27,7 +27,15 @@ base::Texture2dPtr texture2d;
 base::Texture3dPtr texture3d;
 base::ShaderPtr shader;
 base::ShaderPtr shader_screen;
+base::ShaderPtr cloudShader;
 std::vector<math::Vec3f> positions;
+
+extern char cloud_ps[];
+extern int cloud_ps_size;
+extern char cloud_vs[];
+extern int cloud_vs_size;
+extern char common[];
+extern int common_size;
 
 void render( base::CameraPtr cam )
 {
@@ -145,7 +153,7 @@ void render2( base::CameraPtr cam )
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//context->renderScreen( shader_screen );
-	context->render( geo, shader );
+	context->render( geo, cloudShader );
 }
 
 // angle in rad
@@ -358,9 +366,9 @@ int main(int argc, char ** argv)
 	{
 		int index = i;
 		tex[index*4] = 255 - (int)(((float)(i)/(float)(xres))*255.0f);
-		tex[index*4+1] = 255;
-		tex[index*4+2] = 0;
-		tex[index*4+3] = 255;
+		tex[index*4+1] = (char)255;
+		tex[index*4+2] = (char)0;
+		tex[index*4+3] = (char)255;
 	}
 	texture1d->uploadRGBA8( xres, tex );
 	free(tex);
@@ -377,9 +385,9 @@ int main(int argc, char ** argv)
 		{
 			int index = xres*j + i;
 			tex[index*4] = (int)(((float)(i)/(float)(xres))*255.0f);
-			tex[index*4+1] = 255;
-			tex[index*4+2] = 0;
-			tex[index*4+3] = 255;
+			tex[index*4+1] = (char)255;
+			tex[index*4+2] = (char)0;
+			tex[index*4+3] = (char)255;
 		}
 	texture2d->uploadRGBA8( xres, yres, tex );
 	free(tex);
@@ -394,28 +402,33 @@ int main(int argc, char ** argv)
 			{
 				int index = xres*yres*k + xres*j + i;
 				tex[index*4] = (int)(((float)(i)/(float)(xres))*255.0f);
-				tex[index*4+1] = 255;
-				tex[index*4+2] = 0;
-				tex[index*4+3] = 255;
+				tex[index*4+1] = (char)255;
+				tex[index*4+2] = (char)0;
+				tex[index*4+3] = (char)255;
 			}
 	texture3d->uploadRGBA8( xres, yres, zres, tex );
 	free(tex);
 
 	//geo = base::geo_pointCloud();
-	geo = base::geo_quad();
+	//geo = base::geo_quad();
 	//geo = base::geo_cube();
-	//geo = base::geo_grid( 50, 50 );
+	geo = base::geo_grid( 50, 50 );
 
 
 
 
-	shader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
-	shader_screen = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\screen_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\volume_ps.glsl" );
+	//shader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
+	//shader_screen = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\screen_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\volume_ps.glsl" );
+	//cloudShader = base::Shader::load( cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size );
+	cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( common, common_size);
+	
+	//cloudShader->attach( GL_FRAGMENT_SHADER_ARB, common, common_size);
+	//cloudShader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
 	//shader = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_ps.glsl" );
 	//shader_screen = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/screen_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/volume_ps.glsl" );
 
-	//shader->setUniform( "input", texture->getUniform() );
-	shader->setUniform( "input", texture2d->getUniform() );
+	//shader->setUniform( "input", texture2d->getUniform() );
+	//cloudShader->setUniform( "input", texture2d->getUniform() );
 
 	return app.exec();
 }
