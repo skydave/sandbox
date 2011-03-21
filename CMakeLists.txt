@@ -35,12 +35,19 @@ MACRO (generateCppFromGLSL sources outputs)
 
 		# strip of path and just leave filename
 		string(REGEX REPLACE "(.)*[\\\\/]" "" filename ${src})
+
 		# assemble output filename
 		set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${filename}.cpp )
+
+		if( CMAKE_SYSTEM_NAME MATCHES Linux )
+			set( pythoncommand "python2.6" )
+		elseif( CMAKE_SYSTEM_NAME MATCHES Windows )
+			set( pythoncommand "python.exe" )
+		endif(CMAKE_SYSTEM_NAME MATCHES Windows)
 		
 		# add custom command
 		add_custom_command( OUTPUT ${outfile}
-							COMMAND python.exe ${CMAKE_CURRENT_SOURCE_DIR}/src/base/buildtools/glsl2cpp.py ${src} > ${outfile}
+							COMMAND ${pythoncommand} ${CMAKE_CURRENT_SOURCE_DIR}/src/base/buildtools/glsl2cpp.py ${src} > ${outfile}
 							DEPENDS ${src} )
 
 		# assign source group
