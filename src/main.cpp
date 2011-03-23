@@ -19,6 +19,7 @@
 #include <gfx/Shader.h>
 #include <gfx/Texture.h>
 #include <gfx/Context.h>
+#include <gfx/FCurve.h>
 
 base::ContextPtr context;
 base::GeometryPtr geo;
@@ -28,6 +29,7 @@ base::Texture3dPtr texture3d;
 base::ShaderPtr shader;
 base::ShaderPtr shader_screen;
 base::ShaderPtr cloudShader;
+base::FCurvePtr curve1;
 std::vector<math::Vec3f> positions;
 
 extern char cloud_ps[];
@@ -54,19 +56,19 @@ void render( base::CameraPtr cam )
 	base::drawGrid(false);
 
 	glPointSize(5.0f);
-/*
+
 	int numSamples = 20;
 
 	for(int i=0;i<numSamples;++i)
 	{
-		float y = i*1.0f/numSamples;
-		float x = 0.0f;
-
+		float x = i*1.0f/numSamples;
+		float y = curve1->eval( x );
 		glBegin( GL_POINTS );
 		glColor3f(1.0f, 0.0f, 0.0f);
-		//glVertex3f( x, y, 0.0f );
+		glVertex3f( x, y, 0.0f );
 		glEnd();
 	}
+	/*
 	glBegin( GL_POINTS );
 	glColor3f(1.0f, 0.0f, 0.0f);
 	for( std::vector<math::Vec3f>::iterator it = positions.begin(); it != positions.end(); ++it )
@@ -75,8 +77,10 @@ void render( base::CameraPtr cam )
 		glVertex3f( v.x, v.y, v.z );
 	}
 	glEnd();
-*/
+	*/
 
+
+/*
 	//
 	base::AttributePtr a = geo->getAttr("P");
 
@@ -131,7 +135,7 @@ void render( base::CameraPtr cam )
 			}
 		}break;
 	};
-
+*/
 
 	glMatrixMode( GL_PROJECTION );
 	glPopMatrix();
@@ -179,7 +183,7 @@ float phase( float theta, const std::vector<float> &samples )
 
 int main(int argc, char ** argv)
 {
-	base::GLViewer window( 800, 600, "test", render2 ); 
+	base::GLViewer window( 800, 600, "test", render );
 	window.show();
 	base::Application app;
 
@@ -429,6 +433,12 @@ int main(int argc, char ** argv)
 
 	//shader->setUniform( "input", texture2d->getUniform() );
 	//cloudShader->setUniform( "input", texture2d->getUniform() );
+
+
+	curve1 = base::FCurvePtr( new base::FCurve() );
+	curve1->addKey(0.0f, 0.0f);
+	curve1->addKey(0.5f, 0.5f);
+	curve1->addKey(1.0f, 1.0f);
 
 	return app.exec();
 }
