@@ -183,7 +183,7 @@ float phase( float theta, const std::vector<float> &samples )
 
 int main(int argc, char ** argv)
 {
-	base::GLViewer window( 800, 600, "test", render );
+	base::GLViewer window( 800, 600, "test", render2 );
 	window.show();
 	base::Application app;
 
@@ -417,6 +417,7 @@ int main(int argc, char ** argv)
 	//geo = base::geo_quad();
 	//geo = base::geo_cube();
 	geo = base::geo_grid( 50, 50 );
+	base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 500.0f ) );
 
 
 
