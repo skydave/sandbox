@@ -193,8 +193,8 @@ int main(int argc, char ** argv)
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -380,21 +380,29 @@ int main(int argc, char ** argv)
 
 
 
-	texture2d = base::Texture2d::createRGBA8();
+	//texture2d = base::Texture2d::createRGBA8();
+	texture2d = base::Texture2d::createRGBAFloat32();
 
 	xres = 128;
 	int yres = 128;
 	tex = (unsigned char *)malloc(xres*yres*4);
+	float *texf = (float *)malloc(xres*yres*4*sizeof(float));
 	for(int j=0;j<yres;++j)
 		for(int i=0;i<xres;++i)
 		{
 			int index = xres*j + i;
 			tex[index*4] = (int)(((float)(i)/(float)(xres))*255.0f);
-			tex[index*4+1] = (unsigned char)255;
+			tex[index*4+1] = (unsigned char)0;
 			tex[index*4+2] = (unsigned char)0;
 			tex[index*4+3] = (unsigned char)255;
+
+			texf[index*4] = i/255.0f;
+			texf[index*4+1] = 0.0f;
+			texf[index*4+2] = 0.0f;
+			texf[index*4+3] = 1.0f;
 		}
-	texture2d->uploadRGBA8( xres, yres, tex );
+	//texture2d->uploadRGBA8( xres, yres, tex );
+	texture2d->uploadRGBAFloat32( xres, yres, texf );
 	free(tex);
 
 
@@ -434,7 +442,7 @@ int main(int argc, char ** argv)
 	//shader_screen = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/screen_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/volume_ps.glsl" );
 
 	//shader->setUniform( "input", texture2d->getUniform() );
-	//cloudShader->setUniform( "input", texture2d->getUniform() );
+	cloudShader->setUniform( "input", texture2d->getUniform() );
 
 
 	curve1 = base::FCurvePtr( new base::FCurve() );
