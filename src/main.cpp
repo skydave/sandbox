@@ -25,6 +25,7 @@ base::ContextPtr context;
 base::GeometryPtr geo;
 base::Texture1dPtr texture1d;
 base::Texture2dPtr texture2d;
+base::Texture2dPtr noisePermutationTableTex;
 base::Texture3dPtr texture3d;
 base::ShaderPtr shader;
 base::ShaderPtr shader_screen;
@@ -192,8 +193,8 @@ int main(int argc, char ** argv)
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -365,14 +366,14 @@ int main(int argc, char ** argv)
 	texture1d = base::Texture1d::createRGBA8();
 
 	int xres = 128;
-	char *tex = (char *)malloc(xres*4);
+	unsigned char *tex = (unsigned char *)malloc(xres*4);
 	for(int i=0;i<xres;++i)
 	{
 		int index = i;
 		tex[index*4] = 255 - (int)(((float)(i)/(float)(xres))*255.0f);
-		tex[index*4+1] = (char)255;
-		tex[index*4+2] = (char)0;
-		tex[index*4+3] = (char)255;
+		tex[index*4+1] = (unsigned char)255;
+		tex[index*4+2] = (unsigned char)0;
+		tex[index*4+3] = (unsigned char)255;
 	}
 	texture1d->uploadRGBA8( xres, tex );
 	free(tex);
@@ -383,15 +384,15 @@ int main(int argc, char ** argv)
 
 	xres = 128;
 	int yres = 128;
-	tex = (char *)malloc(xres*yres*4);
+	tex = (unsigned char *)malloc(xres*yres*4);
 	for(int j=0;j<yres;++j)
 		for(int i=0;i<xres;++i)
 		{
 			int index = xres*j + i;
 			tex[index*4] = (int)(((float)(i)/(float)(xres))*255.0f);
-			tex[index*4+1] = (char)255;
-			tex[index*4+2] = (char)0;
-			tex[index*4+3] = (char)255;
+			tex[index*4+1] = (unsigned char)255;
+			tex[index*4+2] = (unsigned char)0;
+			tex[index*4+3] = (unsigned char)255;
 		}
 	texture2d->uploadRGBA8( xres, yres, tex );
 	free(tex);
@@ -399,16 +400,16 @@ int main(int argc, char ** argv)
 
 	texture3d = base::Texture3d::createRGBA8();
 	int zres = 128;
-	tex = (char *)malloc(xres*yres*zres*4);
+	tex = (unsigned char *)malloc(xres*yres*zres*4);
 	for(int k=0;k<zres;++k)
 		for(int j=0;j<yres;++j)
 			for(int i=0;i<xres;++i)
 			{
 				int index = xres*yres*k + xres*j + i;
 				tex[index*4] = (int)(((float)(i)/(float)(xres))*255.0f);
-				tex[index*4+1] = (char)255;
-				tex[index*4+2] = (char)0;
-				tex[index*4+3] = (char)255;
+				tex[index*4+1] = (unsigned char)255;
+				tex[index*4+2] = (unsigned char)0;
+				tex[index*4+3] = (unsigned char)255;
 			}
 	texture3d->uploadRGBA8( xres, yres, zres, tex );
 	free(tex);
@@ -440,6 +441,36 @@ int main(int argc, char ** argv)
 	curve1->addKey(0.0f, 0.0f);
 	curve1->addKey(0.5f, 0.5f);
 	curve1->addKey(1.0f, 1.0f);
+
+
+
+
+
+
+	//
+	// noise permutation texture
+	//
+	unsigned char *pixels = (unsigned  char*)malloc( 256*256*4 );
+	for(int i = 0; i<256; i++)
+		for(int j = 0; j<256; j++)
+		{
+			int offset = (i*256+j)*4;
+			unsigned char value = (int)math::perlinnoise::perm[(j+(int)math::perlinnoise::perm[i]) & 0xFF];
+			pixels[offset] = (int)math::perlinnoise::grad3[value & 0x0F][0] * 64 + 64;   // Gradient x
+			pixels[offset+1] = (int)math::perlinnoise::grad3[value & 0x0F][1] * 64 + 64; // Gradient y
+			pixels[offset+2] = (int)math::perlinnoise::grad3[value & 0x0F][2] * 64 + 64; // Gradient z
+			pixels[offset+3] = int((value & 0xFF)*0.5);                     // Permuted index
+		}
+
+	//Texture *noisePermutationTableTex = new Texture(256, 256, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	noisePermutationTableTex = base::Texture2d::createRGBA8();
+	noisePermutationTableTex->uploadRGBA8(256, 256, pixels);
+	// set wrap mode
+	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+
+	//Shader::setGlobalUniform( "permTexture", noisePermutationTableTex->getUniform() );
+	context->setUniform("permTexture", noisePermutationTableTex->getUniform());
 
 	return app.exec();
 }

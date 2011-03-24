@@ -43,7 +43,7 @@ MACRO (generateCppFromGLSL sources outputs)
 			set( pythoncommand "python2.6" )
 		elseif( CMAKE_SYSTEM_NAME MATCHES Windows )
 			set( pythoncommand "python.exe" )
-		endif(CMAKE_SYSTEM_NAME MATCHES Windows)
+		endif(CMAKE_SYSTEM_NAME MATCHES Linux)
 		
 		# add custom command
 		add_custom_command( OUTPUT ${outfile}
