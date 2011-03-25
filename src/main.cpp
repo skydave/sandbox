@@ -20,6 +20,7 @@
 #include <gfx/Texture.h>
 #include <gfx/Context.h>
 #include <gfx/FCurve.h>
+#include <gfx/glsl/common.h>
 
 base::ContextPtr context;
 base::GeometryPtr geo;
@@ -37,8 +38,7 @@ extern char cloud_ps[];
 extern int cloud_ps_size;
 extern char cloud_vs[];
 extern int cloud_vs_size;
-extern char common[];
-extern int common_size;
+
 
 void render( base::CameraPtr cam )
 {
@@ -434,14 +434,13 @@ int main(int argc, char ** argv)
 	//shader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
 	//shader_screen = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\screen_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\volume_ps.glsl" );
 	//cloudShader = base::Shader::load( cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size );
-	cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( common, common_size);
-	
+	//cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( common, common_size);
+	cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( base::glsl::common() );
 	//cloudShader->attach( GL_FRAGMENT_SHADER_ARB, common, common_size);
 	//cloudShader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
 	//shader = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_ps.glsl" );
 	//shader_screen = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/screen_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/volume_ps.glsl" );
 
-	//shader->setUniform( "input", texture2d->getUniform() );
 	cloudShader->setUniform( "input", texture2d->getUniform() );
 
 
@@ -455,30 +454,7 @@ int main(int argc, char ** argv)
 
 
 
-	//
-	// noise permutation texture
-	//
-	unsigned char *pixels = (unsigned  char*)malloc( 256*256*4 );
-	for(int i = 0; i<256; i++)
-		for(int j = 0; j<256; j++)
-		{
-			int offset = (i*256+j)*4;
-			unsigned char value = (int)math::perlinnoise::perm[(j+(int)math::perlinnoise::perm[i]) & 0xFF];
-			pixels[offset] = (int)math::perlinnoise::grad3[value & 0x0F][0] * 64 + 64;   // Gradient x
-			pixels[offset+1] = (int)math::perlinnoise::grad3[value & 0x0F][1] * 64 + 64; // Gradient y
-			pixels[offset+2] = (int)math::perlinnoise::grad3[value & 0x0F][2] * 64 + 64; // Gradient z
-			pixels[offset+3] = int((value & 0xFF)*0.5);                     // Permuted index
-		}
-
-	//Texture *noisePermutationTableTex = new Texture(256, 256, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-	noisePermutationTableTex = base::Texture2d::createRGBA8();
-	noisePermutationTableTex->uploadRGBA8(256, 256, pixels);
-	// set wrap mode
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-
-	//Shader::setGlobalUniform( "permTexture", noisePermutationTableTex->getUniform() );
-	context->setUniform("permTexture", noisePermutationTableTex->getUniform());
+	context->setUniform("common_permTexture", base::glsl::noisePermutationTableTex()->getUniform());
 
 	return app.exec();
 }

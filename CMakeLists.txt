@@ -4,6 +4,7 @@ project("app")
 cmake_minimum_required(VERSION 2.8)
 
 
+
 #
 # assigns sourcegroup from path
 #

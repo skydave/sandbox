@@ -14,8 +14,8 @@ void main()
 {
 
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 0.0);
-	gl_FragData[0] = texture2D(input, uv);
-	//gl_FragData[0] = vec4(turb2d( uv*100.0, 8 ).x*0.5+0.5);
+	//gl_FragData[0] = texture2D(input, uv);
+	gl_FragData[0] = vec4(turb2d( uv*100.0, 8 ).x*0.5+0.5);
 	//gl_FragData[0] = vec4(noise2d_org( uv ).x);
 	//gl_FragData[0] = texture2D(input, uv);
 	//gl_FragData[0] = vec4(1.0, 0.0, 0.0, 1.0);
