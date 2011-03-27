@@ -436,8 +436,9 @@ int main(int argc, char ** argv)
 	//geo = base::geo_pointCloud();
 	//geo = base::geo_quad();
 	//geo = base::geo_cube();
-	geo = base::geo_grid( 50, 50 );
+	geo = base::geo_grid( 2, 2 );
 	base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 500.0f ) );
+	base::apply_normals( geo );
 
 
 
@@ -562,6 +563,7 @@ int main(int argc, char ** argv)
 	clouds_parmameters->uploadRGBAFloat32(numSamples, numParameters, clouds_parameters_tex);
 
 	cloudShader->setUniform( "parameters", clouds_parmameters->getUniform() );
+	cloudShader->setUniform( "sunPos", math::Vec3f( 0.0f, 50.0f, 0.0f ) );
 
 
 

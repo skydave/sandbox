@@ -4,7 +4,12 @@ varying vec2 uv;
 
 uniform int oid;
 uniform sampler2D input;
+
+//
+// cloud shader
+//
 uniform sampler2D parameters;
+uniform vec3          sunPos;
 
 vec3 noise2d( vec2 P );
 vec3 noise2d_org( vec2 P );
@@ -38,12 +43,24 @@ float r( float cos_theta )
 
 void main()
 {
+	// prepare parameters
+	vec3 L = normalize(sunPos - pw.xyz);
+	vec3 N = normalize(n);
+	float ml = dot( L, N );
+
+
+
+	// do some fake lighting to check
+	vec4 Cd = vec4(0.75, 0.75, 0.75, 1.0);
+	gl_FragData[0] = Cd*ml;
+
+
 
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 0.0);
 	//gl_FragData[0] = texture2D(input, uv);
 	//gl_FragData[0] = texture2D(parameters, uv);
 	//gl_FragData[0] = texture2D(parameters, vec2(uv.x, 0.75));
-	gl_FragData[0] = vec4(b(uv.x));
+	//gl_FragData[0] = vec4(b(uv.x));
 	//gl_FragData[0] = vec4(turb2d( uv*100.0, 8 ).x*0.5+0.5);
 	//gl_FragData[0] = vec4(noise2d_org( uv ).x);
 	//gl_FragData[0] = texture2D(input, uv);

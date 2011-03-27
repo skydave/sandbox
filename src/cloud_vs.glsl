@@ -12,7 +12,8 @@ uniform mat3 mvminvt;
 void main()
 {
 	pw = P;
-	n = mvminvt * N;
+	//n = mvminvt * N;  // normal in view space
+	n = N;  // normal in world space
 	uv = UV;
 	gl_Position = mvpm * vec4(pw, 1.0);
 }
