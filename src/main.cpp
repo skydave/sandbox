@@ -34,6 +34,11 @@ base::ShaderPtr cloudShader;
 base::FCurvePtr curve1;
 std::vector<math::Vec3f> positions;
 
+
+
+base::Texture2dPtr clouds_parmameters;
+
+
 extern char cloud_ps[];
 extern int cloud_ps_size;
 extern char cloud_vs[];
@@ -193,8 +198,8 @@ int main(int argc, char ** argv)
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -334,6 +339,7 @@ int main(int argc, char ** argv)
 	//
 	// circle
 	//
+	/*
 	int numSamples = 4000;
 	//float center = -1.6f;
 	float center = 2.64e-03f;
@@ -351,6 +357,7 @@ int main(int argc, char ** argv)
 		//if( r > .0f )
 		positions.push_back(p);
 	}
+	*/
 
 
 	GLenum err = glewInit();
@@ -367,6 +374,7 @@ int main(int argc, char ** argv)
 
 	int xres = 128;
 	unsigned char *tex = (unsigned char *)malloc(xres*4);
+	float *texf = (float *)malloc(xres*1*sizeof(float));
 	for(int i=0;i<xres;++i)
 	{
 		int index = i;
@@ -374,9 +382,11 @@ int main(int argc, char ** argv)
 		tex[index*4+1] = (unsigned char)255;
 		tex[index*4+2] = (unsigned char)0;
 		tex[index*4+3] = (unsigned char)255;
+		texf[i] = (float)i / (float)xres;
 	}
 	texture1d->uploadRGBA8( xres, tex );
 	free(tex);
+	free(texf);
 
 
 
@@ -386,7 +396,7 @@ int main(int argc, char ** argv)
 	xres = 128;
 	int yres = 128;
 	tex = (unsigned char *)malloc(xres*yres*4);
-	float *texf = (float *)malloc(xres*yres*4*sizeof(float));
+	texf = (float *)malloc(xres*yres*4*sizeof(float));
 	for(int j=0;j<yres;++j)
 		for(int i=0;i<xres;++i)
 		{
@@ -404,6 +414,7 @@ int main(int argc, char ** argv)
 	//texture2d->uploadRGBA8( xres, yres, tex );
 	texture2d->uploadRGBAFloat32( xres, yres, texf );
 	free(tex);
+	free(texf);
 
 
 	texture3d = base::Texture3d::createRGBA8();
@@ -455,6 +466,125 @@ int main(int argc, char ** argv)
 
 
 	context->setUniform("common_permTexture", base::glsl::noisePermutationTableTex()->getUniform());
+
+
+
+
+
+
+
+	//
+	// setup cloud shader
+	//
+	clouds_parmameters = base::Texture2d::createRGBAFloat32();
+
+	base::FCurvePtr b;
+	b = base::FCurvePtr( new base::FCurve() );
+	b->addKey(1.0f - cos(math::degToRad(0.0f)), 1.1796f);
+	b->addKey(1.0f - cos(math::degToRad(10.0f)), 1.1293f);
+	b->addKey(1.0f - cos(math::degToRad(20.0f)), 1.1382f);
+	b->addKey(1.0f - cos(math::degToRad(30.0f)), 1.0953f);
+	b->addKey(1.0f - cos(math::degToRad(40.0f)), 0.9808f);
+	b->addKey(1.0f - cos(math::degToRad(50.0f)), 0.9077f);
+	b->addKey(1.0f - cos(math::degToRad(60.0f)), 0.7987f);
+	b->addKey(1.0f - cos(math::degToRad(70.0f)), 0.6629f);
+	b->addKey(1.0f - cos(math::degToRad(80.0f)), 0.5043f);
+	b->addKey(1.0f - cos(math::degToRad(90.0f)), 0.3021f);
+	base::FCurvePtr c;
+	c = base::FCurvePtr( new base::FCurve() );
+	c->addKey(1.0f - cos(math::degToRad(0.0f)), 0.0138f);
+	c->addKey(1.0f - cos(math::degToRad(10.0f)), 0.0154f);
+	c->addKey(1.0f - cos(math::degToRad(20.0f)), 0.0131f);
+	c->addKey(1.0f - cos(math::degToRad(30.0f)), 0.0049f);
+	c->addKey(1.0f - cos(math::degToRad(40.0f)), 0.0012f);
+	c->addKey(1.0f - cos(math::degToRad(50.0f)), 0.0047f);
+	c->addKey(1.0f - cos(math::degToRad(60.0f)), 0.0207f);
+	c->addKey(1.0f - cos(math::degToRad(70.0f)), 0.0133f);
+	c->addKey(1.0f - cos(math::degToRad(80.0f)), 0.0280f);
+	c->addKey(1.0f - cos(math::degToRad(90.0f)), 0.0783f);
+	base::FCurvePtr kc;
+	kc = base::FCurvePtr( new base::FCurve() );
+	kc->addKey(1.0f - cos(math::degToRad(0.0f)), 0.0265f);
+	kc->addKey(1.0f - cos(math::degToRad(10.0f)), 0.0262f);
+	kc->addKey(1.0f - cos(math::degToRad(20.0f)), 0.0272f);
+	kc->addKey(1.0f - cos(math::degToRad(30.0f)), 0.0294f);
+	kc->addKey(1.0f - cos(math::degToRad(40.0f)), 0.0326f);
+	kc->addKey(1.0f - cos(math::degToRad(50.0f)), 0.0379f);
+	kc->addKey(1.0f - cos(math::degToRad(60.0f)), 0.0471f);
+	kc->addKey(1.0f - cos(math::degToRad(70.0f)), 0.0616f);
+	kc->addKey(1.0f - cos(math::degToRad(80.0f)), 0.0700f);
+	kc->addKey(1.0f - cos(math::degToRad(90.0f)), 0.0700f);
+	base::FCurvePtr t;
+	t = base::FCurvePtr( new base::FCurve() );
+	t->addKey(1.0f - cos(math::degToRad(0.0f)), 0.8389f);
+	t->addKey(1.0f - cos(math::degToRad(10.0f)), 0.8412f);
+	t->addKey(1.0f - cos(math::degToRad(20.0f)), 0.8334f);
+	t->addKey(1.0f - cos(math::degToRad(30.0f)), 0.8208f);
+	t->addKey(1.0f - cos(math::degToRad(40.0f)), 0.8010f);
+	t->addKey(1.0f - cos(math::degToRad(50.0f)), 0.7774f);
+	t->addKey(1.0f - cos(math::degToRad(60.0f)), 0.7506f);
+	t->addKey(1.0f - cos(math::degToRad(70.0f)), 0.7165f);
+	t->addKey(1.0f - cos(math::degToRad(80.0f)), 0.7149f);
+	t->addKey(1.0f - cos(math::degToRad(90.0f)), 0.1000f);
+	base::FCurvePtr r;
+	r = base::FCurvePtr( new base::FCurve() );
+	r->addKey(1.0f - cos(math::degToRad(0.0f)), 0.0547f);
+	r->addKey(1.0f - cos(math::degToRad(10.0f)), 0.0547f);
+	r->addKey(1.0f - cos(math::degToRad(20.0f)), 0.0552f);
+	r->addKey(1.0f - cos(math::degToRad(30.0f)), 0.0564f);
+	r->addKey(1.0f - cos(math::degToRad(40.0f)), 0.0603f);
+	r->addKey(1.0f - cos(math::degToRad(50.0f)), 0.0705f);
+	r->addKey(1.0f - cos(math::degToRad(60.0f)), 0.0984f);
+	r->addKey(1.0f - cos(math::degToRad(70.0f)), 0.1700f);
+	r->addKey(1.0f - cos(math::degToRad(80.0f)), 0.3554f);
+	r->addKey(1.0f - cos(math::degToRad(90.0f)), 0.9500f);
+
+
+
+	int numSamples = 128;
+	int numParameters = 2;
+	float *clouds_parameters_tex = (float *)malloc(numSamples*numParameters*4*sizeof(float));
+	for(int i =0; i<numSamples; ++i)
+	{
+		int row = numSamples*4;
+		float one_minus_cos_theta = (float)i/(float)numSamples;
+		float cos_theta = 1.0f - one_minus_cos_theta;
+		clouds_parameters_tex[i*4] = b->eval(cos_theta);
+		clouds_parameters_tex[i*4+1] = c->eval(cos_theta);
+		clouds_parameters_tex[i*4+2] = kc->eval(cos_theta);
+		clouds_parameters_tex[i*4+3] = t->eval(cos_theta);
+
+		clouds_parameters_tex[row+i*4] = r->eval(cos_theta);
+		clouds_parameters_tex[row+i*4+1] = 0.0;
+		clouds_parameters_tex[row+i*4+2] = 0.0;
+		clouds_parameters_tex[row+i*4+3] = 0.0;
+	}
+	clouds_parmameters->uploadRGBAFloat32(numSamples, numParameters, clouds_parameters_tex);
+
+	cloudShader->setUniform( "parameters", clouds_parmameters->getUniform() );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	return app.exec();
 }
