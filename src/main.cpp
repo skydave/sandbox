@@ -194,12 +194,12 @@ int main(int argc, char ** argv)
 	base::Application app;
 
 	// get samples of Ptheta
-	std::vector<float> P_theta;
+	std::vector<float> P_theta_samples;
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -242,7 +242,7 @@ int main(int argc, char ** argv)
 				//intensity = exp( intensity );
 
 
-				P_theta.push_back(intensity);
+				P_theta_samples.push_back(intensity);
 			}
 		}
     }
@@ -257,13 +257,13 @@ int main(int argc, char ** argv)
 	float A_slice = 0.0f;
 
 	float theta = 0.0f;
-	for(int n=0; n<P_theta.size();++n)
+	for(int n=0; n<P_theta_samples.size();++n)
 	{
-		A_slice += P_theta[n]*sin(theta);
+		A_slice += P_theta_samples[n]*sin(theta);
 
-		theta += (MATH_PIf/P_theta.size());
+		theta += (MATH_PIf/P_theta_samples.size());
 	}
-	A_slice = (MATH_PIf/P_theta.size())*A_slice;
+	A_slice = (MATH_PIf/P_theta_samples.size())*A_slice;
 	float V = 2.0f * MATH_PIf * A_slice;
 
 	std::cout << "Volume is: " << V << std::endl;
@@ -539,10 +539,18 @@ int main(int argc, char ** argv)
 	r->addKey(1.0f - cos(math::degToRad(70.0f)), 0.1700f);
 	r->addKey(1.0f - cos(math::degToRad(80.0f)), 0.3554f);
 	r->addKey(1.0f - cos(math::degToRad(90.0f)), 0.9500f);
+	base::FCurvePtr P_theta;
+	P_theta = base::FCurvePtr( new base::FCurve(base::FCurve::LINEAR) );
+	theta = 0.0f;
+	for(int n=0; n<P_theta_samples.size();++n)
+	{
+		P_theta->addKey(theta/MATH_PIf, P_theta_samples[n]);
+		//P_theta->addKey(theta/MATH_PIf, (float)n/(float)P_theta_samples.size());
+		theta += (MATH_PIf/P_theta_samples.size());
+	}
 
 
-
-	int numSamples = 128;
+	int numSamples = 512;
 	int numParameters = 2;
 	float *clouds_parameters_tex = (float *)malloc(numSamples*numParameters*4*sizeof(float));
 	for(int i =0; i<numSamples; ++i)
@@ -556,17 +564,48 @@ int main(int argc, char ** argv)
 		clouds_parameters_tex[i*4+3] = t->eval(cos_theta);
 
 		clouds_parameters_tex[row+i*4] = r->eval(cos_theta);
-		clouds_parameters_tex[row+i*4+1] = 0.0;
+		clouds_parameters_tex[row+i*4+1] = P_theta->eval((float)i/(float)numSamples);
 		clouds_parameters_tex[row+i*4+2] = 0.0;
 		clouds_parameters_tex[row+i*4+3] = 0.0;
 	}
 	clouds_parmameters->uploadRGBAFloat32(numSamples, numParameters, clouds_parameters_tex);
+	free(clouds_parameters_tex);
 
 	cloudShader->setUniform( "parameters", clouds_parmameters->getUniform() );
 	cloudShader->setUniform( "sunPos", math::Vec3f( 0.0f, 50.0f, 0.0f ) );
 
+	//
+	// compute Pf
+	{
+		float theta_f = math::degToRad(5.0f); // in rad
+		// integrate one slice
+		float A_slice = 0.0f;
 
+		float theta = 0.0f;
+		for(int n=0; n<P_theta_samples.size();++n)
+		{
+			if( theta < theta_f )
+				A_slice += P_theta_samples[n]*sin(theta);
 
+			theta += (MATH_PIf/P_theta_samples.size());
+		}
+		A_slice = (MATH_PIf/P_theta_samples.size())*A_slice;
+		float Pf = 2.0f * MATH_PIf * A_slice;
+
+		// normalize over solid angle of sphere
+		Pf /= 4.0f*MATH_PIf;
+
+		std::cout << "Pf=" << Pf << std::endl;
+		cloudShader->setUniform( "Pf", Pf );
+		cloudShader->setUniform( "theta_f", theta_f );
+	}
+
+	// effective radius in micrometer (mm)
+	cloudShader->setUniform( "re", 7.0f );
+	//  in cm^-3
+	cloudShader->setUniform( "N0", 300.0f );
+	// beta
+	cloudShader->setUniform( "beta", 0.9961f );
 
 
 

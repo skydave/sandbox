@@ -3,18 +3,40 @@ varying vec3 n;
 varying vec2 uv;
 
 uniform int oid;
+uniform mat4 vminv;
 uniform sampler2D input;
+
+float PI = 3.14159265358979323846264;
+
+
+vec3 noise2d( vec2 P );
+vec3 noise2d_org( vec2 P );
+
+vec3 turb2d( vec2 p, int numIterations );
+
+vec3 getCameraPos()
+{
+	// vmatrix transforms from camera to world space
+	// vmatrix inverse transforms from world to camera space
+	// we transpose it to inverse the inverse
+	mat4 t = transpose(vminv);
+	return vec3( t[0].w, t[1].w, t[2].w );
+}
+
+
+
+
 
 //
 // cloud shader
 //
 uniform sampler2D parameters;
 uniform vec3          sunPos;
+uniform float             Pf; // forward scattering weight/share of P_theta
+uniform float        theta_f; // angle which seperates forward scattering in radians
+uniform float             re; // effective radius in micro meter
+uniform float             N0; // in cm^-3
 
-vec3 noise2d( vec2 P );
-vec3 noise2d_org( vec2 P );
-
-vec3 turb2d( vec2 p, int numIterations );
 
 float b( float cos_theta )
 {
@@ -41,11 +63,50 @@ float r( float cos_theta )
 	return texture2D(parameters, vec2(cos_theta, 0.75)).r;
 }
 
+// takes theta which goes from 0 to pi
+float P_theta( float theta )
+{
+	return texture2D(parameters, vec2(theta/PI, 0.75)).g;
+}
+
+float Ps( float theta )
+{
+	return P_theta(theta)/(1.0 - Pf);
+}
+
+float PF( float theta )
+{
+	if(theta < theta_f)
+		return P_theta(theta)/Pf;
+	return 0.0;
+}
+
+float Os()
+{
+	return (1.0 - Pf)*PI*re*re;
+}
+
+float Ks()
+{
+	return Os()*N0;
+}
+
+float Taus( float x )
+{
+	return exp(-Ks()*x);
+}
+
+float Ss( float x )
+{
+	return Ks()*exp(-Ks()*x);
+}
+
 void main()
 {
 	// prepare parameters
 	vec3 L = normalize(sunPos - pw.xyz);
 	vec3 N = normalize(n);
+	vec3 E = normalize(getCameraPos() - pw.xyz);
 	float ml = dot( L, N );
 
 
@@ -60,7 +121,8 @@ void main()
 	//gl_FragData[0] = texture2D(input, uv);
 	//gl_FragData[0] = texture2D(parameters, uv);
 	//gl_FragData[0] = texture2D(parameters, vec2(uv.x, 0.75));
-	//gl_FragData[0] = vec4(b(uv.x));
+	//gl_FragData[0] = vec4(P_theta(uv.x*PI));
+	//gl_FragData[0] = vec4(Pf);
 	//gl_FragData[0] = vec4(turb2d( uv*100.0, 8 ).x*0.5+0.5);
 	//gl_FragData[0] = vec4(noise2d_org( uv ).x);
 	//gl_FragData[0] = texture2D(input, uv);
