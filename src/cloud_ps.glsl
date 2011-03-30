@@ -36,6 +36,7 @@ uniform float             Pf; // forward scattering weight/share of P_theta
 uniform float        theta_f; // angle which seperates forward scattering in radians
 uniform float             re; // effective radius in micro meter
 uniform float             N0; // in cm^-3
+uniform float           beta; // ?
 
 
 float b( float cos_theta )
@@ -71,14 +72,15 @@ float P_theta( float theta )
 
 float Ps( float theta )
 {
+	if( theta < theta_f )
 	return P_theta(theta)/(1.0 - Pf);
 }
 
 float PF( float theta )
 {
 	if(theta < theta_f)
-		return P_theta(theta)/Pf;
-	return 0.0;
+		return 0.0;
+	return P_theta(theta)/Pf;
 }
 
 float Os()
@@ -101,19 +103,67 @@ float Ss( float x )
 	return Ks()*exp(-Ks()*x);
 }
 
+
 void main()
 {
 	// prepare parameters
-	vec3 L = normalize(sunPos - pw.xyz);
+	vec3 sunDir = -vec3(.8, 1.0, .8);
+	//vec3 L = normalize(sunPos - pw.xyz);
+	vec3 L = normalize(-sunDir);
 	vec3 N = normalize(n);
 	vec3 E = normalize(getCameraPos() - pw.xyz);
-	float ml = dot( L, N );
+	vec3 Z = vec3(0.0, 1.0, 0.0);
+	float ml = dot( N, L );
+	float me = dot( N, E );
+
+	float theta_vl = cos(dot( E, L ));
+
+	float maxHeight = 500.0;
+	float H = (turb2d( uv*20.0, 8 ).x*0.5+0.5)*maxHeight;
+	float Hl = H / ml;
+	float He = H / me;
+
+	vec4 Csun = vec4(1.0, 1.0, 1.0, 1.0);
+	vec4 Csky = vec4(.5, .5, 0.8, 1.0);
+	vec4 Cground = vec4( 0.54, 0.46, 0.39, 1.0);
+
+
+	// compute Ir3
+	float Tms = (b(ml) + (1.0 - b(ml))*exp(-c(ml)*H))  *  (beta/(H-(H-1.0)*beta));
+	float Rms = 1.0 - Tms;
+	float R2 = 0.5*r(ml)*t(ml)* ( 1.0 - (2.0*H*kc(ml)+1.0)*exp(-kc(ml)*2.0*H) );
+	float R1 = 0.5 * r(ml) * (1.0 - exp(-kc(ml)*2.0*H));
+	float R3 = Rms - R1 - R2;
+	// TODO: use Z for Ir3
+	float Ir3 = R3 + ml/(4.0*PI*me);
+
+	// compute Ir2
+	float Ir2 = ((Ks()*Ps(theta_vl)*ml) / (me+ml))  *  (1.0 - Taus(Hl + He));
+
+	// compute Ir1
+	float Ir1 = ((Ks()*Ps(theta_vl)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
+
+	// compute Ir
+	float Ir = Ir1 + Ir2 + Ir3;
+
+	// compute T0
+	T0 = Taus(Hl);
+
+
+	// compute final color
+	//gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
+	gl_FragData[0] = Ir*Csun + Rms*Csky*0.01 + Tms*Cground;
+	gl_FragData[0].a = T0*10000000000000000000000.0;
+	//gl_FragData[0] = Rms*Csky;
+	//gl_FragData[0] = Ir*Csun;
+
+
 
 
 
 	// do some fake lighting to check
-	vec4 Cd = vec4(0.75, 0.75, 0.75, 1.0);
-	gl_FragData[0] = Cd*ml;
+	//vec4 Cd = vec4(0.75, 0.75, 0.75, 1.0);
+	//gl_FragData[0] = Cd*H;
 
 
 

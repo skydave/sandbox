@@ -61,6 +61,7 @@ void render( base::CameraPtr cam )
 	// draw scene
 	base::drawGrid(false);
 
+	/*
 	glPointSize(5.0f);
 
 	int numSamples = 20;
@@ -74,6 +75,23 @@ void render( base::CameraPtr cam )
 		glVertex3f( x, y, 0.0f );
 		glEnd();
 	}
+	*/
+
+	math::Matrix44f T_f3d = math::Matrix44f::TranslationMatrix( -1,0,0 )*math::Matrix44f::ScaleMatrix(5);
+	math::Matrix44f T_f3d_invers = T_f3d;
+	T_f3d_invers.invert();
+	math::Matrix44f T = math::Matrix44f::TranslationMatrix( 1,0,0 ) * T_f3d;
+
+	math::Matrix44f delta = T*T_f3d_invers;
+	math::Matrix44f T_ = delta * T_f3d;
+
+	if( T == T_ )
+		std::cout << "ARE EQUAL\n";
+	else
+		std::cout << "ARE NOT EQUAL\n";
+
+	base::drawTransform( delta );
+
 	/*
 	glBegin( GL_POINTS );
 	glColor3f(1.0f, 0.0f, 0.0f);
@@ -152,7 +170,6 @@ void render( base::CameraPtr cam )
 
 void render2( base::CameraPtr cam )
 {
-
 	glDisable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
 
@@ -190,6 +207,8 @@ float phase( float theta, const std::vector<float> &samples )
 int main(int argc, char ** argv)
 {
 	base::GLViewer window( 800, 600, "test", render2 );
+	window.getCamera()->m_znear = 1.0f;
+	window.getCamera()->m_zfar = 10000.0f;
 	window.show();
 	base::Application app;
 
@@ -198,8 +217,8 @@ int main(int argc, char ** argv)
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -437,7 +456,7 @@ int main(int argc, char ** argv)
 	//geo = base::geo_quad();
 	//geo = base::geo_cube();
 	geo = base::geo_grid( 2, 2 );
-	base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 500.0f ) );
+	base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 2000.0f ) );
 	base::apply_normals( geo );
 
 
