@@ -15,3 +15,5 @@ clouds:
 -understand which units have to be passed to the shader (re N0 etc.)
 -clarify when to use PF Ps and P and what they return for different values of theta
 --check if Ps really has to return 0 when theta<theta_f, its the phase function for scattering...
+
+Martin Jondo Reggae

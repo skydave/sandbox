@@ -23,7 +23,25 @@ vec3 getCameraPos()
 	return vec3( t[0].w, t[1].w, t[2].w );
 }
 
+vec4 phong(in vec3 n,in vec3 v,in vec3 l)
+{
+	vec3      ambient;  // ambient color
+	vec3      diffuse;  // diffuse color
+	vec3      specular; // specular color
+	float     exponent; // exponent value
+	float           ka;
+	float           kd;
+	float           ks;
+	ambient = vec3( 0.05, 0.05, 0.05 ); ka = 1.0;
+	diffuse = vec3( 0.5, 0.5, 0.5 ); kd = 1.0;
+	specular = vec3( 1.0, 1.0, 1.0 ); ks = 1.0;
+	exponent = 10.1;
+	vec3 a = ka*ambient;
+	vec3 d = kd*max(dot(n,l),0.0)*diffuse;
+	vec3 s = exponent==0.0 ? vec3(0.0) : ks*pow(max(dot(reflect(-l,n),v),0.0),exponent)*specular;
 
+	return vec4(a+d+s,1.0);
+}
 
 
 
@@ -37,6 +55,26 @@ uniform float        theta_f; // angle which seperates forward scattering in rad
 uniform float             re; // effective radius in micro meter
 uniform float             N0; // in cm^-3
 uniform float           beta; // ?
+
+
+float maxHeight = 500.0;      // max height of cloud layer in meters
+float     H = maxHeight;      // height of current shaded slab
+
+vec3         L;               // vector from sample to light
+vec3         N;               // normal at sample
+vec3         E;               // vector from sample to eye position
+float       ml;               // L.N
+float       me;               // E.N
+
+float theta_el;               // angle between E and V
+
+float       Hl;               // distance light ray travels through slab
+float       He;               // distance eye ray travels through slab
+
+
+vec4 Csun = vec4(1.0, 1.0, 1.0, 1.0);
+vec4 Csky = vec4(.5, .5, 0.8, 1.0);
+vec4 Cground = vec4( vec3(0.1), 1.0);
 
 
 float b( float cos_theta )
@@ -73,14 +111,15 @@ float P_theta( float theta )
 float Ps( float theta )
 {
 	if( theta < theta_f )
-	return P_theta(theta)/(1.0 - Pf);
+		return P_theta(theta)/(1.0 - Pf);
+	return 0.0;
 }
 
 float PF( float theta )
 {
 	if(theta < theta_f)
-		return 0.0;
-	return P_theta(theta)/Pf;
+		return P_theta(theta)/Pf;
+	return 0.0;
 }
 
 float Os()
@@ -104,29 +143,41 @@ float Ss( float x )
 }
 
 
+void setN( vec3 normal )
+{
+	N = normal;
+	ml = dot( N, L );
+	me = dot( N, E );
+	Hl = H / ml;
+	He = H / me;
+}
+
 void main()
 {
+	//
 	// prepare parameters
-	vec3 sunDir = -vec3(.8, 1.0, .8);
-	//vec3 L = normalize(sunPos - pw.xyz);
-	vec3 L = normalize(-sunDir);
-	vec3 N = normalize(n);
-	vec3 E = normalize(getCameraPos() - pw.xyz);
-	vec3 Z = vec3(0.0, 1.0, 0.0);
-	float ml = dot( N, L );
-	float me = dot( N, E );
+	//
 
-	float theta_vl = cos(dot( E, L ));
+	// compute height of slab
+	float fbm = turb2d( uv*20.0, 8 ).x*0.5+0.5;
+	float delta = 0.1;
+	float fbm_dx = ((turb2d( uv*20.0+vec2(delta, 0.0), 8 ).x*0.5+0.5)-fbm)/delta;
+	float fbm_dy = ((turb2d( uv*20.0+vec2(0.0, delta), 8 ).x*0.5+0.5)-fbm)/delta;
+	vec3 dfbm = vec3(fbm_dx, 0.0, fbm_dy);
+	H = fbm*maxHeight;
 
-	float maxHeight = 500.0;
-	float H = (turb2d( uv*20.0, 8 ).x*0.5+0.5)*maxHeight;
-	float Hl = H / ml;
-	float He = H / me;
 
-	vec4 Csun = vec4(1.0, 1.0, 1.0, 1.0);
-	vec4 Csky = vec4(.5, .5, 0.8, 1.0);
-	vec4 Cground = vec4( 0.54, 0.46, 0.39, 1.0);
+	//L = normalize(sunPos - pw.xyz);
+	L = normalize(vec3(1.0,1.0,1.0));
+	E = normalize(getCameraPos() - pw.xyz);
+	theta_el = cos(dot( E, L ));
 
+	vec3 Z = normalize(n);
+	vec3 localN = normalize( n - dfbm );
+
+
+	//for Ir3 we use global normal (0,1,0)
+	setN(Z);
 
 	// compute Ir3
 	float Tms = (b(ml) + (1.0 - b(ml))*exp(-c(ml)*H))  *  (beta/(H-(H-1.0)*beta));
@@ -134,36 +185,69 @@ void main()
 	float R2 = 0.5*r(ml)*t(ml)* ( 1.0 - (2.0*H*kc(ml)+1.0)*exp(-kc(ml)*2.0*H) );
 	float R1 = 0.5 * r(ml) * (1.0 - exp(-kc(ml)*2.0*H));
 	float R3 = Rms - R1 - R2;
-	// TODO: use Z for Ir3
-	float Ir3 = R3 + ml/(4.0*PI*me);
+	float Ir3 = R3 * (ml/(4.0*PI*me));
+
+	// compute T0 (transparency)
+	float T0 = Taus(Hl);
+
+	// change normal to local normal (which has high frequency detail from fbm)
+	setN(localN);
+
+	// (re)compute Tms using local normal
+	//Tms = (b(ml) + (1.0 - b(ml))*exp(-c(ml)*H))  *  (beta/(H-(H-1.0)*beta));
 
 	// compute Ir2
-	float Ir2 = ((Ks()*Ps(theta_vl)*ml) / (me+ml))  *  (1.0 - Taus(Hl + He));
+	//float Ir2 = ((Ks()*Ps(theta_el)*ml) / (me+ml))  *  (1.0 - Taus(Hl + He));
+	//float Ir2 = ((ml) / (me+ml)) * (1.0 - Taus(Hl + He));
+	//float Ir2 =  (1.0 - Taus(Hl + He));
+	float Ir2 = Taus(Hl + He);
 
 	// compute Ir1
-	float Ir1 = ((Ks()*Ps(theta_vl)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
+	float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
 
 	// compute Ir
-	float Ir = Ir1 + Ir2 + Ir3;
+	//float Ir = Ir1 + Ir2 + Ir3;
+	//float Ir = Ir3*10.0;
+	float Ir = Ir2;
 
-	// compute T0
-	T0 = Taus(Hl);
 
 
 	// compute final color
-	//gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
-	gl_FragData[0] = Ir*Csun + Rms*Csky*0.01 + Tms*Cground;
-	gl_FragData[0].a = T0*10000000000000000000000.0;
-	//gl_FragData[0] = Rms*Csky;
-	//gl_FragData[0] = Ir*Csun;
+	//if( pw.x < 0.0 )
+	{
+		//gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
+		//gl_FragData[0] = Ir*Csun + Rms*Csky*0.1 + Tms*Cground;
+		gl_FragData[0] = Ir*Csun;
+		//gl_FragData[0] = Rms*Csky;
+		//gl_FragData[0] = Tms*Cground;
+		//gl_FragData[0] = Ir*Csun + Tms*Cground;
+		//gl_FragData[0].a = T0*10000000000000000000000.0;
+		//gl_FragData[0].r = Z.x;
+		//gl_FragData[0].g = Z.y;
+		//gl_FragData[0].b = Z.z;
+		//gl_FragData[0] = vec4(1.0-T0);
+		//gl_FragData[0] = vec4(1.0);
+		//gl_FragData[0].a = fbm;// - T0;
+		gl_FragData[0].a = 1.0-T0;
+		//gl_FragData[0].a = 1.0;
+		//gl_FragData[0] = Rms*Csky;
+		//gl_FragData[0] = Ir*Csun;
+
+		gl_FragData[0].r = gl_FragData[0].r*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
+		gl_FragData[0].g = gl_FragData[0].g*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
+		gl_FragData[0].b = gl_FragData[0].b*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
+	}//else
+	{
+		//gl_FragData[0] = vec4(fbm, fbm, fbm, T0);
+	}
 
 
 
 
 
 	// do some fake lighting to check
-	//vec4 Cd = vec4(0.75, 0.75, 0.75, 1.0);
-	//gl_FragData[0] = Cd*H;
+	//gl_FragData[0] = phong(N, E, L);
+
 
 
 

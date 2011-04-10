@@ -21,6 +21,7 @@
 #include <gfx/Context.h>
 #include <gfx/FCurve.h>
 #include <gfx/glsl/common.h>
+#include <gfx/FBO.h>
 
 base::ContextPtr context;
 base::GeometryPtr geo;
@@ -28,10 +29,12 @@ base::Texture1dPtr texture1d;
 base::Texture2dPtr texture2d;
 base::Texture2dPtr noisePermutationTableTex;
 base::Texture3dPtr texture3d;
+base::Texture2dPtr colorBuffer;
 base::ShaderPtr shader;
 base::ShaderPtr shader_screen;
 base::ShaderPtr cloudShader;
 base::FCurvePtr curve1;
+base::FBOPtr fbo;
 std::vector<math::Vec3f> positions;
 
 
@@ -170,17 +173,41 @@ void render( base::CameraPtr cam )
 
 void render2( base::CameraPtr cam )
 {
-	glDisable( GL_CULL_FACE );
+	//fbo->begin(false);
+	glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
+	//glDisable( GL_CULL_FACE );
+	glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
+
+
 
 	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
 
 
 	// render to screen
-	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//context->renderScreen( shader_screen );
+	//glEnable( GL_BLEND );
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	context->render( geo, cloudShader );
+
+	/*
+	// debug
+	GLint viewport[4];
+	//GLubyte pixel[3];
+	float pixel[4];
+
+	glGetIntegerv(GL_VIEWPORT,viewport);
+
+	glReadPixels((int)(viewport[0] + viewport[2]*0.5f),(int)(viewport[3]-viewport[3]*0.5f),1,1, GL_RGBA,GL_FLOAT,(void *)pixel);
+
+	std::cout << "pixel " << pixel[0] << " " << pixel[1] << " " << pixel[2] << " " << pixel[3] << std::endl;
+
+	glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_TRUE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_TRUE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_TRUE);
+	*/
+
+	//fbo->end();
 }
 
 // angle in rad
@@ -208,7 +235,7 @@ int main(int argc, char ** argv)
 {
 	base::GLViewer window( 800, 600, "test", render2 );
 	window.getCamera()->m_znear = 1.0f;
-	window.getCamera()->m_zfar = 10000.0f;
+	window.getCamera()->m_zfar = 100000.0f;
 	window.show();
 	base::Application app;
 
@@ -217,8 +244,8 @@ int main(int argc, char ** argv)
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -388,6 +415,12 @@ int main(int argc, char ** argv)
 
 	context = base::ContextPtr( new base::Context() );
 
+	colorBuffer = base::Texture2d::createRGBAFloat32(512, 512);
+	fbo = base::FBOPtr( new base::FBO( 512, 512 ) );
+	fbo->setOutputs( colorBuffer );
+	fbo->finalize();
+
+
 
 	texture1d = base::Texture1d::createRGBA8();
 
@@ -455,8 +488,9 @@ int main(int argc, char ** argv)
 	//geo = base::geo_pointCloud();
 	//geo = base::geo_quad();
 	//geo = base::geo_cube();
-	geo = base::geo_grid( 2, 2 );
-	base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 2000.0f ) );
+	geo = base::geo_grid( 250, 250 );
+	//base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 2000.0f ) );
+	base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 30000.0f ) );
 	base::apply_normals( geo );
 
 
@@ -466,7 +500,7 @@ int main(int argc, char ** argv)
 	//shader_screen = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\screen_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\volume_ps.glsl" );
 	//cloudShader = base::Shader::load( cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size );
 	//cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( common, common_size);
-	cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( base::glsl::common() );
+	cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
 	//cloudShader->attach( GL_FRAGMENT_SHADER_ARB, common, common_size);
 	//cloudShader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
 	//shader = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_ps.glsl" );
@@ -591,7 +625,7 @@ int main(int argc, char ** argv)
 	free(clouds_parameters_tex);
 
 	cloudShader->setUniform( "parameters", clouds_parmameters->getUniform() );
-	cloudShader->setUniform( "sunPos", math::Vec3f( 0.0f, 50.0f, 0.0f ) );
+	cloudShader->setUniform( "sunPos", math::Vec3f( 0.0f, 3500.0f, 0.0f ) );
 
 	//
 	// compute Pf
@@ -620,9 +654,12 @@ int main(int argc, char ** argv)
 	}
 
 	// effective radius in micrometer (mm)
-	cloudShader->setUniform( "re", 7.0f );
+	//cloudShader->setUniform( "re", 7.0f );
+	//cloudShader->setUniform( "re", 0.007f );
+	cloudShader->setUniform( "re", 0.7f );
 	//  in cm^-3
-	cloudShader->setUniform( "N0", 300.0f );
+	//cloudShader->setUniform( "N0", 300.0f );
+	cloudShader->setUniform( "N0", 0.03f );
 	// beta
 	cloudShader->setUniform( "beta", 0.9961f );
 
