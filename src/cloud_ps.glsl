@@ -73,7 +73,7 @@ float       He;               // distance eye ray travels through slab
 
 
 vec4 Csun = vec4(1.0, 1.0, 1.0, 1.0);
-vec4 Csky = vec4(.5, .5, 0.8, 1.0);
+vec4 Csky = vec4(.5, .5, 0.5, 1.0);
 vec4 Cground = vec4( vec3(0.1), 1.0);
 
 
@@ -168,7 +168,7 @@ void main()
 
 
 	//L = normalize(sunPos - pw.xyz);
-	L = normalize(vec3(1.0,1.0,1.0));
+	L = normalize(vec3(1.0,10.0,1.0));
 	E = normalize(getCameraPos() - pw.xyz);
 	theta_el = cos(dot( E, L ));
 
@@ -191,16 +191,16 @@ void main()
 	float T0 = Taus(Hl);
 
 	// change normal to local normal (which has high frequency detail from fbm)
-	setN(localN);
+	//setN(localN);
 
 	// (re)compute Tms using local normal
 	//Tms = (b(ml) + (1.0 - b(ml))*exp(-c(ml)*H))  *  (beta/(H-(H-1.0)*beta));
 
 	// compute Ir2
-	//float Ir2 = ((Ks()*Ps(theta_el)*ml) / (me+ml))  *  (1.0 - Taus(Hl + He));
+	float Ir2 = ((Ks()*Ps(theta_el)*ml) / (me+ml))  *  (1.0 - Taus(Hl + He));
 	//float Ir2 = ((ml) / (me+ml)) * (1.0 - Taus(Hl + He));
 	//float Ir2 =  (1.0 - Taus(Hl + He));
-	float Ir2 = Taus(Hl + He);
+	//float Ir2 = Taus(Hl + He);
 
 	// compute Ir1
 	float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
@@ -208,16 +208,15 @@ void main()
 	// compute Ir
 	//float Ir = Ir1 + Ir2 + Ir3;
 	//float Ir = Ir3*10.0;
-	float Ir = Ir2;
+	float Ir = Ir1 + Ir2 + Ir3;
 
 
 
 	// compute final color
 	//if( pw.x < 0.0 )
 	{
-		//gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
-		//gl_FragData[0] = Ir*Csun + Rms*Csky*0.1 + Tms*Cground;
-		gl_FragData[0] = Ir*Csun;
+		gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
+		//gl_FragData[0] = Ir*Csun;
 		//gl_FragData[0] = Rms*Csky;
 		//gl_FragData[0] = Tms*Cground;
 		//gl_FragData[0] = Ir*Csun + Tms*Cground;

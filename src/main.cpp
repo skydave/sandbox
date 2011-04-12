@@ -656,10 +656,12 @@ int main(int argc, char ** argv)
 	// effective radius in micrometer (mm)
 	//cloudShader->setUniform( "re", 7.0f );
 	//cloudShader->setUniform( "re", 0.007f );
-	cloudShader->setUniform( "re", 0.7f );
+	//cloudShader->setUniform( "re", 0.7f );
+	cloudShader->setUniform( "re", 0.000007f );
 	//  in cm^-3
 	//cloudShader->setUniform( "N0", 300.0f );
-	cloudShader->setUniform( "N0", 0.03f );
+	//cloudShader->setUniform( "N0", 0.03f );
+	cloudShader->setUniform( "N0", 300000000.0f );
 	// beta
 	cloudShader->setUniform( "beta", 0.9961f );
 
