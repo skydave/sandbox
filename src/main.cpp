@@ -175,8 +175,8 @@ void render2( base::CameraPtr cam )
 {
 	//fbo->begin(false);
 	glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
-	//glDisable( GL_CULL_FACE );
-	glEnable( GL_CULL_FACE );
+	glDisable( GL_CULL_FACE );
+	//glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
 
 
@@ -625,7 +625,7 @@ int main(int argc, char ** argv)
 	free(clouds_parameters_tex);
 
 	cloudShader->setUniform( "parameters", clouds_parmameters->getUniform() );
-	cloudShader->setUniform( "sunPos", math::Vec3f( 0.0f, 3500.0f, 0.0f ) );
+	cloudShader->setUniform( "sunPos", math::Vec3f( 3500.0f, 3500.0f, 0.0f ) );
 
 	//
 	// compute Pf

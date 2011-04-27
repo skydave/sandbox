@@ -43,6 +43,19 @@ vec4 phong(in vec3 n,in vec3 v,in vec3 l)
 	return vec4(a+d+s,1.0);
 }
 
+vec4 lambert(in vec3 n,in vec3 v,in vec3 l)
+{
+	vec3      ambient;  // ambient color
+	vec3      diffuse;  // diffuse color
+	float           ka;
+	float           kd;
+	ambient = vec3( 0.05, 0.05, 0.05 ); ka = 1.0;
+	diffuse = vec3( 0.5, 0.5, 0.5 ); kd = 1.0;
+	vec3 a = ka*ambient;
+	vec3 d = kd*max(dot(n,l),0.0)*diffuse;
+	return vec4(a+d,1.0);
+}
+
 
 
 //
@@ -110,14 +123,14 @@ float P_theta( float theta )
 
 float Ps( float theta )
 {
-	if( theta < theta_f )
+	if( theta > theta_f )
 		return P_theta(theta)/(1.0 - Pf);
 	return 0.0;
 }
 
 float PF( float theta )
 {
-	if(theta < theta_f)
+	if(theta > theta_f)
 		return P_theta(theta)/Pf;
 	return 0.0;
 }
@@ -146,8 +159,8 @@ float Ss( float x )
 void setN( vec3 normal )
 {
 	N = normal;
-	ml = dot( N, L );
-	me = dot( N, E );
+	ml = clamp(dot( N, L ), 0.0, 1.0);
+	me = clamp(dot( N, E ), 0.0, 1.0);
 	Hl = H / ml;
 	He = H / me;
 }
@@ -168,7 +181,9 @@ void main()
 
 
 	//L = normalize(sunPos - pw.xyz);
-	L = normalize(vec3(1.0,10.0,1.0));
+	//L = normalize(vec3(10.0,1.0,0.0)); // pseudo-specular
+	L = normalize(vec3(10.0,2.0,0.0));
+	//L = normalize(vec3(0.0,1.0,0.0));
 	E = normalize(getCameraPos() - pw.xyz);
 	theta_el = cos(dot( E, L ));
 
@@ -185,13 +200,14 @@ void main()
 	float R2 = 0.5*r(ml)*t(ml)* ( 1.0 - (2.0*H*kc(ml)+1.0)*exp(-kc(ml)*2.0*H) );
 	float R1 = 0.5 * r(ml) * (1.0 - exp(-kc(ml)*2.0*H));
 	float R3 = Rms - R1 - R2;
+	//float Ir3 = R3 * (ml/(4.0*PI*me)*2.0);
 	float Ir3 = R3 * (ml/(4.0*PI*me));
 
 	// compute T0 (transparency)
 	float T0 = Taus(Hl);
 
 	// change normal to local normal (which has high frequency detail from fbm)
-	//setN(localN);
+	setN(localN);
 
 	// (re)compute Tms using local normal
 	//Tms = (b(ml) + (1.0 - b(ml))*exp(-c(ml)*H))  *  (beta/(H-(H-1.0)*beta));
@@ -203,29 +219,35 @@ void main()
 	//float Ir2 = Taus(Hl + He);
 
 	// compute Ir1
+	//float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
+	//float Ir1 = ((Ks()*ml*2.0) / (ml+me) )*  (1.0 - Taus(Hl + He));
 	float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
 
 	// compute Ir
-	//float Ir = Ir1 + Ir2 + Ir3;
-	//float Ir = Ir3*10.0;
 	float Ir = Ir1 + Ir2 + Ir3;
+	//float Ir = Ir3*10.0;
+	//float Ir = Ir1;
+	//float Ir = Ir2;
+	//float Ir = Ir3;
+	//float Ir = Ir1 + Ir2;
+	Ir = clamp(Ir,0.0,1.0);
 
 
 
 	// compute final color
 	//if( pw.x < 0.0 )
 	{
-		gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
 		//gl_FragData[0] = Ir*Csun;
 		//gl_FragData[0] = Rms*Csky;
 		//gl_FragData[0] = Tms*Cground;
 		//gl_FragData[0] = Ir*Csun + Tms*Cground;
+		gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
 		//gl_FragData[0].a = T0*10000000000000000000000.0;
-		//gl_FragData[0].r = Z.x;
-		//gl_FragData[0].g = Z.y;
-		//gl_FragData[0].b = Z.z;
+		//gl_FragData[0].r = N.x;
+		//gl_FragData[0].g = N.y;
+		//gl_FragData[0].b = N.z;
 		//gl_FragData[0] = vec4(1.0-T0);
-		//gl_FragData[0] = vec4(1.0);
+		//gl_FragData[0] = vec4(0.0);
 		//gl_FragData[0].a = fbm;// - T0;
 		gl_FragData[0].a = 1.0-T0;
 		//gl_FragData[0].a = 1.0;
@@ -245,7 +267,7 @@ void main()
 
 
 	// do some fake lighting to check
-	//gl_FragData[0] = phong(N, E, L);
+	//gl_FragData[0] = lambert(N, E, L);
 
 
 
