@@ -200,7 +200,6 @@ void main()
 	float R2 = 0.5*r(ml)*t(ml)* ( 1.0 - (2.0*H*kc(ml)+1.0)*exp(-kc(ml)*2.0*H) );
 	float R1 = 0.5 * r(ml) * (1.0 - exp(-kc(ml)*2.0*H));
 	float R3 = Rms - R1 - R2;
-	//float Ir3 = R3 * (ml/(4.0*PI*me)*2.0);
 	float Ir3 = R3 * (ml/(4.0*PI*me));
 
 	// compute T0 (transparency)
@@ -210,7 +209,7 @@ void main()
 	setN(localN);
 
 	// (re)compute Tms using local normal
-	//Tms = (b(ml) + (1.0 - b(ml))*exp(-c(ml)*H))  *  (beta/(H-(H-1.0)*beta));
+	Tms = (b(ml) + (1.0 - b(ml))*exp(-c(ml)*H))  *  (beta/(H-(H-1.0)*beta));
 
 	// compute Ir2
 	float Ir2 = ((Ks()*Ps(theta_el)*ml) / (me+ml))  *  (1.0 - Taus(Hl + He));

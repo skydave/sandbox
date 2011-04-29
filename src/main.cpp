@@ -23,6 +23,12 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
+#include <QtGui>
+#include <QApplication>
+
+//#include "composer/widgets/CurveEditor/CurveEditor.h"
+#include "composer/widgets/GLViewer/GLViewer.h"
+
 base::ContextPtr context;
 base::GeometryPtr geo;
 base::Texture1dPtr texture1d;
@@ -231,13 +237,10 @@ float phase( float theta, const std::vector<float> &samples )
 	return samples[index];
 }
 
-int main(int argc, char ** argv)
+
+void init()
 {
-	base::GLViewer window( 800, 600, "test", render2 );
-	window.getCamera()->m_znear = 1.0f;
-	window.getCamera()->m_zfar = 100000.0f;
-	window.show();
-	base::Application app;
+	std::cout << "init!\n";
 
 	// get samples of Ptheta
 	std::vector<float> P_theta_samples;
@@ -314,104 +317,11 @@ int main(int argc, char ** argv)
 
 	std::cout << "Volume is: " << V << std::endl;
 
-	//
-	// sphere
-	//
-	/*
-	int uSubdivisions = 20;
-	int vSubdivisions = 20;
-	float radius = 1.0f;
-	math::Vec3f center;
-
-
-
-	float dPhi = MATH_2PIf/uSubdivisions;
-	float dTheta = MATH_PIf/vSubdivisions;
-	float phi;
-
-	//Geometry *result = new Geometry();
-
-	//Attribute *positions = new Attribute();
-	//result->setPAttr(positions);
-
-
-	// y
-	for (theta=MATH_PIf/2.0f+dTheta;theta<=(3.0f*MATH_PIf)/2.0f-dTheta;theta+=dTheta)
-	{
-		math::Vec3f p;
-		float y = sin(theta);
-		// x-z
-		phi = 0.0f;
-		for( int j = 0; j<uSubdivisions; ++j  )
-		{
-			p.x = cos(theta) * cos(phi);
-			p.y = y;
-			p.z = cos(theta) * sin(phi);
-
-			p = p*radius*phase(theta, P_theta) + center;
-
-			positions.push_back( p );
-			phi+=dPhi;
-		}
-	}
-
-
-	// add faces
-	for( int j=0; j<vSubdivisions-3;++j )
-	{
-		int offset = j*(uSubdivisions);
-		int i = 0;
-		for( i=0; i<uSubdivisions-1; ++i )
-		{
-			//result->addTriangle(offset+i, offset+i + uSubdivisions, offset+i+1);
-			//result->addTriangle(offset+i + uSubdivisions, offset+i+uSubdivisions+1, offset+i+1);
-		}
-		//result->addTriangle(offset+i,offset+i + uSubdivisions,offset+0);
-		//result->addTriangle(offset+i + uSubdivisions,offset + uSubdivisions,offset);
-	}
-	//int pole1 = positions->appendElement( math::Vec3f(0.0f, 1.0f, 0.0f)*radius + center );
-	//int pole2 = positions->appendElement( math::Vec3f(0.0f, -1.0f, 0.0f)*radius + center );
-	for( int i=0; i<uSubdivisions-1; ++i )
-	{
-		//result->addTriangle(pole1, i, i+1);
-		//result->addTriangle(pole2, uSubdivisions*(vSubdivisions-3)+i+1, uSubdivisions*(vSubdivisions-3)+i);
-	}
-	//result->addTriangle(pole1, uSubdivisions-1, 0);
-	//result->addTriangle(pole2, uSubdivisions*(vSubdivisions-3), uSubdivisions*(vSubdivisions-2)-1);
-	//return result;
-	*/
-
-
-	//
-	// circle
-	//
-	/*
-	int numSamples = 4000;
-	//float center = -1.6f;
-	float center = 2.64e-03f;
-
-	for( int i=0; i< numSamples; ++i )
-	{
-		float t = ((float)(i)/(float)(numSamples))*MATH_2PIf;
-		//float r = 1.0f;
-		float r = phase(t, P_theta);
-		r = log10(r+0.5f);
-		r = r - center;
-		math::Vec3f p;
-		p.x = sin(t)*r;
-		p.z = cos(t)*r;
-		//if( r > .0f )
-		positions.push_back(p);
-	}
-	*/
-
-
 	GLenum err = glewInit();
 	if (GLEW_OK != err)
 	{
 		std::cout << "glew init failed\n";
 	}
-
 
 	context = base::ContextPtr( new base::Context() );
 
@@ -665,6 +575,24 @@ int main(int argc, char ** argv)
 	// beta
 	cloudShader->setUniform( "beta", 0.9961f );
 
+}
+
+
+int main(int argc, char ** argv)
+{
+	//base::GLViewer window( 800, 600, "test", render2 );
+	//window.getCamera()->m_znear = 1.0f;
+	//window.getCamera()->m_zfar = 100000.0f;
+	//window.show();
+	//base::Application app;
+
+
+
+
+	//init();
+
+
+	
 
 
 
@@ -684,6 +612,21 @@ int main(int argc, char ** argv)
 
 
 
+	//return app.exec();
 
+
+
+	//Q_INIT_RESOURCE(application);
+	QApplication app(argc, argv);
+	app.setOrganizationName("test");
+	app.setApplicationName("test");
+	QMainWindow mainWin;
+	mainWin.resize(800, 600);
+	composer::widgets::GLViewer *glviewer = new composer::widgets::GLViewer(init, render2);
+	glviewer->getCamera()->m_znear = 1.0f;
+	glviewer->getCamera()->m_zfar = 100000.0f;
+	mainWin.setCentralWidget( glviewer );
+	mainWin.show();
 	return app.exec();
+
 }
