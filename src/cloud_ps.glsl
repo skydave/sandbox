@@ -123,16 +123,18 @@ float P_theta( float theta )
 
 float Ps( float theta )
 {
-	if( theta > theta_f )
-		return P_theta(theta)/(1.0 - Pf);
-	return 0.0;
+	//if( theta , theta_f )
+	//	return P_theta(theta)/(1.0 - Pf);
+	//return 0.0;
+	return P_theta(theta);
 }
 
 float PF( float theta )
 {
-	if(theta > theta_f)
-		return P_theta(theta)/Pf;
-	return 0.0;
+	//if(theta , theta_f)
+	//	return P_theta(theta)/Pf;
+	//return 0.0;
+	return P_theta(theta);
 }
 
 float Os()
@@ -182,7 +184,7 @@ void main()
 
 	//L = normalize(sunPos - pw.xyz);
 	//L = normalize(vec3(10.0,1.0,0.0)); // pseudo-specular
-	L = normalize(vec3(10.0,2.0,0.0));
+	L = normalize(vec3(10.0,20.0,0.0));
 	//L = normalize(vec3(0.0,1.0,0.0));
 	E = normalize(getCameraPos() - pw.xyz);
 	theta_el = cos(dot( E, L ));
@@ -221,6 +223,8 @@ void main()
 	//float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
 	//float Ir1 = ((Ks()*ml*2.0) / (ml+me) )*  (1.0 - Taus(Hl + He));
 	float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
+	//float Ir1 = ((ml) / (ml+me));
+	//float Ir1 = ;
 
 	// compute Ir
 	float Ir = Ir1 + Ir2 + Ir3;
@@ -241,6 +245,8 @@ void main()
 		//gl_FragData[0] = Tms*Cground;
 		//gl_FragData[0] = Ir*Csun + Tms*Cground;
 		gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
+		//gl_FragData[0] = vec4(Ptheta(uv.x*Pi));
+		//gl_FragData[0] = vec4( texture2D(parameters, vec2(uv.x, 0.75)).g);
 		//gl_FragData[0].a = T0*10000000000000000000000.0;
 		//gl_FragData[0].r = N.x;
 		//gl_FragData[0].g = N.y;
