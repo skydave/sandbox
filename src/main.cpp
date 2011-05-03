@@ -23,6 +23,15 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
+#include <QtGui>
+#include <QApplication>
+
+#include "composer/widgets/CurveEditor/CurveEditor.h"
+#include "composer/widgets/GLViewer/GLViewer.h"
+
+composer::widgets::CurveEditor *curveEditor;
+composer::widgets::GLViewer *glviewer;
+
 base::ContextPtr context;
 base::GeometryPtr geo;
 base::Texture1dPtr texture1d;
@@ -38,7 +47,7 @@ base::FBOPtr fbo;
 std::vector<math::Vec3f> positions;
 
 
-
+float *clouds_parameters_tex;
 base::Texture2dPtr clouds_parmameters;
 
 
@@ -175,8 +184,8 @@ void render2( base::CameraPtr cam )
 {
 	//fbo->begin(false);
 	glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
-	//glDisable( GL_CULL_FACE );
-	glEnable( GL_CULL_FACE );
+	glDisable( GL_CULL_FACE );
+	//glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
 
 
@@ -231,13 +240,54 @@ float phase( float theta, const std::vector<float> &samples )
 	return samples[index];
 }
 
-int main(int argc, char ** argv)
+
+
+void updatePtheta( const std::string &id, const base::FCurve &curve  )
 {
-	base::GLViewer window( 800, 600, "test", render2 );
-	window.getCamera()->m_znear = 1.0f;
-	window.getCamera()->m_zfar = 100000.0f;
-	window.show();
-	base::Application app;
+	int numSamples = 512;
+	int numParameters = 2;
+	for(int i =0; i<numSamples; ++i)
+	{
+		int row = numSamples*4;
+		clouds_parameters_tex[row+i*4+1] = curve.eval((float)i/(float)numSamples);
+	}
+	clouds_parmameters->uploadRGBAFloat32(numSamples, numParameters, clouds_parameters_tex);
+
+
+	//
+	// compute Pf
+	{
+		float theta_f = math::degToRad(5.0f); // in rad
+		// integrate one slice
+		float A_slice = 0.0f;
+
+		float theta = 0.0f;
+		int numS = 500;
+		for(int n=0; n<numS;++n)
+		{
+			if( theta < theta_f )
+				A_slice += curve.eval((float)n/(float)numS)*sin(theta);
+
+			theta += (MATH_PIf/numS);
+		}
+		A_slice = (MATH_PIf/numS)*A_slice;
+		float Pf = 2.0f * MATH_PIf * A_slice;
+
+		// normalize over solid angle of sphere
+		Pf /= 4.0f*MATH_PIf;
+
+		std::cout << "Pf=" << Pf << std::endl;
+		cloudShader->setUniform( "Pf", Pf );
+		cloudShader->setUniform( "theta_f", theta_f );
+	}
+
+	glviewer->update();
+}
+
+
+void init()
+{
+	std::cout << "init!\n";
 
 	// get samples of Ptheta
 	std::vector<float> P_theta_samples;
@@ -314,104 +364,11 @@ int main(int argc, char ** argv)
 
 	std::cout << "Volume is: " << V << std::endl;
 
-	//
-	// sphere
-	//
-	/*
-	int uSubdivisions = 20;
-	int vSubdivisions = 20;
-	float radius = 1.0f;
-	math::Vec3f center;
-
-
-
-	float dPhi = MATH_2PIf/uSubdivisions;
-	float dTheta = MATH_PIf/vSubdivisions;
-	float phi;
-
-	//Geometry *result = new Geometry();
-
-	//Attribute *positions = new Attribute();
-	//result->setPAttr(positions);
-
-
-	// y
-	for (theta=MATH_PIf/2.0f+dTheta;theta<=(3.0f*MATH_PIf)/2.0f-dTheta;theta+=dTheta)
-	{
-		math::Vec3f p;
-		float y = sin(theta);
-		// x-z
-		phi = 0.0f;
-		for( int j = 0; j<uSubdivisions; ++j  )
-		{
-			p.x = cos(theta) * cos(phi);
-			p.y = y;
-			p.z = cos(theta) * sin(phi);
-
-			p = p*radius*phase(theta, P_theta) + center;
-
-			positions.push_back( p );
-			phi+=dPhi;
-		}
-	}
-
-
-	// add faces
-	for( int j=0; j<vSubdivisions-3;++j )
-	{
-		int offset = j*(uSubdivisions);
-		int i = 0;
-		for( i=0; i<uSubdivisions-1; ++i )
-		{
-			//result->addTriangle(offset+i, offset+i + uSubdivisions, offset+i+1);
-			//result->addTriangle(offset+i + uSubdivisions, offset+i+uSubdivisions+1, offset+i+1);
-		}
-		//result->addTriangle(offset+i,offset+i + uSubdivisions,offset+0);
-		//result->addTriangle(offset+i + uSubdivisions,offset + uSubdivisions,offset);
-	}
-	//int pole1 = positions->appendElement( math::Vec3f(0.0f, 1.0f, 0.0f)*radius + center );
-	//int pole2 = positions->appendElement( math::Vec3f(0.0f, -1.0f, 0.0f)*radius + center );
-	for( int i=0; i<uSubdivisions-1; ++i )
-	{
-		//result->addTriangle(pole1, i, i+1);
-		//result->addTriangle(pole2, uSubdivisions*(vSubdivisions-3)+i+1, uSubdivisions*(vSubdivisions-3)+i);
-	}
-	//result->addTriangle(pole1, uSubdivisions-1, 0);
-	//result->addTriangle(pole2, uSubdivisions*(vSubdivisions-3), uSubdivisions*(vSubdivisions-2)-1);
-	//return result;
-	*/
-
-
-	//
-	// circle
-	//
-	/*
-	int numSamples = 4000;
-	//float center = -1.6f;
-	float center = 2.64e-03f;
-
-	for( int i=0; i< numSamples; ++i )
-	{
-		float t = ((float)(i)/(float)(numSamples))*MATH_2PIf;
-		//float r = 1.0f;
-		float r = phase(t, P_theta);
-		r = log10(r+0.5f);
-		r = r - center;
-		math::Vec3f p;
-		p.x = sin(t)*r;
-		p.z = cos(t)*r;
-		//if( r > .0f )
-		positions.push_back(p);
-	}
-	*/
-
-
 	GLenum err = glewInit();
 	if (GLEW_OK != err)
 	{
 		std::cout << "glew init failed\n";
 	}
-
 
 	context = base::ContextPtr( new base::Context() );
 
@@ -510,9 +467,9 @@ int main(int argc, char ** argv)
 
 
 	curve1 = base::FCurvePtr( new base::FCurve() );
-	curve1->addKey(0.0f, 0.0f);
-	curve1->addKey(0.5f, 0.5f);
-	curve1->addKey(1.0f, 1.0f);
+	curve1->addCP(0.0f, 0.0f);
+	curve1->addCP(0.5f, 0.5f);
+	curve1->addCP(1.0f, 1.0f);
 
 
 
@@ -534,78 +491,77 @@ int main(int argc, char ** argv)
 
 	base::FCurvePtr b;
 	b = base::FCurvePtr( new base::FCurve() );
-	b->addKey(1.0f - cos(math::degToRad(0.0f)), 1.1796f);
-	b->addKey(1.0f - cos(math::degToRad(10.0f)), 1.1293f);
-	b->addKey(1.0f - cos(math::degToRad(20.0f)), 1.1382f);
-	b->addKey(1.0f - cos(math::degToRad(30.0f)), 1.0953f);
-	b->addKey(1.0f - cos(math::degToRad(40.0f)), 0.9808f);
-	b->addKey(1.0f - cos(math::degToRad(50.0f)), 0.9077f);
-	b->addKey(1.0f - cos(math::degToRad(60.0f)), 0.7987f);
-	b->addKey(1.0f - cos(math::degToRad(70.0f)), 0.6629f);
-	b->addKey(1.0f - cos(math::degToRad(80.0f)), 0.5043f);
-	b->addKey(1.0f - cos(math::degToRad(90.0f)), 0.3021f);
+	b->addCP(1.0f - cos(math::degToRad(0.0f)), 1.1796f);
+	b->addCP(1.0f - cos(math::degToRad(10.0f)), 1.1293f);
+	b->addCP(1.0f - cos(math::degToRad(20.0f)), 1.1382f);
+	b->addCP(1.0f - cos(math::degToRad(30.0f)), 1.0953f);
+	b->addCP(1.0f - cos(math::degToRad(40.0f)), 0.9808f);
+	b->addCP(1.0f - cos(math::degToRad(50.0f)), 0.9077f);
+	b->addCP(1.0f - cos(math::degToRad(60.0f)), 0.7987f);
+	b->addCP(1.0f - cos(math::degToRad(70.0f)), 0.6629f);
+	b->addCP(1.0f - cos(math::degToRad(80.0f)), 0.5043f);
+	b->addCP(1.0f - cos(math::degToRad(90.0f)), 0.3021f);
 	base::FCurvePtr c;
 	c = base::FCurvePtr( new base::FCurve() );
-	c->addKey(1.0f - cos(math::degToRad(0.0f)), 0.0138f);
-	c->addKey(1.0f - cos(math::degToRad(10.0f)), 0.0154f);
-	c->addKey(1.0f - cos(math::degToRad(20.0f)), 0.0131f);
-	c->addKey(1.0f - cos(math::degToRad(30.0f)), 0.0049f);
-	c->addKey(1.0f - cos(math::degToRad(40.0f)), 0.0012f);
-	c->addKey(1.0f - cos(math::degToRad(50.0f)), 0.0047f);
-	c->addKey(1.0f - cos(math::degToRad(60.0f)), 0.0207f);
-	c->addKey(1.0f - cos(math::degToRad(70.0f)), 0.0133f);
-	c->addKey(1.0f - cos(math::degToRad(80.0f)), 0.0280f);
-	c->addKey(1.0f - cos(math::degToRad(90.0f)), 0.0783f);
+	c->addCP(1.0f - cos(math::degToRad(0.0f)), 0.0138f);
+	c->addCP(1.0f - cos(math::degToRad(10.0f)), 0.0154f);
+	c->addCP(1.0f - cos(math::degToRad(20.0f)), 0.0131f);
+	c->addCP(1.0f - cos(math::degToRad(30.0f)), 0.0049f);
+	c->addCP(1.0f - cos(math::degToRad(40.0f)), 0.0012f);
+	c->addCP(1.0f - cos(math::degToRad(50.0f)), 0.0047f);
+	c->addCP(1.0f - cos(math::degToRad(60.0f)), 0.0207f);
+	c->addCP(1.0f - cos(math::degToRad(70.0f)), 0.0133f);
+	c->addCP(1.0f - cos(math::degToRad(80.0f)), 0.0280f);
+	c->addCP(1.0f - cos(math::degToRad(90.0f)), 0.0783f);
 	base::FCurvePtr kc;
 	kc = base::FCurvePtr( new base::FCurve() );
-	kc->addKey(1.0f - cos(math::degToRad(0.0f)), 0.0265f);
-	kc->addKey(1.0f - cos(math::degToRad(10.0f)), 0.0262f);
-	kc->addKey(1.0f - cos(math::degToRad(20.0f)), 0.0272f);
-	kc->addKey(1.0f - cos(math::degToRad(30.0f)), 0.0294f);
-	kc->addKey(1.0f - cos(math::degToRad(40.0f)), 0.0326f);
-	kc->addKey(1.0f - cos(math::degToRad(50.0f)), 0.0379f);
-	kc->addKey(1.0f - cos(math::degToRad(60.0f)), 0.0471f);
-	kc->addKey(1.0f - cos(math::degToRad(70.0f)), 0.0616f);
-	kc->addKey(1.0f - cos(math::degToRad(80.0f)), 0.0700f);
-	kc->addKey(1.0f - cos(math::degToRad(90.0f)), 0.0700f);
+	kc->addCP(1.0f - cos(math::degToRad(0.0f)), 0.0265f);
+	kc->addCP(1.0f - cos(math::degToRad(10.0f)), 0.0262f);
+	kc->addCP(1.0f - cos(math::degToRad(20.0f)), 0.0272f);
+	kc->addCP(1.0f - cos(math::degToRad(30.0f)), 0.0294f);
+	kc->addCP(1.0f - cos(math::degToRad(40.0f)), 0.0326f);
+	kc->addCP(1.0f - cos(math::degToRad(50.0f)), 0.0379f);
+	kc->addCP(1.0f - cos(math::degToRad(60.0f)), 0.0471f);
+	kc->addCP(1.0f - cos(math::degToRad(70.0f)), 0.0616f);
+	kc->addCP(1.0f - cos(math::degToRad(80.0f)), 0.0700f);
+	kc->addCP(1.0f - cos(math::degToRad(90.0f)), 0.0700f);
 	base::FCurvePtr t;
 	t = base::FCurvePtr( new base::FCurve() );
-	t->addKey(1.0f - cos(math::degToRad(0.0f)), 0.8389f);
-	t->addKey(1.0f - cos(math::degToRad(10.0f)), 0.8412f);
-	t->addKey(1.0f - cos(math::degToRad(20.0f)), 0.8334f);
-	t->addKey(1.0f - cos(math::degToRad(30.0f)), 0.8208f);
-	t->addKey(1.0f - cos(math::degToRad(40.0f)), 0.8010f);
-	t->addKey(1.0f - cos(math::degToRad(50.0f)), 0.7774f);
-	t->addKey(1.0f - cos(math::degToRad(60.0f)), 0.7506f);
-	t->addKey(1.0f - cos(math::degToRad(70.0f)), 0.7165f);
-	t->addKey(1.0f - cos(math::degToRad(80.0f)), 0.7149f);
-	t->addKey(1.0f - cos(math::degToRad(90.0f)), 0.1000f);
+	t->addCP(1.0f - cos(math::degToRad(0.0f)), 0.8389f);
+	t->addCP(1.0f - cos(math::degToRad(10.0f)), 0.8412f);
+	t->addCP(1.0f - cos(math::degToRad(20.0f)), 0.8334f);
+	t->addCP(1.0f - cos(math::degToRad(30.0f)), 0.8208f);
+	t->addCP(1.0f - cos(math::degToRad(40.0f)), 0.8010f);
+	t->addCP(1.0f - cos(math::degToRad(50.0f)), 0.7774f);
+	t->addCP(1.0f - cos(math::degToRad(60.0f)), 0.7506f);
+	t->addCP(1.0f - cos(math::degToRad(70.0f)), 0.7165f);
+	t->addCP(1.0f - cos(math::degToRad(80.0f)), 0.7149f);
+	t->addCP(1.0f - cos(math::degToRad(90.0f)), 0.1000f);
 	base::FCurvePtr r;
 	r = base::FCurvePtr( new base::FCurve() );
-	r->addKey(1.0f - cos(math::degToRad(0.0f)), 0.0547f);
-	r->addKey(1.0f - cos(math::degToRad(10.0f)), 0.0547f);
-	r->addKey(1.0f - cos(math::degToRad(20.0f)), 0.0552f);
-	r->addKey(1.0f - cos(math::degToRad(30.0f)), 0.0564f);
-	r->addKey(1.0f - cos(math::degToRad(40.0f)), 0.0603f);
-	r->addKey(1.0f - cos(math::degToRad(50.0f)), 0.0705f);
-	r->addKey(1.0f - cos(math::degToRad(60.0f)), 0.0984f);
-	r->addKey(1.0f - cos(math::degToRad(70.0f)), 0.1700f);
-	r->addKey(1.0f - cos(math::degToRad(80.0f)), 0.3554f);
-	r->addKey(1.0f - cos(math::degToRad(90.0f)), 0.9500f);
-	base::FCurvePtr P_theta;
-	P_theta = base::FCurvePtr( new base::FCurve(base::FCurve::LINEAR) );
+	r->addCP(1.0f - cos(math::degToRad(0.0f)), 0.0547f);
+	r->addCP(1.0f - cos(math::degToRad(10.0f)), 0.0547f);
+	r->addCP(1.0f - cos(math::degToRad(20.0f)), 0.0552f);
+	r->addCP(1.0f - cos(math::degToRad(30.0f)), 0.0564f);
+	r->addCP(1.0f - cos(math::degToRad(40.0f)), 0.0603f);
+	r->addCP(1.0f - cos(math::degToRad(50.0f)), 0.0705f);
+	r->addCP(1.0f - cos(math::degToRad(60.0f)), 0.0984f);
+	r->addCP(1.0f - cos(math::degToRad(70.0f)), 0.1700f);
+	r->addCP(1.0f - cos(math::degToRad(80.0f)), 0.3554f);
+	r->addCP(1.0f - cos(math::degToRad(90.0f)), 0.9500f);
+	base::FCurve P_theta(base::FCurve::LINEAR);
+	//P_theta = base::FCurvePtr( new base::FCurve(base::FCurve::LINEAR) );
 	theta = 0.0f;
 	for(int n=0; n<P_theta_samples.size();++n)
 	{
-		P_theta->addKey(theta/MATH_PIf, P_theta_samples[n]);
-		//P_theta->addKey(theta/MATH_PIf, (float)n/(float)P_theta_samples.size());
+		P_theta.addCP(theta/MATH_PIf, P_theta_samples[n]);
 		theta += (MATH_PIf/P_theta_samples.size());
 	}
 
 
 	int numSamples = 512;
 	int numParameters = 2;
-	float *clouds_parameters_tex = (float *)malloc(numSamples*numParameters*4*sizeof(float));
+	clouds_parameters_tex = (float *)malloc(numSamples*numParameters*4*sizeof(float));
 	for(int i =0; i<numSamples; ++i)
 	{
 		int row = numSamples*4;
@@ -617,15 +573,19 @@ int main(int argc, char ** argv)
 		clouds_parameters_tex[i*4+3] = t->eval(cos_theta);
 
 		clouds_parameters_tex[row+i*4] = r->eval(cos_theta);
-		clouds_parameters_tex[row+i*4+1] = P_theta->eval((float)i/(float)numSamples);
+		clouds_parameters_tex[row+i*4+1] = P_theta.eval((float)i/(float)numSamples);
+		//clouds_parameters_tex[row+i*4+1] = 0.1f;
 		clouds_parameters_tex[row+i*4+2] = 0.0;
 		clouds_parameters_tex[row+i*4+3] = 0.0;
 	}
 	clouds_parmameters->uploadRGBAFloat32(numSamples, numParameters, clouds_parameters_tex);
-	free(clouds_parameters_tex);
+
+
+
+	//free(clouds_parameters_tex);
 
 	cloudShader->setUniform( "parameters", clouds_parmameters->getUniform() );
-	cloudShader->setUniform( "sunPos", math::Vec3f( 0.0f, 3500.0f, 0.0f ) );
+	cloudShader->setUniform( "sunPos", math::Vec3f( 3500.0f, 3500.0f, 0.0f ) );
 
 	//
 	// compute Pf
@@ -635,14 +595,15 @@ int main(int argc, char ** argv)
 		float A_slice = 0.0f;
 
 		float theta = 0.0f;
-		for(int n=0; n<P_theta_samples.size();++n)
+		int numS = 500;
+		for(int n=0; n<numS;++n)
 		{
 			if( theta < theta_f )
-				A_slice += P_theta_samples[n]*sin(theta);
+				A_slice += P_theta.eval((float)n/(float)numS)*sin(theta);
 
-			theta += (MATH_PIf/P_theta_samples.size());
+			theta += (MATH_PIf/numS);
 		}
-		A_slice = (MATH_PIf/P_theta_samples.size())*A_slice;
+		A_slice = (MATH_PIf/numS)*A_slice;
 		float Pf = 2.0f * MATH_PIf * A_slice;
 
 		// normalize over solid angle of sphere
@@ -656,13 +617,55 @@ int main(int argc, char ** argv)
 	// effective radius in micrometer (mm)
 	//cloudShader->setUniform( "re", 7.0f );
 	//cloudShader->setUniform( "re", 0.007f );
-	cloudShader->setUniform( "re", 0.7f );
+	//cloudShader->setUniform( "re", 0.7f );
+	cloudShader->setUniform( "re", 0.000007f );
 	//  in cm^-3
 	//cloudShader->setUniform( "N0", 300.0f );
-	cloudShader->setUniform( "N0", 0.03f );
+	//cloudShader->setUniform( "N0", 0.03f );
+	cloudShader->setUniform( "N0", 300000000.0f );
 	// beta
 	cloudShader->setUniform( "beta", 0.9961f );
 
+	//updatePtheta( "", P_theta );
+
+
+
+	base::FCurve fcurve(base::FCurve::LINEAR);
+	int ttt=10;
+	for(int i=0;i<ttt;++i)
+	{
+		float x = i*MATH_2PIf/ttt;
+		fcurve.addCP( x, sin(x) );
+	}
+
+	QMainWindow *mainWin2 = new QMainWindow();
+	mainWin2->resize(800, 600);
+	curveEditor = new composer::widgets::CurveEditor(0);
+	curveEditor->setCoDomainScale( composer::widgets::CurveEditor::LOG10 );
+	curveEditor->addCurve( "test", P_theta );
+	//curveEditor->addCurve( "test2", fcurve );
+	curveEditor->addCurve( "test2", base::FCurve(base::FCurve::LINEAR) );
+	curveEditor->setCallback(updatePtheta);
+	mainWin2->setCentralWidget( curveEditor );
+	mainWin2->show();
+}
+
+
+int main(int argc, char ** argv)
+{
+	//base::GLViewer window( 800, 600, "test", render2 );
+	//window.getCamera()->m_znear = 1.0f;
+	//window.getCamera()->m_zfar = 100000.0f;
+	//window.show();
+	//base::Application app;
+
+
+
+
+	//init();
+
+
+	
 
 
 
@@ -680,8 +683,26 @@ int main(int argc, char ** argv)
 
 
 
+
+
+	//return app.exec();
+
+
+
+	//Q_INIT_RESOURCE(application);
+	QApplication app(argc, argv);
+	app.setOrganizationName("test");
+	app.setApplicationName("test");
+	QMainWindow mainWin;
+	mainWin.resize(800, 600);
+	glviewer = new composer::widgets::GLViewer(init, render2);
+	glviewer->getCamera()->m_znear = 1.0f;
+	glviewer->getCamera()->m_zfar = 100000.0f;
+	mainWin.setCentralWidget( glviewer );
+	mainWin.show();
 
 
 
 	return app.exec();
+
 }

@@ -31,36 +31,67 @@ ENDMACRO (sourceGroups)
 MACRO (generateCppFromGLSL sources outputs)
 	FOREACH (src ${${sources}})
 	
-	# filter glsl files
-	if(${src} MATCHES "\\.glsl$")
+		# filter glsl files
+		if(${src} MATCHES "\\.glsl$")
 
-		# strip of path and just leave filename
-		string(REGEX REPLACE "(.)*[\\\\/]" "" filename ${src})
+			# strip of path and just leave filename
+			string(REGEX REPLACE "(.)*[\\\\/]" "" filename ${src})
 
-		# assemble output filename
-		set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${filename}.cpp )
+			# assemble output filename
+			set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${filename}.cpp )
 
-		if( CMAKE_SYSTEM_NAME MATCHES Linux )
-			set( pythoncommand "python2.6" )
-		elseif( CMAKE_SYSTEM_NAME MATCHES Windows )
-			set( pythoncommand "python.exe" )
-		endif(CMAKE_SYSTEM_NAME MATCHES Linux)
+			if( CMAKE_SYSTEM_NAME MATCHES Linux )
+				set( pythoncommand "python2.6" )
+			elseif( CMAKE_SYSTEM_NAME MATCHES Windows )
+				set( pythoncommand "python.exe" )
+			endif(CMAKE_SYSTEM_NAME MATCHES Linux)
 		
-		# add custom command
-		add_custom_command( OUTPUT ${outfile}
-							COMMAND ${pythoncommand} ${CMAKE_CURRENT_SOURCE_DIR}/src/base/buildtools/glsl2cpp.py ${src} > ${outfile}
-							DEPENDS ${src} )
+			# add custom command
+			add_custom_command( OUTPUT ${outfile}
+								COMMAND ${pythoncommand} ${CMAKE_CURRENT_SOURCE_DIR}/src/base/buildtools/glsl2cpp.py ${src} > ${outfile}
+								DEPENDS ${src} )
 
-		# assign source group
-		source_group(generated FILES ${outfile})
+			# assign source group
+			source_group(generated FILES ${outfile})
 		
-		# store output
-		set( ${outputs} ${${outputs}} ${outfile} )
+			# store output
+			set( ${outputs} ${${outputs}} ${outfile} )
 		
-	endif(${src} MATCHES "\\.glsl$")
+		endif(${src} MATCHES "\\.glsl$")
 
 	ENDFOREACH (src)
 ENDMACRO (generateCppFromGLSL)
+
+#
+# create moc files for each header which contains string "Q_OBJECT"
+#
+MACRO (generateMocFromHeaders sources outputs)
+	set( moc_headers )
+	#for each source
+	FOREACH (src ${${sources}})
+		# filter header files
+		if(${src} MATCHES "\\.h$")
+			# read header file
+			file(READ ${src} tmp)
+			# check if it contains the string "Q_OBJECT"
+			string(REGEX MATCH ".*Q_OBJECT.*" contains_q_object_string "${tmp}")
+			if( contains_q_object_string )
+				set( moc_headers ${moc_headers} ${src} )
+			endif( contains_q_object_string )
+		endif(${src} MATCHES "\\.h$")
+	ENDFOREACH (src)
+
+	QT4_WRAP_CPP( ${outputs} ${moc_headers})
+	source_group(generated FILES ${${outputs}})
+ENDMACRO (generateMocFromHeaders)
+
+#
+# QT
+#
+find_package(Qt4 COMPONENTS QtCore QtGui QtOpenGL REQUIRED)
+include(${QT_USE_FILE})
+add_definitions(${QT_DEFINITIONS})
+
 
 
 #
@@ -74,8 +105,11 @@ sourceGroups( app_sources )
 #glsl build commands
 generateCppFromGLSL(app_sources glsl_outputs)
 
+#qt moc
+generateMocFromHeaders( app_sources moc_outputs )
+
 # Create an executable
-add_executable(app ${app_sources} ${glsl_outputs})
+add_executable(app ${app_sources} ${glsl_outputs} ${moc_outputs})
 
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
@@ -83,6 +117,8 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
 #
 # set link dependecies
 #
+
+# X11 on linux
 if( CMAKE_SYSTEM_NAME MATCHES Linux )
 	find_package(X11)
 
@@ -95,5 +131,9 @@ if( CMAKE_SYSTEM_NAME MATCHES Linux )
 
 endif( CMAKE_SYSTEM_NAME MATCHES Linux )
 
+# OpenGL
 INCLUDE(FindOpenGL)
 target_link_libraries(app ${OPENGL_gl_LIBRARY})
+
+# Qt
+target_link_libraries(app ${QT_LIBRARIES})

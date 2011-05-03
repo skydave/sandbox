@@ -17,3 +17,10 @@ clouds:
 --check if Ps really has to return 0 when theta<theta_f, its the phase function for scattering...
 
 Martin Jondo Reggae
+
+
+
+
+C:\Programs\qt2010.05\qt>configure.exe -release -opensource -shared -platform wi
+n64-msvc2010 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools
+ -no-qt3support -no-multimedia -no-ltcg
