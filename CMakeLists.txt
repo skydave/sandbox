@@ -1,4 +1,4 @@
-
+#-DCMAKE_BUILD_TYPE=Debug
 project("app")
 
 cmake_minimum_required(VERSION 2.8)
