@@ -33,8 +33,8 @@ namespace composer
 			float m_scaleX;
 			float m_scaleY;
 
-			friend CurveItem;
-			friend CurveEditor;
+			friend class CurveItem;
+			friend class CurveEditor;
 		};
 	}
 }

@@ -23,8 +23,8 @@ namespace composer
 			pen.setCosmetic ( true );
 			painter->setPen(pen);
 
-			painter->drawLine( -10000.0f, 0.0f, 10000.0f, 0.0f );
-			painter->drawLine( 0.0f, -10000.0f, 0.0f, 10000.0f );
+			painter->drawLine( -10000, 0, 10000, 0 );
+			painter->drawLine( 0, -10000, 0, 10000 );
 		}
 	}
 }

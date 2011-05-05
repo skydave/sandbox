@@ -1,9 +1,13 @@
 #pragma once
+
 #include <iostream>
-#include <ui/GLViewer.h>
+
 #include <QtOpenGL/QGLWidget>
 #include <QMouseEvent>
+
 #include <gfx/OrbitNavigator.h>
+#include <gfx/Camera.h>
+
 
 
 namespace composer
@@ -15,7 +19,10 @@ namespace composer
 			Q_OBJECT        // must include this if you use Qt signals/slots
 
 		public:
-			GLViewer(base::GLViewer::InitCallback init = 0, base::GLViewer::RenderCallback render = 0, QWidget *parent = 0 ) : QGLWidget(parent), m_init(init), m_render(render), m_lastX(0), m_lastY(0)
+			typedef void (*InitCallback)( void );
+			typedef void (*RenderCallback)( base::CameraPtr );
+
+			GLViewer( InitCallback init = 0, RenderCallback render = 0, QWidget *parent = 0 ) : QGLWidget(parent), m_init(init), m_render(render), m_lastX(0), m_lastY(0)
 			{
 				setMouseTracking( true );
 			}
@@ -69,7 +76,7 @@ namespace composer
 						// Alt + RMB => move camera along lookat vector
 						m_orbitNavigator.zoomView( -dx*m_orbitNavigator.getDistance()*0.005f );
 					}else
-					if( buttons & Qt::MiddleButton )
+					if( buttons & Qt::MidButton )
 					{// MMBUTTON
 						m_orbitNavigator.panView( (float)dx, (float)-dy );
 					}
@@ -79,8 +86,8 @@ namespace composer
 				}
 			}
 		private:
-			base::GLViewer::InitCallback m_init;
-			base::GLViewer::RenderCallback m_render;
+			InitCallback m_init;
+			RenderCallback m_render;
 			base::OrbitNavigator m_orbitNavigator;
 			int m_lastX;
 			int m_lastY;

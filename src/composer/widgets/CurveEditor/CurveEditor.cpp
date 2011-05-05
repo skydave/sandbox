@@ -255,7 +255,7 @@ namespace composer
 			if( buttons != Qt::NoButton )
 			{
 
-				if( buttons & Qt::MiddleButton )
+				if( buttons & Qt::MidButton )
 				{
 					// pan
 					float sc = m_rootItem->transform().m11();

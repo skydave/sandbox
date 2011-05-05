@@ -50,8 +50,8 @@ namespace composer
 			typedef QLinkedList<CurveHandleItem *> HandleList;
 			HandleList m_handles;
 
-			friend CurveEditor;
-			friend CurveHandleItem;
+			friend class CurveEditor;
+			friend class CurveHandleItem;
 		};
 	}
 }

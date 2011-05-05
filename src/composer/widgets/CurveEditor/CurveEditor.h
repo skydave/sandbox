@@ -64,7 +64,7 @@ namespace composer
 
 			CurveItem *m_activeCurve;
 
-			friend CurveItem;
+			friend class CurveItem;
 		};
 	}
 }

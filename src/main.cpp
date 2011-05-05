@@ -3,6 +3,10 @@
 //
 //
 //============================================================================
+
+#include <QtGui>
+#include <QApplication>
+
 #include <stdio.h>
 #include <cstdlib>
 #include <string>
@@ -23,8 +27,7 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
-#include <QtGui>
-#include <QApplication>
+
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
