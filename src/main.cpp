@@ -30,6 +30,7 @@
 
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
+#include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
 
 composer::widgets::CurveEditor *curveEditor;
@@ -284,6 +285,13 @@ void updatePtheta( const std::string &id, const base::FCurve &curve  )
 		cloudShader->setUniform( "theta_f", theta_f );
 	}
 
+	glviewer->update();
+}
+
+void updateSunDir( const math::Vec3f &vec  )
+{
+	//std::cout << vec.x << " " << vec.y << " " << vec.z << " " << vec.getLength() << std::endl;
+	cloudShader->setUniform( "sunDir", vec );
 	glviewer->update();
 }
 
@@ -588,7 +596,7 @@ void init()
 	//free(clouds_parameters_tex);
 
 	cloudShader->setUniform( "parameters", clouds_parmameters->getUniform() );
-	cloudShader->setUniform( "sunPos", math::Vec3f( 3500.0f, 3500.0f, 0.0f ) );
+	cloudShader->setUniform( "sunDir", math::Vec3f( 0.0f, 1.0f, 0.0f ) );
 
 	//
 	// compute Pf
@@ -651,6 +659,15 @@ void init()
 	curveEditor->setCallback(updatePtheta);
 	mainWin2->setCentralWidget( curveEditor );
 	mainWin2->show();
+
+
+	QMainWindow *mainWin3 = new QMainWindow();
+	mainWin3->resize(800, 600);
+	composer::widgets::Trackball *trackball = new composer::widgets::Trackball();
+	trackball->setCallback( updateSunDir );
+	mainWin3->setCentralWidget( trackball );
+	mainWin3->show();
+
 }
 
 

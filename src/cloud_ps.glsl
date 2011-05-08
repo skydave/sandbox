@@ -62,7 +62,7 @@ vec4 lambert(in vec3 n,in vec3 v,in vec3 l)
 // cloud shader
 //
 uniform sampler2D parameters;
-uniform vec3          sunPos;
+uniform vec3          sunDir;
 uniform float             Pf; // forward scattering weight/share of P_theta
 uniform float        theta_f; // angle which seperates forward scattering in radians
 uniform float             re; // effective radius in micro meter
@@ -123,18 +123,18 @@ float P_theta( float theta )
 
 float Ps( float theta )
 {
-	//if( theta , theta_f )
-	//	return P_theta(theta)/(1.0 - Pf);
-	//return 0.0;
-	return P_theta(theta);
+	if( theta > theta_f )
+		return P_theta(theta)/(1.0 - Pf);
+	return 0.0;
+	//return P_theta(theta);
 }
 
 float PF( float theta )
 {
-	//if(theta , theta_f)
-	//	return P_theta(theta)/Pf;
-	//return 0.0;
-	return P_theta(theta);
+	if(theta > theta_f)
+		return P_theta(theta)/Pf;
+	return 0.0;
+	//return P_theta(theta);
 }
 
 float Os()
@@ -184,7 +184,8 @@ void main()
 
 	//L = normalize(sunPos - pw.xyz);
 	//L = normalize(vec3(10.0,1.0,0.0)); // pseudo-specular
-	L = normalize(vec3(10.0,20.0,0.0));
+	//L = normalize(vec3(10.0,20.0,0.0));
+	L = normalize(sunDir);
 	//L = normalize(vec3(0.0,1.0,0.0));
 	E = normalize(getCameraPos() - pw.xyz);
 	theta_el = cos(dot( E, L ));

@@ -7,7 +7,7 @@ namespace composer
 {
 	namespace widgets
 	{
-		CurveEditor::CurveEditor(QWidget *parent) : QGraphicsView(parent), m_activeCurve(0), m_coDomainScale(LINEAR)
+		CurveEditor::CurveEditor(QWidget *parent) : QGraphicsView(parent), m_activeCurve(0), m_coDomainScale(LINEAR), m_callback(0)
 		{
 			QGraphicsScene *scene = new QGraphicsScene(this);
 			scene->setItemIndexMethod(QGraphicsScene::NoIndex);
