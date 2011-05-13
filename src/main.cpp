@@ -32,6 +32,8 @@
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
+#include <ui_clouds.h>
+#include "clouds.ui.h"
 
 composer::widgets::CurveEditor *curveEditor;
 composer::widgets::GLViewer *glviewer;
@@ -305,8 +307,8 @@ void init()
 	//c:\projects\sandbox\git\data
     std::string STRING;
 	std::ifstream infile;
-	infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
+	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -649,6 +651,7 @@ void init()
 		fcurve.addCP( x, sin(x) );
 	}
 
+	/*
 	QMainWindow *mainWin2 = new QMainWindow();
 	mainWin2->resize(800, 600);
 	curveEditor = new composer::widgets::CurveEditor(0);
@@ -667,6 +670,15 @@ void init()
 	trackball->setCallback( updateSunDir );
 	mainWin3->setCentralWidget( trackball );
 	mainWin3->show();
+	*/
+/*
+	QWidget *widget = new QWidget;
+	Ui_Form ui;
+	ui.setupUi(widget);
+	widget->show();
+*/
+	QWidget *widget = new CloudsUI();
+	widget->show();
 
 }
 
@@ -708,11 +720,11 @@ int main(int argc, char ** argv)
 	//return app.exec();
 
 
-
 	//Q_INIT_RESOURCE(application);
 	QApplication app(argc, argv);
 	app.setOrganizationName("test");
 	app.setApplicationName("test");
+
 	QMainWindow mainWin;
 	mainWin.resize(800, 600);
 	glviewer = new composer::widgets::GLViewer(init, render2);
@@ -720,7 +732,6 @@ int main(int argc, char ** argv)
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
-
 
 
 	return app.exec();
