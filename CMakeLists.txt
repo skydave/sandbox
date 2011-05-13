@@ -64,8 +64,12 @@ ENDMACRO (generateCppFromGLSL)
 
 #
 # create moc files for each header which contains string "Q_OBJECT"
+# and ui header files for each .ui file in sources
 #
-MACRO (generateMocFromHeaders sources outputs)
+MACRO (generateQtOutputs sources moc_outputs ui_outputs)
+	#
+	# moc output
+	#
 	set( moc_headers )
 	#for each source
 	FOREACH (src ${${sources}})
@@ -81,9 +85,24 @@ MACRO (generateMocFromHeaders sources outputs)
 		endif(${src} MATCHES "\\.h$")
 	ENDFOREACH (src)
 
-	QT4_WRAP_CPP( ${outputs} ${moc_headers})
-	source_group(generated FILES ${${outputs}})
-ENDMACRO (generateMocFromHeaders)
+	QT4_WRAP_CPP( ${moc_outputs} ${moc_headers})
+	source_group(generated FILES ${${moc_outputs}})
+
+	#
+	# ui output
+	#
+	set( ui_files )
+	#for each source
+	FOREACH (src ${${sources}})
+		# filter ui files
+		if(${src} MATCHES "\\.ui$")
+			set( ui_files ${ui_files} ${src} )
+		endif(${src} MATCHES "\\.ui$")
+	ENDFOREACH (src)
+
+	QT4_WRAP_UI( ${ui_outputs} ${ui_files})
+	source_group(generated FILES ${${ui_outputs}})
+ENDMACRO (generateQtOutputs)
 
 #
 # QT
@@ -99,20 +118,23 @@ add_definitions(${QT_DEFINITIONS})
 #
 
 #specify app sources
-file(GLOB_RECURSE app_sources src/*.cpp src/*.h src/*.glsl)
+file(GLOB_RECURSE app_sources src/*.cpp src/*.h src/*.glsl src/*.ui)
 sourceGroups( app_sources )
 
 #glsl build commands
 generateCppFromGLSL(app_sources glsl_outputs)
 
-#qt moc
-generateMocFromHeaders( app_sources moc_outputs )
+#qt moc and ui
+generateQtOutputs( app_sources moc_outputs ui_outputs)
 
 # Create an executable
-add_executable(app ${app_sources} ${glsl_outputs} ${moc_outputs})
+add_executable(app ${app_sources} ${glsl_outputs} ${moc_outputs} ${ui_outputs})
 
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
+
+# qt ui headers are generated in build dir
+include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 
 #
 # set link dependecies
