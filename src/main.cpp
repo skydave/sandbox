@@ -19,6 +19,7 @@
 #include <gltools/gl.h>
 #include <gltools/misc.h>
 #include <util/StringManip.h>
+#include <util/Path.h>
 #include <gfx/Geometry.h>
 #include <gfx/Shader.h>
 #include <gfx/Texture.h>
@@ -62,6 +63,20 @@ extern int cloud_ps_size;
 extern char cloud_vs[];
 extern int cloud_vs_size;
 
+void onPlayButtonPressed( bool checked )
+{
+	if( checked )
+	{
+		// continue timer
+		// switch glviewer into threadrendering mode
+		glviewer->setRenderInSeperateThread(true);
+	}else
+	{
+		// switch glviewer into non-threadrendering mode
+		glviewer->setRenderInSeperateThread(false);
+		// pause timer
+	}
+}
 
 void render( base::CameraPtr cam )
 {
@@ -194,6 +209,9 @@ void render2( base::CameraPtr cam )
 	//glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
 
+	std::cout << "render2a " << cam->m_transform.getRight().x << " " << cam->m_transform.getRight().y << " " << cam->m_transform.getRight().z << std::endl;
+	std::cout << "render2b " << cam->m_transform.getUp().x << " " << cam->m_transform.getUp().y << " " << cam->m_transform.getUp().z << std::endl;
+	std::cout << "render2c " << cam->m_transform.getDir().x << " " << cam->m_transform.getDir().y << " " << cam->m_transform.getDir().z << std::endl;
 
 
 	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
@@ -304,11 +322,12 @@ void init()
 
 	// get samples of Ptheta
 	std::vector<float> P_theta_samples;
-	//c:\projects\sandbox\git\data
+
     std::string STRING;
 	std::ifstream infile;
-	//infile.open ("c:\\projects\\sandbox\\git\\data\\mieplot_results1_phasefun.txt");
-	infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
+	infile.open( base::Path( SRC_PATH ) + "/data/mieplot_results1_phasefun.txt" );
+
+	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
 	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
@@ -466,15 +485,9 @@ void init()
 
 
 
-	//shader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
-	//shader_screen = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\screen_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\volume_ps.glsl" );
-	//cloudShader = base::Shader::load( cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size );
-	//cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( common, common_size);
-	cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
-	//cloudShader->attach( GL_FRAGMENT_SHADER_ARB, common, common_size);
-	//cloudShader = base::Shader::load( "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_vs.glsl", "c:\\projects\\sandbox\\git\\src\\base\\gfx\\glsl\\geometry_ps.glsl" );
-	//shader = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/geometry_ps.glsl" );
-	//shader_screen = base::Shader::load( "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/screen_vs.glsl", "/usr/people/david-k/dev/testprojects/sandbox/git/src/base/gfx/glsl/volume_ps.glsl" );
+	//
+	//cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
+	cloudShader = base::Shader::load(base::Path( SRC_PATH ) + "/src/cloud_vs.glsl", base::Path( SRC_PATH ) + "/src/cloud_ps.glsl").attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
 
 	cloudShader->setUniform( "input", texture2d->getUniform() );
 
@@ -490,6 +503,9 @@ void init()
 
 
 	context->setUniform("common_permTexture", base::glsl::noisePermutationTableTex()->getUniform());
+	base::AttributePtr timeAttr = base::Attribute::createFloat();
+	timeAttr->appendElement( 0.0f );
+	context->setUniform("time", timeAttr);
 
 
 
@@ -599,7 +615,17 @@ void init()
 
 	cloudShader->setUniform( "parameters", clouds_parmameters->getUniform() );
 	cloudShader->setUniform( "sunDir", math::Vec3f( 0.0f, 1.0f, 0.0f ) );
+	cloudShader->setUniform( "maxHeight", 500.0f );
+	cloudShader->setUniform( "maxVertexHeight", 500.0f );
+	cloudShader->setUniform( "Csun", 1.0f, 0.0f, 0.0f, 1.0f );
+	cloudShader->setUniform( "Csky", .5f, .5f, .5f, 1.0f );
+	cloudShader->setUniform( "Cground", .1f, .1f, .1f, 1.0f );
+	cloudShader->setUniform( "Ir1Mult", 1.0f );
+	cloudShader->setUniform( "Ir2Mult", 1.0f );
+	cloudShader->setUniform( "Ir3Mult", 1.0f );
 
+	cloudShader->setUniform( "pn_frequency", 20.0f );
+	cloudShader->setUniform( "pn_octaves", 8 );
 	//
 	// compute Pf
 	{
@@ -662,8 +688,8 @@ void init()
 	curveEditor->setCallback(updatePtheta);
 	mainWin2->setCentralWidget( curveEditor );
 	mainWin2->show();
-
-
+	*/
+/*
 	QMainWindow *mainWin3 = new QMainWindow();
 	mainWin3->resize(800, 600);
 	composer::widgets::Trackball *trackball = new composer::widgets::Trackball();
@@ -671,14 +697,13 @@ void init()
 	mainWin3->setCentralWidget( trackball );
 	mainWin3->show();
 	*/
-/*
-	QWidget *widget = new QWidget;
-	Ui_Form ui;
-	ui.setupUi(widget);
+
+	CloudsUI *widget = new CloudsUI(P_theta);
+
+	glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
+
 	widget->show();
-*/
-	QWidget *widget = new CloudsUI();
-	widget->show();
+	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
 
 }
 

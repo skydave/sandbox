@@ -29,9 +29,15 @@ namespace composer
 			void setCallback( CurveChangedCallback callback );
 			void addCurve( const std::string &id, const base::FCurve &fcurve );
 			void removeCurve( const std::string &id );
+			CurveItem *getCurveItem( const std::string &id );
 			void makeActive( const std::string &id );
 
 			void setCoDomainScale( CoDomainScale scl );
+
+			void frameAll();
+
+		signals:
+			void curveChanged( const QString &curveId );
 
 		protected:
 			void keyPressEvent(QKeyEvent *event);
@@ -46,7 +52,6 @@ namespace composer
 			void scaleBy(qreal scaleFactor);
 			void setZoom(int percentZoom);
 			QRectF getBound( base::FCurve &curve );
-			CurveItem *getCurveItem( const std::string &id );
 			std::string getCurveId( CurveItem *curve );
 			float applyCoDomainScale( float domainValue );
 			float applyCoDomainScaleInverse( float domainScaleValue );

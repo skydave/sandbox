@@ -18,9 +18,12 @@ clouds:
 
 Martin Jondo Reggae
 
-
-
-
-C:\Programs\qt2010.05\qt>configure.exe -release -opensource -shared -platform wi
-n64-msvc2010 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools
+-download/extract qt-everywhere-opensource
+-copy to final location
+-setup path environment variable to point to directory containing qmake
+-Open vs2010 cross tools command prompt. cd into the Qt directory where configure.exe lives
+-nmake confclean (if rebuilding)
+-configure.exe -debug-and-release -opensource -shared -platform wi
+n32-msvc2010 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools
  -no-qt3support -no-multimedia -no-ltcg
+-nmake

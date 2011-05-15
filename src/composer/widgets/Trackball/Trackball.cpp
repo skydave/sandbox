@@ -130,39 +130,25 @@ namespace composer
 				{
 					float azimuth = dpos_scene.x()*0.1f;
 					float elevation = dpos_scene.y()*0.1f;
-					//std::cout << "azimuth.elevation: " << azimuth << " " << elevation << std::endl;
-					// rotate
-					//m_projector->rotateItems( azimuth, elevation );
 					moveItems( -dpos_scene.x()*0.1f, -dpos_scene.y()*0.1f, 0.0f );
-					//m_projector->moveBy(dpos_scene.x()*0.8f, dpos_scene.y()*0.8f);
 					event->accept();
-					//update();
 				}
 				if( buttons & Qt::RightButton )
 				{
 					float azimuth = dpos_scene.x()*0.1f;
 					float elevation = dpos_scene.y()*0.1f;
-					//std::cout << "azimuth.elevation: " << azimuth << " " << elevation << std::endl;
-					// rotate
-					//m_projector->rotateItems( azimuth, elevation );
-					//rotateItems( math::Vec3f( 0.0f, 0.0f, -1.0f ), dpos_scene.x()*0.1f, 0.0f );
 					moveItems(0.0f, 0.0f, dpos_scene.x()*0.1f);
 					event->accept();
-					//update();
 				}
 				if( buttons & Qt::LeftButton )
 				{
 					float azimuth = -dpos_scene.x()*20.0f;
 					float elevation = dpos_scene.y()*20.0f;
-					//std::cout << "azimuth: " << azimuth << std::endl;
-					// rotate
-					//m_projector->rotateItems( azimuth, elevation );
 					rotateItems( math::Vec3f( 0.0f, 0.0f, 0.0f ), azimuth, elevation );
 					event->accept();
-					//update();
 
-					if( m_callback )
-						m_callback( m_projector->get3dPos(m_vecItem) );
+					math::Vec3f v = m_projector->get3dPos(m_vecItem);
+					emit vectorChanged( v.x, -v.y, v.z );
 				}
 
 			}

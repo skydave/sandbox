@@ -24,6 +24,9 @@ namespace composer
 			typedef void (*ChangedCallback)( const math::Vec3f &vector );
 			void setCallback( ChangedCallback callback );
 
+		signals:
+			void vectorChanged(float x, float y, float z);
+
 		protected:
 			void mouseMoveEvent( QMouseEvent * event );
 			void drawBackground( QPainter * painter, const QRectF & rect );

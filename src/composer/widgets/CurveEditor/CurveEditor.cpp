@@ -23,7 +23,7 @@ namespace composer
 			//setAlignment( Qt::AlignJustify );
 
 
-			setMinimumSize(400, 400);
+			//setMinimumSize(400, 400);
 			setWindowTitle(tr("Elastic Nodes"));
 			setMouseTracking( true );
 
@@ -39,7 +39,7 @@ namespace composer
 			m_rootItem->addToGroup( text );
 			scene->addItem(m_rootItem);
 
-			m_minScale = .1f;
+			m_minScale = .01f;
 			m_maxScale = 100000.0f;
 			scaleBy(1.0f);
 
@@ -48,6 +48,54 @@ namespace composer
 		void CurveEditor::setCoDomainScale( CoDomainScale scl )
 		{
 			m_coDomainScale = scl;
+		}
+
+		void CurveEditor::frameAll()
+		{
+			// focus all
+			QRectF newSceneRect;
+
+			// compute bounding box of all curves
+			for( CurveMap::iterator it = m_curves.begin(); it != m_curves.end(); ++it )
+			{
+				QRectF bound = getBound(it->second->curve());
+				if( bound.isValid() )
+				{
+					newSceneRect = newSceneRect.united(bound);
+				}
+			}
+
+
+			if( newSceneRect.isValid() )
+			{
+				// move to center
+				QList<QGraphicsItem*> childs = m_rootItem->childItems();
+				for(QList<QGraphicsItem*>::iterator it = childs.begin(); it != childs.end(); ++it)
+				{
+					QGraphicsItem *gi = *it;
+					gi->setPos( -newSceneRect.center().x(), -newSceneRect.center().y() );
+					//QPointF sceneCenter = gi->mapToScene(newSceneRect.center());
+					//gi->setPos( -sceneCenter.x(), -sceneCenter.y() );
+				}
+
+				// scale scene so that rect fits
+				// get scene rect
+				QPointF topLeft = mapToScene( 0, 0 );
+				QPointF bottomRight = mapToScene( viewport()->width() - 1, viewport()->height() - 1 );
+				std::cout << viewport()->width() << " " << viewport()->height() << std::endl;
+				QRectF rect = QRectF( topLeft, bottomRight );
+				float sca = m_rootItem->transform().m11();
+
+				if( newSceneRect.width() > newSceneRect.height() )
+				{
+					float newScale = (float)rect.width()/(float)newSceneRect.width();
+					scaleBy(newScale/sca);
+				}else
+				{
+					float newScale = (float)rect.height()/(float)newSceneRect.height();
+					scaleBy(newScale/sca);
+				}
+			}
 		}
 
 		void CurveEditor::setCallback( CurveChangedCallback callback )
@@ -99,6 +147,7 @@ namespace composer
 			}
 			return "";
 		}
+
 
 		void CurveEditor::paintEvent( QPaintEvent * event )
 		{
@@ -155,52 +204,13 @@ namespace composer
 		{
 			if( event->key() == Qt::Key_F )
 			{
-				// focus all
-				QRectF newSceneRect;
-				// focus
 				if(this->scene()->selectedItems().size())
 				{
 					// focus selected
 				}else
 				{
-
-					// compute bounding box of all curves
-					for( CurveMap::iterator it = m_curves.begin(); it != m_curves.end(); ++it )
-					{
-						QRectF bound = getBound(it->second->curve());
-						if( bound.isValid() )
-						{
-							newSceneRect = newSceneRect.united(bound);
-						}
-					}
-				}
-
-				if( newSceneRect.isValid() )
-				{
-					// move to center
-					QList<QGraphicsItem*> childs = m_rootItem->childItems();
-					for(QList<QGraphicsItem*>::iterator it = childs.begin(); it != childs.end(); ++it)
-					{
-						QGraphicsItem *gi = *it;
-						gi->setPos( -newSceneRect.center().x(), -newSceneRect.center().y() );
-					}
-
-					// scale scene so that rect fits
-					// get scene rect
-					QPointF topLeft = mapToScene( 0, 0 );
-					QPointF bottomRight = mapToScene( viewport()->width() - 1, viewport()->height() - 1 );
-					QRectF rect = QRectF( topLeft, bottomRight );
-					float sca = m_rootItem->transform().m11();
-
-					if( newSceneRect.width() > newSceneRect.height() )
-					{
-						float newScale = (float)rect.width()/(float)newSceneRect.width();
-						scaleBy(newScale/sca);
-					}else
-					{
-						float newScale = (float)rect.height()/(float)newSceneRect.height();
-						scaleBy(newScale/sca);
-					}
+					// focus all
+					frameAll();
 				}
 
 				event->accept();
@@ -294,8 +304,9 @@ namespace composer
 
 		void CurveEditor::curveChangedEvent( CurveItem *curve )
 		{
-			if( m_callback )
-				m_callback( getCurveId(curve), curve->curve() );
+			//if( m_callback )
+			//	m_callback( getCurveId(curve), curve->curve() );
+			emit curveChanged(QString::fromStdString( getCurveId(curve) ));
 		}
 
 

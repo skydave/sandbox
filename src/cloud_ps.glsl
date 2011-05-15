@@ -56,21 +56,34 @@ vec4 lambert(in vec3 n,in vec3 v,in vec3 l)
 	return vec4(a+d,1.0);
 }
 
-
+//
+// general
+//
+uniform float           time;
 
 //
 // cloud shader
 //
 uniform sampler2D parameters;
 uniform vec3          sunDir;
+uniform vec4            Csun;
+uniform vec4            Csky;
+uniform vec4         Cground;
+uniform float        Ir1Mult;
+uniform float        Ir2Mult;
+uniform float        Ir3Mult;
 uniform float             Pf; // forward scattering weight/share of P_theta
 uniform float        theta_f; // angle which seperates forward scattering in radians
 uniform float             re; // effective radius in micro meter
 uniform float             N0; // in cm^-3
 uniform float           beta; // ?
+uniform float      maxHeight; // max height of cloud layer in meters
+
+// perlin noise parameters
+uniform int       pn_octaves;
+uniform float   pn_frequency;
 
 
-float maxHeight = 500.0;      // max height of cloud layer in meters
 float     H = maxHeight;      // height of current shaded slab
 
 vec3         L;               // vector from sample to light
@@ -85,9 +98,6 @@ float       Hl;               // distance light ray travels through slab
 float       He;               // distance eye ray travels through slab
 
 
-vec4 Csun = vec4(1.0, 1.0, 1.0, 1.0);
-vec4 Csky = vec4(.5, .5, 0.5, 1.0);
-vec4 Cground = vec4( vec3(0.1), 1.0);
 
 
 float b( float cos_theta )
@@ -124,6 +134,7 @@ float P_theta( float theta )
 float Ps( float theta )
 {
 	if( theta > theta_f )
+		//return P_theta(theta)/(1.0 - Pf);
 		return P_theta(theta)/(1.0 - Pf);
 	return 0.0;
 	//return P_theta(theta);
@@ -131,8 +142,8 @@ float Ps( float theta )
 
 float PF( float theta )
 {
-	if(theta > theta_f)
-		return P_theta(theta)/Pf;
+	//if(theta > theta_f)
+		//return P_theta(theta)/Pf;
 	return 0.0;
 	//return P_theta(theta);
 }
@@ -161,6 +172,8 @@ float Ss( float x )
 void setN( vec3 normal )
 {
 	N = normal;
+	//ml = clamp(dot( N, L ), 0.0, 1.0);
+	//me = clamp(dot( N, E ), 0.0, 1.0);
 	ml = clamp(dot( N, L ), 0.0, 1.0);
 	me = clamp(dot( N, E ), 0.0, 1.0);
 	Hl = H / ml;
@@ -174,10 +187,11 @@ void main()
 	//
 
 	// compute height of slab
-	float fbm = turb2d( uv*20.0, 8 ).x*0.5+0.5;
+	vec2 fbmOffset = vec2(time);
+	float fbm = turb2d( uv*pn_frequency+fbmOffset, pn_octaves ).x*0.5+0.5;
 	float delta = 0.1;
-	float fbm_dx = ((turb2d( uv*20.0+vec2(delta, 0.0), 8 ).x*0.5+0.5)-fbm)/delta;
-	float fbm_dy = ((turb2d( uv*20.0+vec2(0.0, delta), 8 ).x*0.5+0.5)-fbm)/delta;
+	float fbm_dx = ((turb2d( uv*pn_frequency+vec2(delta, 0.0)+fbmOffset, pn_octaves ).x*0.5+0.5)-fbm)/delta;
+	float fbm_dy = ((turb2d( uv*pn_frequency+vec2(0.0, delta)+fbmOffset, pn_octaves ).x*0.5+0.5)-fbm)/delta;
 	vec3 dfbm = vec3(fbm_dx, 0.0, fbm_dy);
 	H = fbm*maxHeight;
 
@@ -188,7 +202,7 @@ void main()
 	L = normalize(sunDir);
 	//L = normalize(vec3(0.0,1.0,0.0));
 	E = normalize(getCameraPos() - pw.xyz);
-	theta_el = cos(dot( E, L ));
+	theta_el = acos(dot( E, -L ));
 
 	vec3 Z = normalize(n);
 	vec3 localN = normalize( n - dfbm );
@@ -213,6 +227,7 @@ void main()
 
 	// (re)compute Tms using local normal
 	Tms = (b(ml) + (1.0 - b(ml))*exp(-c(ml)*H))  *  (beta/(H-(H-1.0)*beta));
+	Rms = 1.0 - Tms;
 
 	// compute Ir2
 	float Ir2 = ((Ks()*Ps(theta_el)*ml) / (me+ml))  *  (1.0 - Taus(Hl + He));
@@ -223,9 +238,16 @@ void main()
 	// compute Ir1
 	//float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
 	//float Ir1 = ((Ks()*ml*2.0) / (ml+me) )*  (1.0 - Taus(Hl + He));
-	float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
-	//float Ir1 = ((ml) / (ml+me));
-	//float Ir1 = ;
+	//float Ir1 = ((Ks()*Ps(theta_el)*ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
+	float Ir1 = Ks()*Ps(theta_el)*((ml) / (ml+me))  *  (1.0 - Taus(Hl + He));
+	//float Ir1 = ((me) / (ml+me));
+	//float Ir1 = (1.0 - Taus(Hl+He));
+
+
+
+	Ir1 = Ir1*Ir1Mult;
+	Ir2 = Ir2*Ir2Mult;
+	Ir3 = Ir3*Ir3Mult;
 
 	// compute Ir
 	float Ir = Ir1 + Ir2 + Ir3;

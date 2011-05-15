@@ -1,14 +1,12 @@
 #pragma once
 
-#include <iostream>
-
 #include <QtOpenGL/QGLWidget>
 #include <QMouseEvent>
 
 #include <gfx/OrbitNavigator.h>
 #include <gfx/Camera.h>
 
-
+#include "GLThread.h"
 
 namespace composer
 {
@@ -22,75 +20,26 @@ namespace composer
 			typedef void (*InitCallback)( void );
 			typedef void (*RenderCallback)( base::CameraPtr );
 
-			GLViewer( InitCallback init = 0, RenderCallback render = 0, QWidget *parent = 0 ) : QGLWidget(parent), m_init(init), m_render(render), m_lastX(0), m_lastY(0)
-			{
-				setMouseTracking( true );
-			}
+			GLViewer( InitCallback init = 0, RenderCallback render = 0, QWidget *parent = 0 );
 
-			base::CameraPtr  getCamera()
-			{
-				return m_orbitNavigator.m_camera;
-			}
+			base::CameraPtr getCamera();
+		public slots:
+			void setRenderInSeperateThread( bool state );
+		public:
+		//protected:
 
-		protected:
-
-			void initializeGL()
-			{
-				if(m_init)
-					m_init();
-			}
-
-			void resizeGL(int w, int h)
-			{
-				// setup viewport, projection etc.:
-				glViewport(0, 0, (GLint)w, (GLint)h);
-			}
-
-			void paintGL()
-			{
-				if(m_render)
-					m_render(m_orbitNavigator.m_camera);
-			}
-
-			void mouseMoveEvent( QMouseEvent * event )
-			{
-				Qt::MouseButtons buttons = event->buttons();
-				int dx = event->x() - m_lastX;
-				int dy = event->y() - m_lastY;
-				m_lastX = event->x();
-				m_lastY = event->y();
-				//std::cout << dx << " " << dy << std::endl;
-
-
-				// if a mousebutton had been pressed
-				if( buttons != Qt::NoButton )
-				{
-
-					if( buttons & Qt::LeftButton )
-					{
-						m_orbitNavigator.orbitView( (float)(dx)*0.5f,(float) (dy)*0.5f );
-						//m_orbitNavigator.orbitView( (float)(dx)*100.0f,(float) (dy)*100.0f );
-					}else
-					if( buttons & Qt::RightButton )
-					{
-						// Alt + RMB => move camera along lookat vector
-						m_orbitNavigator.zoomView( -dx*m_orbitNavigator.getDistance()*0.005f );
-					}else
-					if( buttons & Qt::MidButton )
-					{// MMBUTTON
-						m_orbitNavigator.panView( (float)dx, (float)-dy );
-					}
-
-					//printf( "%f  %f   %f\n", dbgNav.azimuth, dbgNav.elevation, cam->focalLength );
-					update();
-				}
-			}
-		private:
+			void initializeGL();
+			void resizeGL(int w, int h);
+			void paintGL();
+			void mouseMoveEvent( QMouseEvent * event );
+		//private:
 			InitCallback m_init;
 			RenderCallback m_render;
 			base::OrbitNavigator m_orbitNavigator;
 			int m_lastX;
 			int m_lastY;
+
+			GLThread m_renderThread;
 		};
 	}
 }
