@@ -53,7 +53,6 @@ namespace composer
 
 				if( buttons & Qt::LeftButton )
 				{
-					std::cout << "rotate\n";
 					m_orbitNavigator.orbitView( (float)(dx)*0.5f,(float) (dy)*0.5f );
 				}else
 				if( buttons & Qt::RightButton )
