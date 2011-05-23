@@ -18,6 +18,9 @@ clouds:
 
 Martin Jondo Reggae
 
+
+visualstudio2010
+----------------
 -download/extract qt-everywhere-opensource
 -copy to final location
 -setup path environment variable to point to directory containing qmake
@@ -27,3 +30,9 @@ Martin Jondo Reggae
 n32-msvc2010 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools
  -no-qt3support -no-multimedia -no-ltcg
 -nmake
+
+
+linux
+----------------
+configure -prefix /mpc/devel/david-k/dev/libs/qt/4.7.3 -prefix-install -debug-and-release -opensource -shared -platform linux-g++-64 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools -no-qt3support -no-multimedia
+                                     

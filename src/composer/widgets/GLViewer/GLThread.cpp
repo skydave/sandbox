@@ -1,6 +1,6 @@
 #include "GLThread.h"
 #include <iostream>
-#include <gfx/context.h>
+#include <gfx/Context.h>
 
 #include "GLViewer.h"
 
