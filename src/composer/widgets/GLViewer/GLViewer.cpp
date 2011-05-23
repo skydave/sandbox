@@ -72,13 +72,6 @@ namespace composer
 
 		void GLViewer::setRenderInSeperateThread( bool state )
 		{
-			std::string t;
-			if(state)
-				t = "true";
-			else
-				t = "false";
-			std::cout << "GLViewer::setRenderInSeperateThread " << t << " \n";
-
 			if(state)
 			{
 				setAutoBufferSwap(false);

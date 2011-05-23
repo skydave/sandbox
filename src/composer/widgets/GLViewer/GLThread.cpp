@@ -33,21 +33,11 @@ namespace composer
     
 		void GLThread::run()
 		{
+			doRendering = true;
 			m_glViewer->makeCurrent();
 			m_stopWatch.start();
-			/*
-			srand(QTime::currentTime().msec());
-			rotAngle = rand() % 360;
 
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();        
-			glOrtho(-5.0, 5.0, -5.0, 5.0, 1.0, 100.0);
-			glMatrixMode(GL_MODELVIEW);
-			glViewport(0, 0, 200, 200);
-			glClearColor(0.0, 0.0, 0.0, 1.0);
-			glShadeModel(GL_SMOOTH);
-			glEnable(GL_DEPTH_TEST);
-    			*/
+
 			while (doRendering)
 			{
 				if (doResize)
@@ -60,7 +50,6 @@ namespace composer
 				if(m_glViewer->m_render)
 					m_glViewer->m_render(m_glViewer->m_orbitNavigator.m_camera);
 				m_glViewer->swapBuffers();
-				std::cout << "rendering\n";
 				msleep(40);
 			}
 			m_glViewer->doneCurrent();
