@@ -617,7 +617,7 @@ void init()
 	cloudShader->setUniform( "sunDir", math::Vec3f( 0.0f, 1.0f, 0.0f ) );
 	cloudShader->setUniform( "maxHeight", 500.0f );
 	cloudShader->setUniform( "maxVertexHeight", 500.0f );
-	cloudShader->setUniform( "Csun", 1.0f, 0.0f, 0.0f, 1.0f );
+	cloudShader->setUniform( "Csun", 1.0f, 1.0f, 1.0f, 1.0f );
 	cloudShader->setUniform( "Csky", .5f, .5f, .5f, 1.0f );
 	cloudShader->setUniform( "Cground", .1f, .1f, .1f, 1.0f );
 	cloudShader->setUniform( "Ir1Mult", 1.0f );
@@ -677,34 +677,15 @@ void init()
 		fcurve.addCP( x, sin(x) );
 	}
 
-	/*
-	QMainWindow *mainWin2 = new QMainWindow();
-	mainWin2->resize(800, 600);
-	curveEditor = new composer::widgets::CurveEditor(0);
-	curveEditor->setCoDomainScale( composer::widgets::CurveEditor::LOG10 );
-	curveEditor->addCurve( "test", P_theta );
-	//curveEditor->addCurve( "test2", fcurve );
-	curveEditor->addCurve( "test2", base::FCurve(base::FCurve::LINEAR) );
-	curveEditor->setCallback(updatePtheta);
-	mainWin2->setCentralWidget( curveEditor );
-	mainWin2->show();
-	*/
-/*
-	QMainWindow *mainWin3 = new QMainWindow();
-	mainWin3->resize(800, 600);
-	composer::widgets::Trackball *trackball = new composer::widgets::Trackball();
-	trackball->setCallback( updateSunDir );
-	mainWin3->setCentralWidget( trackball );
-	mainWin3->show();
-	*/
 
+/*
 	CloudsUI *widget = new CloudsUI(P_theta);
 
 	glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
 
 	widget->show();
 	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
-
+*/
 }
 
 
