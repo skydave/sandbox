@@ -23,6 +23,7 @@
 #include <gfx/Geometry.h>
 #include <gfx/Shader.h>
 #include <gfx/Texture.h>
+#include <gfx/Image.h>
 #include <gfx/Context.h>
 #include <gfx/FCurve.h>
 #include <gfx/glsl/common.h>
@@ -173,10 +174,7 @@ void render( base::CameraPtr cam )
 
 void render2( base::CameraPtr cam )
 {
-	//fbo->begin(false);
-	glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
-	glDisable( GL_CULL_FACE );
-	//glEnable( GL_CULL_FACE );
+	glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
 
 
@@ -187,16 +185,6 @@ void render2( base::CameraPtr cam )
 	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	context->render( particles, particleShader );
-
-
-
-
-
-
-
-	/*
-	glEnable( GL_POINT_SPRITE_ARB );
 
 
 	float quadratic[] =  { 0.0f, 0.0f, 0.01f };
@@ -209,49 +197,18 @@ void render2( base::CameraPtr cam )
 
 	glPointSize( maxSize );
 
-	glPointParameterfARB( GL_POINT_SIZE_MAX_ARB, maxSize );
+	glPointParameterf( GL_POINT_SIZE_MAX, maxSize );
 
-	glPointParameterfARB( GL_POINT_SIZE_MIN_ARB, 1.0f );
+	glPointParameterf( GL_POINT_SIZE_MIN, 1.0f );
 
-	glTexEnvf( GL_POINT_SPRITE_ARB, GL_COORD_REPLACE_ARB, GL_TRUE );
+	glTexEnvf( GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE );
 
-	glEnable( GL_POINT_SPRITE_ARB );
+	glEnable( GL_POINT_SPRITE );
 
-	glBegin( GL_POINTS );
-	{
-		for(int i=0;i<1;i++)
-		{
-			//glColor4f(VecParticle[i].Color.x,VecParticle[i].Color.y,VecParticle[i].Color.z,1.0f);
-			//glVertex3f(VecParticle[i].Position.x,VecParticle[i].Position.y,VecParticle[i].Position.z);
-			glVertex3f(1.0f, 1.0f, 1.0f);
-		}
-	}
+	context->render( particles, particleShader );
 
-	glEnd();
+	glDisable( GL_POINT_SPRITE );
 
-	glDisable( GL_POINT_SPRITE_ARB );
-	*/
-	//context->renderScreen( shader_screen );
-	//glEnable( GL_BLEND );
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	//context->render( geo, cloudShader );
-
-	/*
-	// debug
-	GLint viewport[4];
-	//GLubyte pixel[3];
-	float pixel[4];
-
-	glGetIntegerv(GL_VIEWPORT,viewport);
-
-	glReadPixels((int)(viewport[0] + viewport[2]*0.5f),(int)(viewport[3]-viewport[3]*0.5f),1,1, GL_RGBA,GL_FLOAT,(void *)pixel);
-
-	std::cout << "pixel " << pixel[0] << " " << pixel[1] << " " << pixel[2] << " " << pixel[3] << std::endl;
-
-	glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_TRUE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_TRUE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_TRUE);
-	*/
-
-	//fbo->end();
 }
 
 
@@ -268,6 +225,10 @@ void init()
 	context = base::ContextPtr( new base::Context() );
 
 	particles = base::geo_grid(14, 14, base::Geometry::POINT);
+	//particles = base::geo_grid(14, 14);
+
+	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/uvref.png" );
+
 
 	particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/particles.vs.glsl", base::Path( SRC_PATH ) + "src/particles.ps.glsl" );
 
