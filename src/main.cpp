@@ -232,7 +232,6 @@ void init()
 
 	particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/particles.vs.glsl", base::Path( SRC_PATH ) + "src/particles.ps.glsl" );
 
-
 }
 
 
