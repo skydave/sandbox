@@ -206,10 +206,14 @@ void init()
 
 	//base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/uvref.png" );
 
+	testShader = base::Shader::load( base::Path( SRC_PATH ) + "src/test.vs.glsl", base::Path( SRC_PATH ) + "src/test.ps.glsl" ).attachPS( base::glsl::common() );
 
-	testShader = base::Shader::load( base::Path( SRC_PATH ) + "src/test.vs.glsl", base::Path( SRC_PATH ) + "src/test.ps.glsl" );
 
-
+	context->setUniform("common_permTexture", base::glsl::noisePermutationTableTex()->getUniform());
+	base::AttributePtr timeAttr = base::Attribute::createFloat();
+	timeAttr->appendElement( 0.0f );
+	context->setUniform("time", timeAttr);
+	glviewer->setRenderInSeperateThread(true);
 }
 
 
