@@ -36,9 +36,9 @@
 composer::widgets::GLViewer *glviewer;
 
 base::ContextPtr context;
-base::Texture2dPtr particlePositions;
-base::GeometryPtr particles;
-base::ShaderPtr particleShader;
+base::Texture2dPtr texture;
+base::GeometryPtr grid;
+base::ShaderPtr testShader;
 
 
 void onPlayButtonPressed( bool checked )
@@ -186,29 +186,7 @@ void render2( base::CameraPtr cam )
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-
-	float quadratic[] =  { 0.0f, 0.0f, 0.01f };
-
-	glPointParameterfvARB( GL_POINT_DISTANCE_ATTENUATION_ARB, quadratic );
-
-	float maxSize = 0.0f;
-
-	glGetFloatv( GL_POINT_SIZE_MAX_ARB, &maxSize );
-
-	glPointSize( maxSize );
-
-	glPointParameterf( GL_POINT_SIZE_MAX, maxSize );
-
-	glPointParameterf( GL_POINT_SIZE_MIN, 1.0f );
-
-	glTexEnvf( GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE );
-
-	glEnable( GL_POINT_SPRITE );
-
-	context->render( particles, particleShader );
-
-	glDisable( GL_POINT_SPRITE );
-
+	context->render( grid, testShader );
 }
 
 
@@ -224,13 +202,12 @@ void init()
 
 	context = base::ContextPtr( new base::Context() );
 
-	particles = base::geo_grid(14, 14, base::Geometry::POINT);
-	//particles = base::geo_grid(14, 14);
+	grid = base::geo_grid(14, 14);
 
-	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/uvref.png" );
+	//base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/uvref.png" );
 
 
-	particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/particles.vs.glsl", base::Path( SRC_PATH ) + "src/particles.ps.glsl" );
+	testShader = base::Shader::load( base::Path( SRC_PATH ) + "src/test.vs.glsl", base::Path( SRC_PATH ) + "src/test.ps.glsl" );
 
 
 }
