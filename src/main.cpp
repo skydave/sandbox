@@ -37,6 +37,7 @@ composer::widgets::GLViewer *glviewer;
 
 base::ContextPtr context;
 base::Texture2dPtr particlePositions;
+base::Texture2dPtr particleTex;
 base::GeometryPtr particles;
 base::ShaderPtr particleShader;
 
@@ -58,6 +59,7 @@ void onPlayButtonPressed( bool checked )
 
 void render( base::CameraPtr cam )
 {
+	/*
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -108,7 +110,7 @@ void render( base::CameraPtr cam )
 	glDisable( GL_POINT_SPRITE_ARB );
 
 
-/*
+
 	//
 	base::AttributePtr a = geo->getAttr("P");
 
@@ -163,13 +165,14 @@ void render( base::CameraPtr cam )
 			}
 		}break;
 	};
-*/
+
 
 	glMatrixMode( GL_PROJECTION );
 	glPopMatrix();
 
 	glMatrixMode( GL_MODELVIEW );
 	glPopMatrix();
+*/
 }
 
 void render2( base::CameraPtr cam )
@@ -182,25 +185,15 @@ void render2( base::CameraPtr cam )
 
 
 	// render to screen
-	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
+	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glEnable( GL_BLEND );
+	glDisable( GL_DEPTH_TEST );
 
 
-	float quadratic[] =  { 0.0f, 0.0f, 0.01f };
-
-	glPointParameterfvARB( GL_POINT_DISTANCE_ATTENUATION_ARB, quadratic );
-
-	float maxSize = 0.0f;
-
-	glGetFloatv( GL_POINT_SIZE_MAX_ARB, &maxSize );
-
-	glPointSize( maxSize );
-
-	glPointParameterf( GL_POINT_SIZE_MAX, maxSize );
-
-	glPointParameterf( GL_POINT_SIZE_MIN, 1.0f );
-
+	glEnable( GL_VERTEX_PROGRAM_POINT_SIZE );
 	glTexEnvf( GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE );
 
 	glEnable( GL_POINT_SPRITE );
@@ -208,6 +201,8 @@ void render2( base::CameraPtr cam )
 	context->render( particles, particleShader );
 
 	glDisable( GL_POINT_SPRITE );
+
+	glDisable( GL_BLEND );
 
 }
 
@@ -224,14 +219,89 @@ void init()
 
 	context = base::ContextPtr( new base::Context() );
 
-	particles = base::geo_grid(14, 14, base::Geometry::POINT);
-	//particles = base::geo_grid(14, 14);
+	//particles = base::geo_blank(base::Geometry::POINT);
+	//particles = base::geo_grid(14,14,base::Geometry::POINT);
+	particles = base::Geometry::createPointGeometry();
+	//particles = base::geo_sphere(14, 14, 1.0f, math::Vec3f(0.0f,0.0f,0.0f), base::Geometry::POINT);
+	//particles = base::geo_sphere(28, 28, 1.0f, math::Vec3f(0.0f,0.0f,0.0f) );
+	
 
-	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/uvref.png" );
+
+	particlePositions = base::Texture2d::createRGBAFloat32( 1024, 1024 );
+	float *posArray = (float *)malloc( 1024*1024*sizeof(float)*4 );
+
+	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/circlealpha.bmp" );
+	particleTex = base::Texture2d::createRGBA8();
+	particleTex->upload( img );
 
 
 	particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/particles.vs.glsl", base::Path( SRC_PATH ) + "src/particles.ps.glsl" );
+	particleShader->setUniform( "tex", particleTex->getUniform() );
 
+
+	base::AttributePtr positions = particles->getAttr("P");
+
+
+	math::Vec3f p(0.1f, 0.1f, 0.1f);
+	//float a = -0.966918;                  // coefficients for "The King's Dream"
+	//float b = 2.879879;
+	//float c = 0.765145;
+	//float d = 0.744728;
+	float a = -2.643f;                  // coefficients for "The King's Dream"
+	float b = 1.155f;
+	float c = 2.896f;
+	float d = 1.986f;
+	int initialIterations = 100;        // initial number of iterations to allow the attractor to settle
+	int iterations = 1000000;            // number of times to iterate through the functions and draw a point
+
+	// compute some initial iterations to settle into the orbit of the attractor
+	for (int i = 0; i <initialIterations; ++i)
+	{
+		// compute a new point using the strange attractor equations
+		float xnew = sin(a * p.y) - p.z * cos(b * p.x);
+		float ynew = p.z * sin(c * p.x) - cos(d * p.y);
+		float znew = sin(p.x);
+
+		// save the new point
+		p.x = xnew;
+		p.y = ynew;
+		p.z = znew;
+	}
+
+
+	// go through the equations many times, drawing a point for each iteration
+	for (int i = 0; i<iterations; ++i)
+	{
+		// compute a new point using the strange attractor equations
+		float xnew = sin(a * p.y) - p.z * cos(b * p.x);
+		float ynew = p.z * sin(c * p.x) - cos(d * p.y);
+		float znew = sin(p.x);
+
+		// save the new point
+		p.x = xnew;
+		p.y = ynew;
+		p.z = znew;
+
+		// draw the new point
+		particles->addPoint(positions->appendElement( p ));
+	}
+
+
+	//apply perlin noise
+	math::PerlinNoise pn;
+	pn.setFrequency( .5f );
+	pn.setDepth(3);
+	int numElements = positions->numElements();
+	for( int i=0;i<numElements;++i )
+	{
+		math::Vec3f &p = positions->get<math::Vec3f>(i);
+		float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
+		float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
+		float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
+		p += math::Vec3f(t1,t2,t3);
+
+	}
+	//base::apply_normals(particles);
 }
 
 
@@ -245,7 +315,7 @@ int main(int argc, char ** argv)
 	QMainWindow mainWin;
 	mainWin.resize(800, 600);
 	glviewer = new composer::widgets::GLViewer(init, render2);
-	glviewer->getCamera()->m_znear = 1.0f;
+	glviewer->getCamera()->m_znear = 0.1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
