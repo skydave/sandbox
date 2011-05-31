@@ -1,5 +1,4 @@
 #-DCMAKE_BUILD_TYPE=Debug
-
 project("app")
 
 cmake_minimum_required(VERSION 2.8)
@@ -120,7 +119,7 @@ add_definitions(${QT_DEFINITIONS})
 #
 
 #specify app sources
-file(GLOB_RECURSE app_sources src/*.cpp src/*.h src/*.glsl src/*.ui)
+file(GLOB_RECURSE app_sources src/*.c src/*.cpp src/*.h src/*.glsl src/*.ui)
 sourceGroups( app_sources )
 
 #glsl build commands
