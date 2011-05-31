@@ -11,6 +11,18 @@ namespace composer
 		GLViewer::GLViewer( InitCallback init, RenderCallback render, QWidget *parent ) : QGLWidget(parent), m_init(init), m_render(render), m_lastX(0), m_lastY(0), m_renderThread(this)
 		{
 			setMouseTracking( true );
+			// this will make sure swapbuffers is not called by qt when doing double buffering
+			setAutoBufferSwap(false);
+		}
+
+
+		GLViewer::~GLViewer()
+		{
+			if( m_renderThread.isRunning() )
+			{
+				m_renderThread.stop();
+				m_renderThread.wait();
+			}
 		}
 
 		base::CameraPtr GLViewer::getCamera()
@@ -27,7 +39,11 @@ namespace composer
 		void GLViewer::resizeGL(int w, int h)
 		{
 			// setup viewport, projection etc.:
-			glViewport(0, 0, (GLint)w, (GLint)h);
+			if( m_renderThread.isRunning() )
+			{
+				m_renderThread.resizeViewport( QSize(w,h) );
+			}else
+				glViewport(0, 0, (GLint)w, (GLint)h);
 		}
 
 		void GLViewer::paintGL()
@@ -36,6 +52,7 @@ namespace composer
 			{
 				if(m_render)
 					m_render(m_orbitNavigator.m_camera);
+				swapBuffers();
 			}
 		}
 		void GLViewer::mouseMoveEvent( QMouseEvent * event )
@@ -65,7 +82,8 @@ namespace composer
 					m_orbitNavigator.panView( (float)dx, (float)-dy );
 				}
 
-				update();
+				if( !m_renderThread.isRunning() )
+					update();
 			}
 		}
 
@@ -73,7 +91,6 @@ namespace composer
 		{
 			if(state)
 			{
-				setAutoBufferSwap(false);
 				doneCurrent();
 				// start seperate render thread
 				m_renderThread.start();
@@ -83,7 +100,6 @@ namespace composer
 				m_renderThread.stop();
 				// wait for renderthread to finish
 				m_renderThread.wait();
-				setAutoBufferSwap(true);
 				makeCurrent();
 			}
 		}
