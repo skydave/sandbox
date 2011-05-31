@@ -12,11 +12,15 @@ namespace composer
 		class GLViewer;
 		class GLThread : public QThread
 		{
+			Q_OBJECT
 		public:
 			GLThread(GLViewer *glViewer);
 			void resizeViewport(const QSize &size);
 			void run();
 			void stop();
+
+		signals:
+			void swapBuffer( int test );
         
 		private:
 			bool doRendering;
