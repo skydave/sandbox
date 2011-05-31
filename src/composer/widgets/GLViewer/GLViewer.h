@@ -21,18 +21,19 @@ namespace composer
 			typedef void (*RenderCallback)( base::CameraPtr );
 
 			GLViewer( InitCallback init = 0, RenderCallback render = 0, QWidget *parent = 0 );
+			virtual ~GLViewer();
 
 			base::CameraPtr getCamera();
 		public slots:
 			void setRenderInSeperateThread( bool state );
 		public:
-		//protected:
+		protected:
 
 			void initializeGL();
 			void resizeGL(int w, int h);
 			void paintGL();
 			void mouseMoveEvent( QMouseEvent * event );
-		//private:
+		private:
 			InitCallback m_init;
 			RenderCallback m_render;
 			base::OrbitNavigator m_orbitNavigator;
@@ -40,6 +41,8 @@ namespace composer
 			int m_lastY;
 
 			GLThread m_renderThread;
+
+			friend class GLThread;
 		};
 	}
 }
