@@ -204,9 +204,14 @@ void init()
 
 	grid = base::geo_grid(14, 14);
 
-	//base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/uvref.png" );
+	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "src/base/data/uvref.png" );
+	base::Texture2dPtr txt = base::Texture2d::createRGBA8();
+	txt->upload( img );
+	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
 
 	testShader = base::Shader::load( base::Path( SRC_PATH ) + "src/test.vs.glsl", base::Path( SRC_PATH ) + "src/test.ps.glsl" ).attachPS( base::glsl::common() );
+	testShader->setUniform( "tex", txt->getUniform() );
 
 
 	context->setUniform("common_permTexture", base::glsl::noisePermutationTableTex()->getUniform());
@@ -227,7 +232,7 @@ int main(int argc, char ** argv)
 	QMainWindow mainWin;
 	mainWin.resize(800, 600);
 	glviewer = new composer::widgets::GLViewer(init, render2);
-	glviewer->getCamera()->m_znear = 1.0f;
+	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
