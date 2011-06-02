@@ -204,7 +204,8 @@ void init()
 
 	grid = base::geo_grid(14, 14);
 
-	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "src/base/data/uvref.png" );
+	//base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "src/base/data/uvref.png" );
+	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/lava.jpg" );
 	base::Texture2dPtr txt = base::Texture2d::createRGBA8();
 	txt->upload( img );
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
