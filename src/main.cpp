@@ -23,6 +23,7 @@
 #include <gfx/Geometry.h>
 #include <gfx/Shader.h>
 #include <gfx/Texture.h>
+#include <gfx/Image.h>
 #include <gfx/Context.h>
 #include <gfx/FCurve.h>
 #include <gfx/glsl/common.h>
@@ -669,6 +670,11 @@ void init()
 
 
 
+	//base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "/data/noise1.jpg" );
+	//base::Texture2dPtr tex = base::Texture2d::createRGBA8();
+	//tex::
+
+
 	base::FCurve fcurve(base::FCurve::LINEAR);
 	int ttt=10;
 	for(int i=0;i<ttt;++i)
@@ -678,14 +684,14 @@ void init()
 	}
 
 
-/*
+
 	CloudsUI *widget = new CloudsUI(P_theta);
 
 	glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
 
 	widget->show();
 	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
-*/
+
 }
 
 

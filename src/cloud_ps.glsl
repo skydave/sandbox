@@ -180,6 +180,53 @@ void setN( vec3 normal )
 	He = H / me;
 }
 
+float fbm_tex( in vec2 uv, in vec2 off )
+{
+	return turb2d( uv*pn_frequency+off, pn_octaves ).x*0.5+0.5;
+}
+
+vec3 flowTexture( in vec2 flow, in vec2 uv, in float time, in float noiseScale, in float interval, in float speed  )
+{
+	float halfInterval = interval*0.5;
+	vec2 uv0 = uv;
+	vec2 uv1 = uv + vec2( 0.764, 0.214 );
+
+	float v = noise2d(uv*noiseScale).x;
+	//float v = 0.0;
+
+	float ttime0 = mod(time + v, interval);
+	float ttime1 = mod(time + v + halfInterval, interval);
+	float t0 = ttime0/interval; // get weight (0-1)
+
+
+	if( t0 > 0.5)
+	{
+		t0 = 1.0 - t0;
+	}
+	t0 = 2.0*t0;
+
+
+	vec2 flowuv0 = uv0 + (ttime0-halfInterval)*speed*flow;
+	vec2 flowuv1 = uv1 + (ttime1-halfInterval)*speed*flow;
+
+
+	float val0 = fbm_tex( mod(flowuv0,1.0), vec2(0.0) );
+	float val1 = fbm_tex( mod(flowuv1,1.0), vec2(0.0) );
+	float val = val0*t0 + val1*(1.0 - t0);
+
+	float delta = 0.01;
+	float dx0 = (fbm_tex( mod(flowuv0,1.0), vec2(delta,0.0) ) - val0)/delta;
+	float dy0 = (fbm_tex( mod(flowuv0,1.0), vec2(0.0,delta) ) - val0)/delta;
+	float dx1 = (fbm_tex( mod(flowuv1,1.0), vec2(delta,0.0) ) - val1)/delta;
+	float dy1 = (fbm_tex( mod(flowuv1,1.0), vec2(0.0,delta) ) - val1)/delta;
+	float dx = dx0*t0 + dx1*(1.0 - t0);
+	float dy = dy0*t0 + dy1*(1.0 - t0);
+
+	//return vec3(t0, dx0, dy0 );
+	return vec3(val, dx, dy );
+}
+
+
 void main()
 {
 	//
@@ -187,12 +234,35 @@ void main()
 	//
 
 	// compute height of slab
+	float delta = 0.01;
+/*
 	vec2 fbmOffset = vec2(time);
+	//vec2 fbmOffset = vec2(0.0);
 	float fbm = turb2d( uv*pn_frequency+fbmOffset, pn_octaves ).x*0.5+0.5;
-	float delta = 0.1;
 	float fbm_dx = ((turb2d( uv*pn_frequency+vec2(delta, 0.0)+fbmOffset, pn_octaves ).x*0.5+0.5)-fbm)/delta;
 	float fbm_dy = ((turb2d( uv*pn_frequency+vec2(0.0, delta)+fbmOffset, pn_octaves ).x*0.5+0.5)-fbm)/delta;
 	vec3 dfbm = vec3(fbm_dx, 0.0, fbm_dy);
+*/
+///*
+	vec2 flow = vec2( sin(uv.y*5.0), cos(uv.x*7.0) );
+	//vec2 flow = vec2( 1.0 );
+	vec3 ftr = flowTexture( flow, uv*1.0, time, 1.0, 2.5, 0.05 );
+	float fbm = ftr.x;
+	float fbm_dx = ftr.y;
+	float fbm_dy = ftr.z;
+	vec3 dfbm = vec3(fbm_dx, 0.0, fbm_dy);
+//*/
+
+
+
+	//fbm_dx = fbm;
+	//fbm_dx = flowTexture( flow, uv+vec2(0.0,delta), time, 1.0, 0.5, 0.2 ) - fbm;
+	//fbm_dx = ftr.y;
+	//fbm_dx = flowTexture( flow, uv+vec2(delta,0.0), time, 1.0, 0.5, 0.2 );
+	//fbm_dx = flowTexture( flow, uv+vec2(0.0,delta)*pn_frequency, time, 1.0, 0.5, 0.2 ) - fbm;
+	//fbm_dx = (turb2d( uv*pn_frequency+vec2(delta, 0.0)+fbmOffset, pn_octaves ).x*0.5+0.5) - fbm;
+	//fbm_dx = (turb2d( uv*pn_frequency+vec2(0.0,delta)+fbmOffset, pn_octaves ).x*0.5+0.5);
+
 	H = fbm*maxHeight;
 
 
@@ -274,7 +344,7 @@ void main()
 		//gl_FragData[0].r = N.x;
 		//gl_FragData[0].g = N.y;
 		//gl_FragData[0].b = N.z;
-		//gl_FragData[0] = vec4(1.0-T0);
+		//gl_FragData[0] = vec4(vec3(fbm), 1.0);
 		//gl_FragData[0] = vec4(0.0);
 		//gl_FragData[0].a = fbm;// - T0;
 		gl_FragData[0].a = 1.0-T0;
@@ -282,9 +352,12 @@ void main()
 		//gl_FragData[0] = Rms*Csky;
 		//gl_FragData[0] = Ir*Csun;
 
-		gl_FragData[0].r = gl_FragData[0].r*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
-		gl_FragData[0].g = gl_FragData[0].g*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
-		gl_FragData[0].b = gl_FragData[0].b*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
+		//gl_FragData[0].r = gl_FragData[0].r*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
+		//gl_FragData[0].g = gl_FragData[0].g*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
+		//gl_FragData[0].b = gl_FragData[0].b*gl_FragData[0].a + 1.0*(1.0-gl_FragData[0].a);
+		//gl_FragData[0] = vec4( fbm, fbm, fbm, 1.0 );
+		//gl_FragData[0] = vec4( dfbm, 1.0 );
+		//gl_FragData[0] = vec4( fbm_dx, fbm_dx, fbm_dx, 1.0 );
 	}//else
 	{
 		//gl_FragData[0] = vec4(fbm, fbm, fbm, T0);
