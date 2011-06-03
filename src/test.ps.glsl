@@ -1,11 +1,13 @@
 varying vec2 uv;
 
-vec3 noise2d( vec2 P );
-vec3 turb2d( vec2 p, int numIterations );
 
 uniform float time;
 uniform sampler2D tex;
 
+// defined in base/gfx/glsl/common.glsl
+vec4 flowTexture( in sampler2D tex, in vec2 flow, in vec2 uv, in float time, in float noiseScale, in float interval, in float speed  );
+
+/*
 vec4 flowTexture( in sampler2D tex, in vec2 flow, in vec2 uv, in float time, in float noiseScale, in float interval, in float speed  )
 {
 	float halfInterval = interval*0.5;
@@ -35,6 +37,7 @@ vec4 flowTexture( in sampler2D tex, in vec2 flow, in vec2 uv, in float time, in 
 
 	return val;
 }
+*/
 
 void main()
 {

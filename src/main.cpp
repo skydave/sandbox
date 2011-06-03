@@ -211,7 +211,7 @@ void init()
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
 
-	testShader = base::Shader::load( base::Path( SRC_PATH ) + "src/test.vs.glsl", base::Path( SRC_PATH ) + "src/test.ps.glsl" ).attachPS( base::glsl::common() );
+	testShader = base::Shader::load( base::Path( SRC_PATH ) + "src/test.vs.glsl", base::Path( SRC_PATH ) + "src/test.ps.glsl" ).attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
 	testShader->setUniform( "tex", txt->getUniform() );
 
 
