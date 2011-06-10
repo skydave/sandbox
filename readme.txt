@@ -11,6 +11,7 @@ base:
 
 
 clouds:
+http://www.opengl.org/registry/specs/EXT/framebuffer_sRGB.txt
 -understand double and 3+ scattering equations
 -understand which units have to be passed to the shader (re N0 etc.)
 -clarify when to use PF Ps and P and what they return for different values of theta
