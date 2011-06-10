@@ -133,9 +133,9 @@ float P_theta( float theta )
 
 float Ps( float theta )
 {
-	if( theta > theta_f )
-		//return P_theta(theta)/(1.0 - Pf);
-		return P_theta(theta)/(1.0 - Pf);
+	if( theta > PI*.1 )
+		return P_theta(theta)/((1.0 - Pf)*0.2);
+	//return P_theta(theta))/(1.0 - Pf);
 	return 0.0;
 	//return P_theta(theta);
 }
