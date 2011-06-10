@@ -55,6 +55,11 @@ base::FBOPtr fbo;
 std::vector<math::Vec3f> positions;
 
 
+base::ShaderPtr baseShader;
+base::Texture2dPtr baseTexture;
+base::GeometryPtr baseGeo;
+
+
 float *clouds_parameters_tex;
 base::Texture2dPtr clouds_parmameters;
 
@@ -224,7 +229,8 @@ void render2( base::CameraPtr cam )
 	//context->renderScreen( shader_screen );
 	//glEnable( GL_BLEND );
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	context->render( geo, cloudShader );
+	//context->render( geo, cloudShader );
+	context->render( baseGeo, baseShader );
 
 	/*
 	// debug
@@ -328,49 +334,17 @@ void init()
 	std::ifstream infile;
 	infile.open( base::Path( SRC_PATH ) + "/data/mieplot_results1_phasefun.txt" );
 
-	//infile.open ("/usr/people/david-k/dev/testprojects/sandbox/git/data/mieplot_results1_phasefun.txt");
-	int lineCount = 0;
     while(!infile.eof()) // To get you all the lines.
     {
 	    std::getline(infile,STRING); // Saves the line in STRING.
-		//if(lineCount++ > 0)
 		{
 			std::vector<std::string> parts;
 			//split string at whitespaces
 			base::splitString( STRING, parts );
-			/*
-			if( parts.size() == 2 )
-			{
-				float t = base::fromString<float>(parts[0]);
-				float intensity = base::fromString<float>(parts[1]);
-				//std::cout<<STRING<<std::endl; // Prints our STRING.
 
-				// map to range 10^-12,6 to 10^-6,4
-				intensity = math::mapValueToRange( 0.0f, 1.0f, pow( 10, -11.5f ), pow( 10, -5.5f ), intensity );
-
-				std::cout<<t << " " << intensity<<std::endl; // Prints our STRING.
-				// apply invers log
-				//intensity = pow( 10, intensity );
-				intensity = exp( intensity );
-
-
-				P_theta.push_back(intensity);
-			}
-			*/
 			if( parts.size() == 4 )
 			{
 				float intensity = base::fromString<float>(parts[2]);
-				//std::cout<<STRING<<std::endl; // Prints our STRING.
-
-				// map to range 10^-12,6 to 10^-6,4
-				//intensity = math::mapValueToRange( 0.0f, 1.0f, pow( 10, -11.5f ), pow( 10, -5.5f ), intensity );
-
-				//std::cout<<t << " " << intensity<<std::endl; // Prints our STRING.
-				// apply invers log
-				//intensity = pow( 10, intensity );
-				//intensity = exp( intensity );
-
-
 				P_theta_samples.push_back(intensity);
 			}
 		}
@@ -489,7 +463,6 @@ void init()
 	//
 	//cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
 	cloudShader = base::Shader::load(base::Path( SRC_PATH ) + "/src/cloud_vs.glsl", base::Path( SRC_PATH ) + "/src/cloud_ps.glsl").attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
-
 	cloudShader->setUniform( "input", texture2d->getUniform() );
 
 
@@ -684,14 +657,24 @@ void init()
 	}
 
 
-
+/*
 	CloudsUI *widget = new CloudsUI(P_theta);
 
 	glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
 
 	widget->show();
 	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
+*/
 
+
+
+
+	// tmp for obj io:
+
+	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );
+	baseGeo = base::geo_grid( 10, 10 );
+	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref.png" );
+	baseShader->setUniform( "input", baseTexture->getUniform() );
 }
 
 
@@ -740,7 +723,7 @@ int main(int argc, char ** argv)
 	QMainWindow mainWin;
 	mainWin.resize(800, 600);
 	glviewer = new composer::widgets::GLViewer(init, render2);
-	glviewer->getCamera()->m_znear = 1.0f;
+	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
