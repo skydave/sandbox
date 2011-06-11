@@ -21,6 +21,7 @@
 #include <util/StringManip.h>
 #include <util/Path.h>
 #include <gfx/Geometry.h>
+#include <gfx/ObjIO.h>
 #include <gfx/Shader.h>
 #include <gfx/Texture.h>
 #include <gfx/Image.h>
@@ -672,8 +673,9 @@ void init()
 	// tmp for obj io:
 
 	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );
-	baseGeo = base::geo_grid( 10, 10 );
-	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref.png" );
+	//baseGeo = base::geo_grid( 10, 10 );
+	baseGeo = base::importObj( base::Path( SRC_PATH ) + "/data/test.1.obj" );
+	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref2.png" );
 	baseShader->setUniform( "input", baseTexture->getUniform() );
 }
 
