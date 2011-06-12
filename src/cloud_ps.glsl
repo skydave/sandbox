@@ -14,6 +14,15 @@ vec3 noise2d_org( vec2 P );
 
 vec3 turb2d( vec2 p, int numIterations );
 
+
+float linearTosRGB( float x )
+{
+	if( x <= 0.00031308 )
+		return 12.92*x;
+	else
+		return 1.055*pow(x, 1.0/2.4) - 0.055;
+}
+
 vec3 getCameraPos()
 {
 	// vmatrix transforms from camera to world space
@@ -337,7 +346,16 @@ void main()
 		//gl_FragData[0] = Rms*Csky;
 		//gl_FragData[0] = Tms*Cground;
 		//gl_FragData[0] = Ir*Csun + Tms*Cground;
-		gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
+		//gl_FragData[0] = Ir*Csun + Rms*Csky + Tms*Cground;
+
+		vec4 test = Ir*Csun + Rms*Csky + Tms*Cground;
+		//test = pow( test, 1.0 / 2.4 );
+		test = pow( test, 2.4 );
+		//test.x = linearTosRGB(test.x);
+		//test.y = linearTosRGB(test.y);
+		//test.z = linearTosRGB(test.z);
+		gl_FragData[0] = test;
+
 		//gl_FragData[0] = vec4(Ptheta(uv.x*Pi));
 		//gl_FragData[0] = vec4( texture2D(parameters, vec2(uv.x, 0.75)).g);
 		//gl_FragData[0].a = T0*10000000000000000000000.0;
