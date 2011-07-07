@@ -230,8 +230,8 @@ void render2( base::CameraPtr cam )
 	//context->renderScreen( shader_screen );
 	//glEnable( GL_BLEND );
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	//context->render( geo, cloudShader );
-	context->render( baseGeo, baseShader );
+	context->render( geo, cloudShader );
+	//context->render( baseGeo, baseShader );
 
 	/*
 	// debug
@@ -454,6 +454,7 @@ void init()
 	//geo = base::geo_quad();
 	//geo = base::geo_cube();
 	geo = base::geo_grid( 250, 250 );
+	//geo = base::geo_sphere( 250, 250, 1.0f );
 	//base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 2000.0f ) );
 	base::apply_transform( geo, math::Matrix44f::ScaleMatrix( 30000.0f ) );
 	base::apply_normals( geo );
@@ -658,25 +659,26 @@ void init()
 	}
 
 
-/*
+
 	CloudsUI *widget = new CloudsUI(P_theta);
 
 	glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
 
 	widget->show();
 	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
-*/
+
 
 
 
 
 	// tmp for obj io:
-
+/*
 	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );
 	//baseGeo = base::geo_grid( 10, 10 );
 	baseGeo = base::importObj( base::Path( SRC_PATH ) + "/data/test.1.obj" );
 	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref2.png" );
 	baseShader->setUniform( "input", baseTexture->getUniform() );
+*/
 }
 
 
