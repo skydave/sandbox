@@ -38,6 +38,12 @@ composer::widgets::GLViewer *glviewer;
 base::ContextPtr context;
 base::Texture2dPtr particlePositions;
 base::Texture2dPtr particleTex;
+
+base::Texture2dPtr  volumeBack;
+base::Texture2dPtr volumeFront;
+base::FBOPtr         volumeFBO;
+
+
 base::GeometryPtr particles;
 base::GeometryPtr sphere;
 base::ShaderPtr particleShader;
@@ -206,131 +212,23 @@ void onPlayButtonPressed( bool checked )
 	}
 }
 
+
+
 void render( base::CameraPtr cam )
 {
-	/*
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
+
+
+	volumeFBO->begin();
+	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// render front faces
 
-	glMatrixMode( GL_PROJECTION );
-	glPushMatrix();
-	glLoadMatrixf( cam->m_projectionMatrix.ma );
+	// render back faces
+	volumeFBO->end();
 
-	glMatrixMode( GL_MODELVIEW );
-	glPushMatrix();
-	glLoadMatrixf( (GLfloat *)cam->m_viewMatrix.ma );
-
-	// draw scene
-	base::drawGrid(false);
-
-	glEnable( GL_POINT_SPRITE_ARB );
-
-
-	float quadratic[] =  { 0.0f, 0.0f, 0.01f };
-
-	glPointParameterfvARB( GL_POINT_DISTANCE_ATTENUATION_ARB, quadratic );
-
-	float maxSize = 0.0f;
-
-	glGetFloatv( GL_POINT_SIZE_MAX_ARB, &maxSize );
-
-	glPointSize( maxSize );
-
-	glPointParameterfARB( GL_POINT_SIZE_MAX_ARB, maxSize );
-
-	glPointParameterfARB( GL_POINT_SIZE_MIN_ARB, 1.0f );
-
-	glTexEnvf( GL_POINT_SPRITE_ARB, GL_COORD_REPLACE_ARB, GL_TRUE );
-
-	glEnable( GL_POINT_SPRITE_ARB );
-
-	glBegin( GL_POINTS );
-	{
-		for(int i=0;i<1;i++)
-		{
-			//glColor4f(VecParticle[i].Color.x,VecParticle[i].Color.y,VecParticle[i].Color.z,1.0f);
-			//glVertex3f(VecParticle[i].Position.x,VecParticle[i].Position.y,VecParticle[i].Position.z);
-			glVertex3f(1.0f, 1.0f, 1.0f);
-		}
-	}
-
-	glEnd();
-
-	glDisable( GL_POINT_SPRITE_ARB );
-
-
-
-	//
-	base::AttributePtr a = geo->getAttr("P");
-
-	switch( geo->primitiveType() )
-	{
-		default:
-		case base::Geometry::POINT:
-		{
-			for( unsigned int i=0; i<geo->numPrimitives();++i )
-			{
-				glBegin( GL_POINTS );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v=a->get<math::Vec3f>(i);
-				glVertex3f( v.x, v.y, v.z );
-				glEnd();
-			}
-		}break;
-		case base::Geometry::TRIANGLE:
-		{
-			std::vector<unsigned int>::iterator it = geo->m_indexBuffer.begin();
-			std::vector<unsigned int>::iterator end = geo->m_indexBuffer.end();
-			while( it != end )
-			{
-				glBegin( GL_TRIANGLES );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v0=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v1=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v2=a->get<math::Vec3f>(*it++);
-				glVertex3f( v0.x, v0.y, v0.z );
-				glVertex3f( v1.x, v1.y, v1.z );
-				glVertex3f( v2.x, v2.y, v2.z );
-				glEnd();
-			}
-		}break;
-		case base::Geometry::QUAD:
-		{
-			std::vector<unsigned int>::iterator it = geo->m_indexBuffer.begin();
-			std::vector<unsigned int>::iterator end = geo->m_indexBuffer.end();
-			while( it != end )
-			{
-				glBegin( GL_QUADS );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v0=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v1=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v2=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v3=a->get<math::Vec3f>(*it++);
-				glVertex3f( v0.x, v0.y, v0.z );
-				glVertex3f( v1.x, v1.y, v1.z );
-				glVertex3f( v2.x, v2.y, v2.z );
-				glVertex3f( v3.x, v3.y, v3.z );
-				glEnd();
-			}
-		}break;
-	};
-
-
-	glMatrixMode( GL_PROJECTION );
-	glPopMatrix();
-
-	glMatrixMode( GL_MODELVIEW );
-	glPopMatrix();
-*/
-}
-
-void render2( base::CameraPtr cam )
-{
 	glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
-
-
-	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
 
 
 	// render to screen
@@ -411,73 +309,26 @@ void init()
 	for( int i = 0;i<shCoeff.size(); ++i )
 		std::cout << "coeff #" << i<< " " << shCoeff[i] << std::endl;
 
+	base::AttributePtr shCoeffAttr = base::Attribute::createVec3f();
+	for( int i = 0;i<9; ++i )
+		shCoeffAttr->appendElement( math::Vec3f( shCoeff[i], shCoeff[i], shCoeff[i] ) );
 
+	particleShader->setUniform( "Li", shCoeffAttr );
 
-/*
-	math::Vec3f p(0.1f, 0.1f, 0.1f);
-	//float a = -0.966918;                  // coefficients for "The King's Dream"
-	//float b = 2.879879;
-	//float c = 0.765145;
-	//float d = 0.744728;
-	float a = -2.643f;                  // coefficients for "The King's Dream"
-	float b = 1.155f;
-	float c = 2.896f;
-	float d = 1.986f;
-	int initialIterations = 100;        // initial number of iterations to allow the attractor to settle
-	int iterations = 1000000;            // number of times to iterate through the functions and draw a point
-
-	// compute some initial iterations to settle into the orbit of the attractor
-	for (int i = 0; i <initialIterations; ++i)
-	{
-		// compute a new point using the strange attractor equations
-		float xnew = sin(a * p.y) - p.z * cos(b * p.x);
-		float ynew = p.z * sin(c * p.x) - cos(d * p.y);
-		float znew = sin(p.x);
-
-		// save the new point
-		p.x = xnew;
-		p.y = ynew;
-		p.z = znew;
-	}
-
-
-	// go through the equations many times, drawing a point for each iteration
-	for (int i = 0; i<iterations; ++i)
-	{
-		// compute a new point using the strange attractor equations
-		float xnew = sin(a * p.y) - p.z * cos(b * p.x);
-		float ynew = p.z * sin(c * p.x) - cos(d * p.y);
-		float znew = sin(p.x);
-
-		// save the new point
-		p.x = xnew;
-		p.y = ynew;
-		p.z = znew;
-
-		// draw the new point
-		particles->addPoint(positions->appendElement( p ));
-	}
-
-
-	//apply perlin noise
-	math::PerlinNoise pn;
-	pn.setFrequency( .5f );
-	pn.setDepth(3);
-	int numElements = positions->numElements();
-	for( int i=0;i<numElements;++i )
-	{
-		math::Vec3f &p = positions->get<math::Vec3f>(i);
-		float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
-		float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
-		float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
-		p += math::Vec3f(t1,t2,t3);
-
-	}
-	//base::apply_normals(particles);
-*/
-
+	// sh probe
 	sphere = base::geo_sphere( 30, 30, 1.0f );
 	base::apply_normals( sphere );
+
+
+	// setup textures for volume rendering ===========================
+	volumeBack = base::Texture2d::createRGBAFloat32( 512, 512 );
+	volumeFront = base::Texture2d::createRGBAFloat32( 512, 512 );
+
+	// setup offscreen render pass ===============
+	volumeFBO = base::FBOPtr( new base::FBO( 512, 512 ) );
+	volumeFBO->setOutputs( volumeFront, volumeBack );
+
+
 
 }
 
@@ -491,7 +342,7 @@ int main(int argc, char ** argv)
 
 	QMainWindow mainWin;
 	mainWin.resize(800, 600);
-	glviewer = new composer::widgets::GLViewer(init, render2);
+	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = 0.1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	mainWin.setCentralWidget( glviewer );

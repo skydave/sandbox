@@ -1,8 +1,12 @@
 uniform sampler2D tex;
 uniform mat4 vminv;
 
+uniform vec3 Li[9];
+
+
 varying vec3 n;
 varying vec3 p;
+
 
 vec3 getCameraPos()
 {
@@ -30,7 +34,7 @@ vec4 lambert(in vec3 n,in vec3 v,in vec3 l)
 
 float SH_unproject( float theta, float phi )
 {
-	return 0.5;
+	return Li[0].x;
 }
 
 void main()
