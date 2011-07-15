@@ -14,6 +14,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include <ui/GLViewer.h>
 #include <gltools/gl.h>
@@ -38,6 +39,8 @@ composer::widgets::GLViewer *glviewer;
 base::ContextPtr context;
 base::Texture2dPtr particlePositions;
 base::Texture2dPtr particleTex;
+base::Texture2dPtr envTex;
+base::ImagePtr envImage;
 
 base::Texture2dPtr  volumeBack;
 base::Texture2dPtr volumeFront;
@@ -52,7 +55,7 @@ base::ShaderPtr particleShader;
 
 
 int n_bands = 4;
-int n_coeff = 15;
+int n_coeff = 16;
 
 
 struct SHSample
@@ -110,7 +113,7 @@ double K(int l, int m)
 	return sqrt(temp);
 }
 
-double SH(int l, int m, double theta, double phi)
+double Y_ml(int l, int m, double theta, double phi)
 {
 	// return a point sample of a Spherical Harmonic basis function
 	// l is the band, range [0..N]
@@ -153,7 +156,7 @@ void SH_setup_spherical_samples(std::vector<SHSample> &samples, int sqrt_n_sampl
 				for(int m=-l; m<=l; ++m)
 				{
 					int index = l*(l+1)+m;
-					samples[i].coeff[index] = SH(l,m,theta,phi);
+					samples[i].coeff[index] = Y_ml(l,m,theta,phi);
 				}
 			}
 
@@ -170,7 +173,7 @@ typedef float (*SH_polar_fn)(float theta, float phi);
 void SH_project_polar_function(SH_polar_fn fn, const std::vector<SHSample> &samples, std::vector<float> &result)
 {
 	const double weight = 4.0*MATH_PI;
-	int n_samples = samples.size();
+	int n_samples = (int)samples.size();
 	result.resize( n_coeff );
 	// for each sample
 	for(int i=0; i<n_samples; ++i)
@@ -194,6 +197,24 @@ void SH_project_polar_function(SH_polar_fn fn, const std::vector<SHSample> &samp
 float fun_light( float theta, float phi )
 {
 	return std::max( 0.0f, 5.0f*cosf(theta) - 4.0f ) + std::max( 0.0f, -4.0f*sinf(theta-MATH_PI)*cosf(phi-2.5f)-3.0f );
+}
+
+math::Vec2f cubemapLookup( math::Vec3f n )
+{
+	return math::Vec2f();
+}
+
+math::Vec3f fun_env( float theta, float phi )
+{
+	// convert to x,y,z
+	math::Vec3f n;
+
+	// get cubemap uv
+	math::Vec2f uv = cubemapLookup(n);
+
+	// lookup texture
+	math::Color c = envImage->lookup( uv.x, uv.y );
+	return math::Vec3f( c.r, c.g, c.b );
 }
 
 
@@ -265,13 +286,18 @@ void init()
 		std::cout << "glew init failed\n";
 	}
 
+
 	context = base::ContextPtr( new base::Context() );
+
+	envImage = base::Image::load( base::Path( SRC_PATH ) + "data/grace_cross.jpg" );
+	envTex = base::Texture2d::load( base::Path( SRC_PATH ) + "data/grace_cross.jpg" );
+	//envTex = base::Texture2d::load( base::Path( SRC_PATH ) + "data/uvref.png" );
 
 
 	int a = 100;
 	int numSHSamples = a*a;
 	std::vector<SHSample> shSamples(numSHSamples);
-	SH_setup_spherical_samples( shSamples, int(sqrt(numSHSamples)) );
+	SH_setup_spherical_samples( shSamples, int(sqrt((float)numSHSamples)) );
 
 
 	//particles = base::geo_blank(base::Geometry::POINT);
@@ -291,7 +317,7 @@ void init()
 
 
 	particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/sh.vs.glsl", base::Path( SRC_PATH ) + "src/sh.ps.glsl" );
-	particleShader->setUniform( "tex", particleTex->getUniform() );
+	particleShader->setUniform( "envTex", envTex->getUniform() );
 
 
 	base::AttributePtr positions = particles->getAttr("P");
