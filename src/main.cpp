@@ -40,6 +40,7 @@ base::ContextPtr context;
 base::Texture2dPtr particlePositions;
 base::Texture2dPtr particleTex;
 base::Texture2dPtr envTex;
+base::TextureCubePtr envCubeMap;
 base::ImagePtr envImage;
 
 base::Texture2dPtr  volumeBack;
@@ -50,6 +51,7 @@ base::FBOPtr         volumeFBO;
 base::GeometryPtr particles;
 base::GeometryPtr sphere;
 base::ShaderPtr particleShader;
+base::ShaderPtr envShader;
 
 
 
@@ -250,7 +252,7 @@ math::Vec2f cubemapLookup( math::Vec3f n )
 			uv.x = 1.0 - (d*n*0.5 + 0.5).z;
 			uv.y = 1.0 - (d*n*0.5 + 0.5).y;
 
-			uv = uv*math::Vec2f(0.333,0.25) + math::Vec2f(0.666,0.25);
+			uv = uv*math::Vec2f(0.333f,0.25f) + math::Vec2f(0.666f,0.25f);
 		}
 		else
 		{
@@ -262,7 +264,7 @@ math::Vec2f cubemapLookup( math::Vec3f n )
 
 			uv.y = 1.0 - uv.y;
 
-			uv = uv*math::Vec2f(0.333333,0.25) + math::Vec2f(0.0,0.25);
+			uv = uv*math::Vec2f(0.333333f,0.25f) + math::Vec2f(0.0f,0.25f);
 		}
 	} else
 	if (absN.y > absN.x && absN.y > absN.z)
@@ -276,7 +278,7 @@ math::Vec2f cubemapLookup( math::Vec3f n )
 			uv.x = (d*n*0.5 + 0.5).x;
 			uv.y = (d*n*0.5 + 0.5).z;
 
-			uv = uv*math::Vec2f(0.333,0.25) + math::Vec2f(0.333,0.0);
+			uv = uv*math::Vec2f(0.333f,0.25f) + math::Vec2f(0.333f,0.0f);
 		}
 		else
 		{
@@ -288,7 +290,7 @@ math::Vec2f cubemapLookup( math::Vec3f n )
 			uv.y = (d*n*0.5 + 0.5).z;
 			uv.y = 1.0 - uv.y;
 
-			uv = uv*math::Vec2f(0.333,0.25) + math::Vec2f(0.333,0.5);
+			uv = uv*math::Vec2f(0.333f,0.25f) + math::Vec2f(0.333f,0.5f);
 		}
 	}else
 	{
@@ -302,7 +304,7 @@ math::Vec2f cubemapLookup( math::Vec3f n )
 			uv.y = (d*n*0.5 + 0.5).y;
 			uv.y = 1.0 - uv.y;
 
-			uv = uv*math::Vec2f(0.333,0.25) + math::Vec2f(0.333,0.25);
+			uv = uv*math::Vec2f(0.333f,0.25f) + math::Vec2f(0.333f,0.25f);
 		}
 		else
 		{
@@ -313,7 +315,7 @@ math::Vec2f cubemapLookup( math::Vec3f n )
 			uv.x = (d*n*0.5 + 0.5).x;
 			uv.y = (d*n*0.5 + 0.5).y;
 
-			uv = uv*math::Vec2f(0.333333,0.25) + math::Vec2f(0.333333,0.75);
+			uv = uv*math::Vec2f(0.333333f,0.25f) + math::Vec2f(0.333333f,0.75f);
 		}
 	}
 
@@ -363,7 +365,8 @@ void onPlayButtonPressed( bool checked )
 
 void render( base::CameraPtr cam )
 {
-	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
+	//context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
+	//context->setView( cam->m_viewMatrix.getOrientation(), cam->m_transform.getOrientation(), cam->m_projectionMatrix );
 
 
 	volumeFBO->begin();
@@ -374,13 +377,21 @@ void render( base::CameraPtr cam )
 	// render back faces
 	volumeFBO->end();
 
-	glEnable( GL_CULL_FACE );
-	glEnable( GL_DEPTH_TEST );
+	//glEnable( GL_CULL_FACE );
+	//glEnable( GL_DEPTH_TEST );
 
 
 	// render to screen
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// render environment map
+	context->setView( cam->m_viewMatrix.getOrientation(), cam->m_transform.getOrientation(), cam->m_projectionMatrix );
+	glDisable( GL_DEPTH_TEST );
+	glDepthMask(false);
+	context->render( sphere, envShader );
+	glDepthMask(true);
+	glEnable( GL_DEPTH_TEST );
 
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	//glEnable( GL_BLEND );
@@ -392,6 +403,7 @@ void render( base::CameraPtr cam )
 
 	//glEnable( GL_POINT_SPRITE );
 
+	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
 	//context->render( particles, particleShader );
 	context->render( sphere, particleShader );
 
@@ -418,6 +430,8 @@ void init()
 	envImage = base::Image::load( base::Path( SRC_PATH ) + "data/grace_cross.jpg" );
 	envTex = base::Texture2d::load( base::Path( SRC_PATH ) + "data/grace_cross.jpg" );
 	//envTex = base::Texture2d::load( base::Path( SRC_PATH ) + "data/uvref.png" );
+	envCubeMap = base::TextureCube::createRGBA8();
+	envCubeMap->upload( envImage );
 
 
 	int a = 100;
@@ -441,9 +455,12 @@ void init()
 	particleTex = base::Texture2d::createRGBA8();
 	particleTex->upload( img );
 
+	envShader = base::Shader::load( base::Path( SRC_PATH ) + "src/env.vs.glsl", base::Path( SRC_PATH ) + "src/env.ps.glsl" );
+	envShader->setUniform( "envTex", envCubeMap->getUniform() );
 
 	particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/sh.vs.glsl", base::Path( SRC_PATH ) + "src/sh.ps.glsl" );
 	particleShader->setUniform( "envTex", envTex->getUniform() );
+	particleShader->setUniform( "envTex2", envCubeMap->getUniform() );
 
 
 	base::AttributePtr positions = particles->getAttr("P");

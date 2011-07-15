@@ -1,4 +1,5 @@
 uniform sampler2D envTex;
+uniform samplerCube envTex2;
 uniform mat4 vminv;
 
 uniform vec3 Li[9];
@@ -143,4 +144,5 @@ void main()
 	vec3 val = SH_unprojectV3(n);
 	gl_FragData[0] = vec4(val, 1.0);
 	//gl_FragData[0] = texture2D( envTex, cubemapLookup( n ) );
+	//gl_FragData[0] = textureCube( envTex2, n );
 }
