@@ -110,6 +110,21 @@ vec4 lambert(in vec3 n,in vec3 v,in vec3 l)
 }
 
 
+vec3 SH_unprojectV3( vec3 n )
+{
+	float c0 = 0.282095;
+	float c1 = 0.488603;
+	float c2 = 0.315392;
+	float c3 = 0.546274;
+	float c4 = 1.092548;
+
+	vec3 result;
+	result.x = Li[0].x*c0 + Li[1].x*c1*n.x + Li[2].x*c1*n.z + Li[3].x*c1*n.y + Li[4].x*c4*n.x*n.z + Li[5].x*c4*n.y*n.z + Li[6].x*c2*(3.0*n.z*n.z - 1.0) + Li[7].x*c4*n.x*n.y + Li[8].x*c3*(n.x*n.x - n.y*n.y);
+	result.y = Li[0].y*c0 + Li[1].y*c1*n.x + Li[2].y*c1*n.z + Li[3].y*c1*n.y + Li[4].y*c4*n.x*n.z + Li[5].y*c4*n.y*n.z + Li[6].y*c2*(3.0*n.z*n.z - 1.0) + Li[7].y*c4*n.x*n.y + Li[8].y*c3*(n.x*n.x - n.y*n.y);
+	result.z = Li[0].z*c0 + Li[1].z*c1*n.x + Li[2].z*c1*n.z + Li[3].z*c1*n.y + Li[4].z*c4*n.x*n.z + Li[5].z*c4*n.y*n.z + Li[6].z*c2*(3.0*n.z*n.z - 1.0) + Li[7].z*c4*n.x*n.y + Li[8].z*c3*(n.x*n.x - n.y*n.y);
+	return result;
+}
+
 float SH_unproject( vec3 n )
 {
 	float c0 = 0.282095;
@@ -125,6 +140,7 @@ void main()
 {
 	//float val = SH_unproject( n );
 	//gl_FragData[0] = vec4(val, val, val, 1.0);
-	gl_FragData[0] = texture2D( envTex, cubemapLookup( n ) );
-	//gl_FragData[0] = texture2D( envTex, uv );
+	vec3 val = SH_unprojectV3(n);
+	gl_FragData[0] = vec4(val, 1.0);
+	//gl_FragData[0] = texture2D( envTex, cubemapLookup( n ) );
 }

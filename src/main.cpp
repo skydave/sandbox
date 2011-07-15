@@ -199,22 +199,148 @@ float fun_light( float theta, float phi )
 	return std::max( 0.0f, 5.0f*cosf(theta) - 4.0f ) + std::max( 0.0f, -4.0f*sinf(theta-MATH_PI)*cosf(phi-2.5f)-3.0f );
 }
 
+
+
+typedef math::Vec3f (*SH_polar_fnV3f)(float theta, float phi);
+
+void SH_project_polar_functionV3f(SH_polar_fnV3f fn, const std::vector<SHSample> &samples, std::vector<math::Vec3f> &result)
+{
+	const double weight = 4.0*MATH_PI;
+	int n_samples = (int)samples.size();
+	result.resize( n_coeff );
+	// for each sample
+	for(int i=0; i<n_samples; ++i)
+	{
+		double theta = samples[i].sph.x;
+		double phi = samples[i].sph.y;
+		for(int n=0; n<n_coeff; ++n)
+		{
+			math::Vec3f val = fn(theta,phi);
+			result[n].x += val.x * samples[i].coeff[n];
+			result[n].y += val.y * samples[i].coeff[n];
+			result[n].z += val.z * samples[i].coeff[n];
+		}
+	}
+
+	// divide the result by weight and number of samples
+	double factor = weight / n_samples;
+	for(int i=0; i<n_coeff; ++i)
+	{
+		result[i] = result[i] * factor;
+	}
+}
+
+
 math::Vec2f cubemapLookup( math::Vec3f n )
 {
-	return math::Vec2f();
+	math::Vec2f uv;
+
+	math::Vec3f absN( fabs(n.x), fabs(n.y), fabs(n.z) );
+
+	// nrm is the world normal from a vertex
+	// absNrm is the same normal, but with absolute values
+	if (absN.x > absN.y && absN.x > absN.z)
+	{
+		if (n.x>0)
+		{
+			// right face
+			math::Vec3f p_n = math::Vec3f(1.0,0.0,0.0);
+			float d = math::dotProduct(p_n, p_n)/dotProduct(n,p_n);
+			//uv = 1.0 - (d*n*0.5 + 0.5).zy;
+			uv.x = 1.0 - (d*n*0.5 + 0.5).z;
+			uv.y = 1.0 - (d*n*0.5 + 0.5).y;
+
+			uv = uv*math::Vec2f(0.333,0.25) + math::Vec2f(0.666,0.25);
+		}
+		else
+		{
+			// left face
+			math::Vec3f p_n = math::Vec3f(-1.0,0.0,0.0);
+			float d = dotProduct(p_n, p_n)/dotProduct(n,p_n);
+			uv.x = (d*n*0.5 + 0.5).z;
+			uv.y = (d*n*0.5 + 0.5).y;
+
+			uv.y = 1.0 - uv.y;
+
+			uv = uv*math::Vec2f(0.333333,0.25) + math::Vec2f(0.0,0.25);
+		}
+	} else
+	if (absN.y > absN.x && absN.y > absN.z)
+	{
+		if (n.y>0)
+		{
+			// top face
+			math::Vec3f p_n = math::Vec3f(0.0,1.0,0.0);
+			float d = dotProduct(p_n, p_n)/dotProduct(n,p_n);
+			//uv = (d*n*0.5 + 0.5).xz;
+			uv.x = (d*n*0.5 + 0.5).x;
+			uv.y = (d*n*0.5 + 0.5).z;
+
+			uv = uv*math::Vec2f(0.333,0.25) + math::Vec2f(0.333,0.0);
+		}
+		else
+		{
+			// bottom face
+			math::Vec3f p_n = math::Vec3f(0.0,-1.0,0.0);
+			float d = dotProduct(p_n, p_n)/dotProduct(n,p_n);
+			//uv = (d*n*0.5 + 0.5).xz;
+			uv.x = (d*n*0.5 + 0.5).x;
+			uv.y = (d*n*0.5 + 0.5).z;
+			uv.y = 1.0 - uv.y;
+
+			uv = uv*math::Vec2f(0.333,0.25) + math::Vec2f(0.333,0.5);
+		}
+	}else
+	{
+		if (n.z>0)
+		{
+			// front face
+			math::Vec3f p_n = math::Vec3f(0.0,0.0,1.0);
+			float d = dotProduct(p_n, p_n)/dotProduct(n,p_n);
+			//uv = (d*n*0.5 + 0.5).xy;
+			uv.x = (d*n*0.5 + 0.5).x;
+			uv.y = (d*n*0.5 + 0.5).y;
+			uv.y = 1.0 - uv.y;
+
+			uv = uv*math::Vec2f(0.333,0.25) + math::Vec2f(0.333,0.25);
+		}
+		else
+		{
+			// back face
+			math::Vec3f p_n = math::Vec3f(0.0,0.0,-1.0);
+			float d = dotProduct(p_n, p_n)/dotProduct(n,p_n);
+			//uv = (d*n*0.5 + 0.5).xy;
+			uv.x = (d*n*0.5 + 0.5).x;
+			uv.y = (d*n*0.5 + 0.5).y;
+
+			uv = uv*math::Vec2f(0.333333,0.25) + math::Vec2f(0.333333,0.75);
+		}
+	}
+
+
+	return uv;
 }
 
 math::Vec3f fun_env( float theta, float phi )
 {
 	// convert to x,y,z
 	math::Vec3f n;
+	n.x = sin(theta)*cos(phi);
+	n.y = sin(theta)*sin(phi);
+	n.z = cos(theta);
 
 	// get cubemap uv
 	math::Vec2f uv = cubemapLookup(n);
 
 	// lookup texture
 	math::Color c = envImage->lookup( uv.x, uv.y );
-	return math::Vec3f( c.r, c.g, c.b );
+
+	math::Vec3f result( c.r, c.g, c.b );
+	//result.x = std::max( 0.0f, 5.0f*cosf(theta) - 4.0f ) + std::max( 0.0f, -4.0f*sinf(theta-MATH_PI)*cosf(phi-2.5f)-3.0f );
+	//result.y = 0.0f;
+	//result.z = 0.0f;
+
+	return result;
 }
 
 
@@ -328,16 +454,25 @@ void init()
 		particles->addPoint( positions->appendElement(shSamples[i].vec) );
 	}
 
-	// compute sh coefficients
+	/*
+	// compute sh coefficients - scalar ===========
 	std::vector<float> shCoeff;
 	SH_project_polar_function( fun_light, shSamples, shCoeff );
 
 	for( int i = 0;i<shCoeff.size(); ++i )
 		std::cout << "coeff #" << i<< " " << shCoeff[i] << std::endl;
+	*/
+	// compute sh coefficients - vector ===========
+	std::vector<math::Vec3f> shCoeffV3f;
+	SH_project_polar_functionV3f( fun_env, shSamples, shCoeffV3f );
+
+	for( int i = 0;i<shCoeffV3f.size(); ++i )
+		std::cout << "coeff #" << i<< " " << shCoeffV3f[i].x << " " << shCoeffV3f[i].y << " " << shCoeffV3f[i].z << std::endl;
 
 	base::AttributePtr shCoeffAttr = base::Attribute::createVec3f();
 	for( int i = 0;i<9; ++i )
-		shCoeffAttr->appendElement( math::Vec3f( shCoeff[i], shCoeff[i], shCoeff[i] ) );
+		//shCoeffAttr->appendElement( math::Vec3f( shCoeff[i], shCoeff[i], shCoeff[i] ) );
+		shCoeffAttr->appendElement( shCoeffV3f[i] );
 
 	particleShader->setUniform( "Li", shCoeffAttr );
 
