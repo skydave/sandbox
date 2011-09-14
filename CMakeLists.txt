@@ -27,42 +27,6 @@ MACRO (sourceGroups sources)
 	ENDFOREACH (src)
 ENDMACRO (sourceGroups)
 
-#
-# create custom build command for glsl files
-#
-MACRO (generateCppFromGLSL sources outputs)
-	FOREACH (src ${${sources}})
-	
-		# filter glsl files
-		if(${src} MATCHES "\\.glsl$")
-
-			# strip of path and just leave filename
-			string(REGEX REPLACE "(.)*[\\\\/]" "" filename ${src})
-
-			# assemble output filename
-			set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${filename}.cpp )
-
-			if( CMAKE_SYSTEM_NAME MATCHES Linux )
-				set( pythoncommand "python2.6" )
-			elseif( CMAKE_SYSTEM_NAME MATCHES Windows )
-				set( pythoncommand "python.exe" )
-			endif(CMAKE_SYSTEM_NAME MATCHES Linux)
-		
-			# add custom command
-			add_custom_command( OUTPUT ${outfile}
-								COMMAND ${pythoncommand} ${CMAKE_CURRENT_SOURCE_DIR}/src/base/buildtools/glsl2cpp.py ${src} > ${outfile}
-								DEPENDS ${src} )
-
-			# assign source group
-			source_group(generated FILES ${outfile})
-		
-			# store output
-			set( ${outputs} ${${outputs}} ${outfile} )
-		
-		endif(${src} MATCHES "\\.glsl$")
-
-	ENDFOREACH (src)
-ENDMACRO (generateCppFromGLSL)
 
 #
 # create moc files for each header which contains string "Q_OBJECT"
@@ -123,14 +87,12 @@ add_definitions(${QT_DEFINITIONS})
 file(GLOB_RECURSE app_sources src/*.c src/*.cpp src/*.h src/*.glsl src/*.ui)
 sourceGroups( app_sources )
 
-#glsl build commands
-generateCppFromGLSL(app_sources glsl_outputs)
 
 #qt moc and ui
 generateQtOutputs( app_sources moc_outputs ui_outputs)
 
 # Create an executable
-add_executable(app ${app_sources} ${glsl_outputs} ${moc_outputs} ${ui_outputs})
+add_executable(app ${app_sources} ${moc_outputs} ${ui_outputs})
 
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
