@@ -122,7 +122,7 @@ unsigned int loadProgram(const vector<string> &files)
     glAttachShader(programId, vertexShaderId);
     glAttachShader(programId, fragmentShaderId);
 
-    int n = files.size();
+    int n = (int)files.size();
     string **strs = new string*[n];
     const char** lines = new const char*[n + 1];
     cout << "loading program " << files[n - 1] << "..." << endl;
@@ -251,6 +251,7 @@ void loadData()
 
 void precompute()
 {
+	/*
     glActiveTexture(GL_TEXTURE0 + transmittanceUnit);
     glGenTextures(1, &transmittanceTexture);
     glBindTexture(GL_TEXTURE_2D, transmittanceTexture);
@@ -516,6 +517,7 @@ void precompute()
     glFinish();
     cout << "ready." << endl << flush;
     glUseProgram(drawProg);
+	*/
 
 }
 
@@ -546,6 +548,7 @@ double exposure = 0.4;
 
 void updateView()
 {
+	/*
 	double co = cos(lon);
 	double so = sin(lon);
 	double ca = cos(lat);
@@ -573,16 +576,17 @@ void updateView()
             cz.x, cz.y, cz.z, 0,
             0, 0, 0, 1);
     view = view * mat4d::translate(-position);
+	*/
 }
 
 
 
 void render( base::CameraPtr cam )
 {
-	/*
+
 	//glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
-	glDisable( GL_CULL_FACE );
-	glEnable( GL_DEPTH_TEST );
+	//glDisable( GL_CULL_FACE );
+	//glEnable( GL_DEPTH_TEST );
 
 
 	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
@@ -593,7 +597,7 @@ void render( base::CameraPtr cam )
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	context->render( baseGeo, baseShader );
-	*/
+
 	/*
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -664,8 +668,8 @@ void init()
 
 
 
-	loadData();
-	precompute();
+	//loadData();
+	//precompute();
 	//updateView();
 }
 
