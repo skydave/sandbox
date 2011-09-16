@@ -653,6 +653,43 @@ void init()
 
 
 
+
+
+	/*
+
+	  create 2d transmittance texture (256x64, rgba_float_16, clamp, linear)
+		for each pixel
+			-> get r and view angle
+				x:r goes from Rg to Rt
+				y:muS goes from -0.15 to 1.0
+			->compute optical depth
+				which is a sum of opticalDepth for Rayleigh and Miescattering (multiplied by respective beta values)
+
+
+
+
+
+
+	  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	// tmp for obj io:
 
 	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );

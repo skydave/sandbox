@@ -95,14 +95,22 @@ vec2 getTransmittanceUV(float r, float mu) {
     return vec2(uMu, uR);
 }
 
+//
+// this function computes the viewpoint height/radius and the view angle from the current pixelcoordinate
+//
 void getTransmittanceRMu(out float r, out float muS) {
+	// get normalized pixel coordinates
     r = gl_FragCoord.y / float(TRANSMITTANCE_H);
     muS = gl_FragCoord.x / float(TRANSMITTANCE_W);
 #ifdef TRANSMITTANCE_NON_LINEAR
+	// compute height/radius by adding ground height to the squared radius scaled by height of the slap
     r = Rg + (r * r) * (Rt - Rg);
+	// ??
     muS = -0.15 + tan(1.5 * muS) / tan(1.5) * (1.0 + 0.15);
 #else
+	// compute height/radius by adding ground height to the radius scaled by height of the slap
     r = Rg + r * (Rt - Rg);
+	// angle goes from -0.15 to 1.0
     muS = -0.15 + muS * (1.0 + 0.15);
 #endif
 }
@@ -181,9 +189,11 @@ void getMuMuSNu(float r, vec4 dhdH, out float mu, out float muS, out float nu) {
 float limit(float r, float mu) {
     float dout = -r * mu + sqrt(r * r * (mu * mu - 1.0) + RL * RL);
     float delta2 = r * r * (mu * mu - 1.0) + Rg * Rg;
-    if (delta2 >= 0.0) {
+	if (delta2 >= 0.0)
+	{
         float din = -r * mu - sqrt(delta2);
-        if (din >= 0.0) {
+		if (din >= 0.0)
+		{
             dout = min(dout, din);
         }
     }

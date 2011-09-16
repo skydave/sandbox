@@ -42,16 +42,32 @@ void main() {
 
 #else
 
+//
+// H is the Heightscale which depends on the scattering type (Rayleigh or Mie)
+// r is the height
+// mu is the view angle
+//
 float opticalDepth(float H, float r, float mu) {
     float result = 0.0;
+	// raysegment length: intersect ray with top/bottom to get the length of the ray-segment and divide it by number of samples
     float dx = limit(r, mu) / float(TRANSMITTANCE_INTEGRAL_SAMPLES);
+	// distanced travelled so far
     float xi = 0.0;
+	// ??
     float yi = exp(-(r - Rg) / H);
+	// raymarching
     for (int i = 1; i <= TRANSMITTANCE_INTEGRAL_SAMPLES; ++i) {
+		// get travelled distanec
         float xj = float(i) * dx;
+		// transmittance of current segment
         float yj = exp(-(sqrt(r * r + xj * xj + 2.0 * xj * r * mu) - Rg) / H);
+
+		// ??
         result += (yi + yj) / 2.0 * dx;
+
+		// updated travelled distance
         xi = xj;
+		// update transmittance
         yi = yj;
     }
     return mu < -sqrt(1.0 - (Rg / r) * (Rg / r)) ? 1e9 : result;
