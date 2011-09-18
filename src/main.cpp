@@ -32,6 +32,8 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
+#include <ops/ops.h>
+
 
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
@@ -48,8 +50,9 @@ composer::widgets::GLViewer *glviewer;
 
 
 base::ContextPtr context;
-/*
+
 base::GeometryPtr geo;
+/*
 base::Texture2dPtr noisePermutationTableTex;
 base::Texture2dPtr colorBuffer;
 base::ShaderPtr shader;
@@ -585,21 +588,21 @@ void render( base::CameraPtr cam )
 {
 
 	//glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
-	//glDisable( GL_CULL_FACE );
-	//glEnable( GL_DEPTH_TEST );
+	glDisable( GL_CULL_FACE );
+	glEnable( GL_DEPTH_TEST );
 
 
 	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
 
 
 	// render to screen
-	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
+	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	context->render( baseGeo, baseShader );
+	context->render( geo, baseShader );
 
 	/*
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 
     float h = position.length() - Rg;
     float vfov = 2.0 * atan(float(height) / float(width) * tan(80.0 / 180 * M_PI / 2.0)) / M_PI * 180;
@@ -652,8 +655,23 @@ void init()
 	context = base::ContextPtr( new base::Context() );
 
 
+	// op testing
+	base::ops::SphereOpPtr s = base::ops::SphereOp::create();
+	base::MeshPtr m = s->getMesh(0);
+	geo = m->getGeometry();
 
 
+	// rendering
+	/*
+
+	RenderOpPtr rop = base::ops::RenderOp::create();
+	rop->append( base::ops::ClearOp::create() );
+	rop->append( base::ops::SkyOp::create() );
+	rop->append( base::ops::RenderMeshOp::create() );
+
+	rop->execute();
+
+	*/
 
 	/*
 
