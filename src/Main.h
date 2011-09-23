@@ -32,8 +32,8 @@
  * Author: Eric Bruneton
  */
 
-const float Rg = 6360.0;
-const float Rt = 6420.0;
+//const float Rg = 6360.0;
+//const float Rt = 6420.0;
 const float RL = 6421.0;
 
 const int TRANSMITTANCE_W = 256;

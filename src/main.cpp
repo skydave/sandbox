@@ -65,8 +65,16 @@ base::Texture2dPtr baseTexture;
 base::GeometryPtr baseGeo;
 
 
+base::Texture2dPtr sky_transmittanceTexture;
+
+
 
 using namespace std;
+
+// sky parameters
+float innerRadius = 6360.0; // inner sphere radius (earth surface distance from origin) in km
+float outerRadius = 6420.0; // outer sphere radius (end of atmosphere) in km
+
 
 // ----------------------------------------------------------------------------
 // TOOLS
@@ -641,6 +649,60 @@ void updateSunDir( const math::Vec3f &vec  )
 }
 
 
+float getOpticalDepth( float height, float cosViewAngle )
+{
+	/*
+   computeOpticalDepth
+	   ->intersect ray from camera to outerSphere and innerSphere
+	   ->construct ray from closest intersection and divide ray length by number of sampling points
+	   ->do raymarching
+		   ->compute density at current height
+		   ->add density to accumulated height
+		   ->update position with raystep
+	   ->return accumulated density
+	*/
+
+	return 0.0f;
+}
+
+base::Texture2dPtr setupTransmittanceTexture()
+{
+	/*
+	create 2d transmittance texture (256x64, rgba_float_16, clamp, linear)
+	  for each pixel
+		  -> get r and view angle
+			  x:r goes from Rg to Rt
+			  y:muS goes from -0.15 to 1.0
+		  ->compute optical depth
+			  which is a sum of opticalDepth for Rayleigh and Miescattering (multiplied by respective beta values)
+		  ->compute transmittance by exp(-opticalDepth)
+	*/
+
+
+	base::Texture2dPtr tex = base::Texture2d::createFloat32();
+
+	float *data = (float*)malloc( tex->m_xres*tex->m_yres*sizeof(float) );
+
+	for( int j = 0; j<tex->m_yres; ++j )
+		for( int i = 0; i<tex->m_xres; ++i )
+		{
+			float u = i/(tex->m_xres-1);
+			float v = j/(tex->m_yres-1);
+
+			float cosViewAngle = 2.0f * u - 1.0f;
+			float height = innerRadius + v*(outerRadius-innerRadius);
+
+			float opticalDepth = getOpticalDepth( height, cosViewAngle );
+			float transmittance = exp( -opticalDepth );
+
+			data[j*tex->m_xres + i] = transmittance;
+		}
+
+	tex->uploadFloat32( tex->m_xres, tex->m_yres, data );
+	return tex;
+}
+
+
 void init()
 {
 	std::cout << "init!\n";
@@ -682,13 +744,21 @@ void init()
 				y:muS goes from -0.15 to 1.0
 			->compute optical depth
 				which is a sum of opticalDepth for Rayleigh and Miescattering (multiplied by respective beta values)
-
-
-
-
-
+			->compute transmittance by exp(-opticalDepth)
+		computeOpticalDepth
+			->intersect ray from camera to outerSphere and innerSphere
+			->construct ray from closest intersection and divide ray length by number of sampling points
+			->do raymarching
+				->compute density at current height
+				->add density to accumulated height
+				->update position with raystep
+			->return accumulated density
 
 	  */
+
+
+
+	sky_transmittanceTexture = setupTransmittanceTexture();
 
 
 

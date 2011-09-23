@@ -187,13 +187,20 @@ void getMuMuSNu(float r, vec4 dhdH, out float mu, out float muS, out float nu) {
 // nearest intersection of ray r,mu with ground or top atmosphere boundary
 // mu=cos(ray zenith angle at ray origin)
 float limit(float r, float mu) {
+	// calculate intersection of the ray with outer atmosphere (ScatterCPU.cpp:368)
     float dout = -r * mu + sqrt(r * r * (mu * mu - 1.0) + RL * RL);
+	//
     float delta2 = r * r * (mu * mu - 1.0) + Rg * Rg;
+
+	// if intersection of inner sphere is in front of camera
 	if (delta2 >= 0.0)
 	{
+		// computer intersection of inner sphere
         float din = -r * mu - sqrt(delta2);
+		// still in front?
 		if (din >= 0.0)
 		{
+			// returns closest intersection
             dout = min(dout, din);
         }
     }
