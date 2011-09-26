@@ -6,6 +6,11 @@ cmake_minimum_required(VERSION 2.8)
 
 add_definitions(-DSRC_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}\")
 
+if( CMAKE_SYSTEM_NAME MATCHES Windows )
+	# windows defines min and max in winbase.h which clashes with stl
+	add_definitions(-DNOMINMAX)
+endif( CMAKE_SYSTEM_NAME MATCHES Windows )
+
 
 #
 # assigns sourcegroup from path

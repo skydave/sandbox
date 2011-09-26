@@ -64,6 +64,7 @@ float opticalDepth(float H, float r, float mu) {
 		float yj = exp(-(sqrt(r * r + xj * xj + 2.0 * xj * r * mu) - Rg) / H);
 
 		// add current density to last density and ?
+		// Trapezoidal rule : ((f(xi) + f(xj))/2.0) * h
 		result += (yi + yj) / 2.0 * dx;
 
 		// updated travelled distance

@@ -23,7 +23,8 @@ namespace composer
 			GLViewer( InitCallback init = 0, RenderCallback render = 0, QWidget *parent = 0 );
 			virtual ~GLViewer();
 
-			base::CameraPtr getCamera();
+			base::CameraPtr                                                               getCamera();
+			void        setView( math::Vec3f lookat, float distance, float azimuth, float elevation );
 		public slots:
 			void setRenderInSeperateThread( bool state );
 		public:

@@ -16,6 +16,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include <ui/GLViewer.h>
 #include <gltools/gl.h>
@@ -74,7 +75,16 @@ using namespace std;
 // sky parameters
 float innerRadius = 6360.0; // inner sphere radius (earth surface distance from origin) in km
 float outerRadius = 6420.0; // outer sphere radius (end of atmosphere) in km
+int transmittanceIntegralSamples = 50;
 
+// Rayleigh
+float rayleighHeightScale = 8.0;
+math::Vec3f betaR(5.8e-3f, 1.35e-2f, 3.31e-2f);
+
+// Mie
+float mieHeightScale = 1.2f;
+math::Vec3f betaMSca(4e-3f);
+math::Vec3f betaMEx = betaMSca / 0.9f;
 
 // ----------------------------------------------------------------------------
 // TOOLS
@@ -648,8 +658,28 @@ void updateSunDir( const math::Vec3f &vec  )
 	glviewer->update();
 }
 
+float closestIntersection(float height, float cosViewAngle)
+{
+	//calculate intersection with outer atmosphere
+	float outer_t1 = -height*cosViewAngle + sqrt( height*height*(cosViewAngle*cosViewAngle - 1.0f) + outerRadius*outerRadius );
+	//computer disciminant of inner sphere intersection
+	float inner_discriminant =  height*height*(cosViewAngle*cosViewAngle - 1.0f) + innerRadius*innerRadius;
+	// is there an intersection?
+	if(inner_discriminant)
+	{
+		// computer inner sphere intersection
+		float inner_t1 = -height*cosViewAngle + sqrt(inner_discriminant);
+		// is it in front of ray origin ?
+		if(inner_t1 >= 0.0)
+		{
+			return std::min( inner_t1, outer_t1 );
+		}
+	}
 
-float getOpticalDepth( float height, float cosViewAngle )
+	return outer_t1;
+}
+
+float getOpticalDepth( float height, float cosViewAngle, float heightScale )
 {
 	/*
    computeOpticalDepth
@@ -660,9 +690,29 @@ float getOpticalDepth( float height, float cosViewAngle )
 		   ->add density to accumulated height
 		   ->update position with raystep
 	   ->return accumulated density
-	*/
+	   */
 
-	return 0.0f;
+	// get length of one raysegment
+	float dx = closestIntersection( height, cosViewAngle )/(float)(transmittanceIntegralSamples);
+	float opticalDepth = 0.0f;
+	float lastDensity = exp( -(height - innerRadius)/heightScale );
+
+	for( int i=1;i<transmittanceIntegralSamples;++i )
+	{
+		float distanceTravelled = i*dx;
+		float currentHeight = sqrt( height*height + distanceTravelled*distanceTravelled + 2.0f*height*distanceTravelled*cosViewAngle );
+		float currentDensity = exp( -(currentHeight - innerRadius)/heightScale );
+
+		// we integrate density by using trapezoidal rule
+		opticalDepth += 0.5f*dx*lastDensity + 0.5f*dx*currentDensity;
+
+		lastDensity = currentDensity;
+	}
+
+
+
+	return opticalDepth;
+
 }
 
 base::Texture2dPtr setupTransmittanceTexture()
@@ -692,10 +742,12 @@ base::Texture2dPtr setupTransmittanceTexture()
 			float cosViewAngle = 2.0f * u - 1.0f;
 			float height = innerRadius + v*(outerRadius-innerRadius);
 
-			float opticalDepth = getOpticalDepth( height, cosViewAngle );
-			float transmittance = exp( -opticalDepth );
+			math::Vec3f rayleigh_opticalDepth = betaR*getOpticalDepth( height, cosViewAngle, rayleighHeightScale );
+			math::Vec3f mie_opticalDepth = betaMEx*getOpticalDepth( height, cosViewAngle, mieHeightScale );
+			math::Vec3f opticalDepth = rayleigh_opticalDepth + mie_opticalDepth;
+			math::Vec3f transmittance = math::Vec3f( exp( -opticalDepth.x ), exp( -opticalDepth.y ), exp( -opticalDepth.z ) );
 
-			data[j*tex->m_xres + i] = transmittance;
+			data[j*tex->m_xres + i] = transmittance.x;
 		}
 
 	tex->uploadFloat32( tex->m_xres, tex->m_yres, data );
@@ -718,7 +770,7 @@ void init()
 
 
 	// op testing
-	base::ops::SphereOpPtr s = base::ops::SphereOp::create();
+	base::ops::SphereOpPtr s = base::ops::SphereOp::create(innerRadius);
 	base::MeshPtr m = s->getMesh(0);
 	geo = m->getGeometry();
 
@@ -812,6 +864,7 @@ int main(int argc, char ** argv)
 	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
+	glviewer->setView( math::Vec3f(0.0f, innerRadius, 0.0f), 10.0f, 0.0f, 0.0f );
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
 
