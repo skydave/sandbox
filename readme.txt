@@ -1,3 +1,29 @@
+DEMO
+====
+
+the demo branch is about building the very basics required to run the demo. So this is actually about the juicy bits! Camera, motionpath, timing, sound, fx generalisation
+
+
+
+stage one
+---------
+
+-animated camera
+
+stage two
+---------
+
+-sound
+
+stage three
+-----------
+
+-animated object
+
+
+
+
+
 TODO:
 
 
