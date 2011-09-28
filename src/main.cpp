@@ -65,8 +65,9 @@ base::ShaderPtr baseShader;
 base::Texture2dPtr baseTexture;
 base::GeometryPtr baseGeo;
 
+base::ShaderPtr skyShader;
 
-base::Texture2dPtr sky_transmittanceTexture;
+
 
 
 
@@ -85,6 +86,9 @@ math::Vec3f betaR(5.8e-3f, 1.35e-2f, 3.31e-2f);
 float mieHeightScale = 1.2f;
 math::Vec3f betaMSca(4e-3f);
 math::Vec3f betaMEx = betaMSca / 0.9f;
+
+// sky shader parameters
+base::Texture2dPtr sky_transmittanceTexture;
 
 // ----------------------------------------------------------------------------
 // TOOLS
@@ -607,7 +611,7 @@ void render( base::CameraPtr cam )
 
 	//glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
 	glDisable( GL_CULL_FACE );
-	glEnable( GL_DEPTH_TEST );
+	//glEnable( GL_DEPTH_TEST );
 
 
 	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
@@ -618,6 +622,7 @@ void render( base::CameraPtr cam )
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	context->render( geo, baseShader );
+	context->renderScreen( skyShader );
 
 	/*
 
@@ -712,7 +717,6 @@ float getOpticalDepth( float height, float cosViewAngle, float heightScale )
 
 
 	return opticalDepth;
-
 }
 
 base::Texture2dPtr setupTransmittanceTexture()
@@ -729,15 +733,15 @@ base::Texture2dPtr setupTransmittanceTexture()
 	*/
 
 
-	base::Texture2dPtr tex = base::Texture2d::createFloat32();
+	base::Texture2dPtr tex = base::Texture2d::createRGBAFloat32();
 
-	float *data = (float*)malloc( tex->m_xres*tex->m_yres*sizeof(float) );
+	float *data = (float*)malloc( tex->m_xres*tex->m_yres*sizeof(float)*4 );
 
 	for( int j = 0; j<tex->m_yres; ++j )
 		for( int i = 0; i<tex->m_xres; ++i )
 		{
-			float u = i/(tex->m_xres-1);
-			float v = j/(tex->m_yres-1);
+			float u = (float)i/(float)(tex->m_xres-1);
+			float v = (float)j/(float)(tex->m_yres-1);
 
 			float cosViewAngle = 2.0f * u - 1.0f;
 			float height = innerRadius + v*(outerRadius-innerRadius);
@@ -747,10 +751,14 @@ base::Texture2dPtr setupTransmittanceTexture()
 			math::Vec3f opticalDepth = rayleigh_opticalDepth + mie_opticalDepth;
 			math::Vec3f transmittance = math::Vec3f( exp( -opticalDepth.x ), exp( -opticalDepth.y ), exp( -opticalDepth.z ) );
 
-			data[j*tex->m_xres + i] = transmittance.x;
+			data[j*tex->m_xres*4 + i*4] = transmittance.x;
+			data[j*tex->m_xres*4 + i*4 + 1] = transmittance.y;
+			data[j*tex->m_xres*4 + i*4 + 2] = transmittance.z;
+			data[j*tex->m_xres*4 + i*4 + 3] = 0.0f;
+			//std::cout << "height: " << height << "     cosViewAngle: " << cosViewAngle << "       transmittance: " << transmittance.x << ", " << transmittance.y << ", " << transmittance.z << std::endl;
 		}
 
-	tex->uploadFloat32( tex->m_xres, tex->m_yres, data );
+	tex->uploadRGBAFloat32( tex->m_xres, tex->m_yres, data );
 	return tex;
 }
 
@@ -819,6 +827,9 @@ void init()
 
 
 
+
+	skyShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/sky.vs.glsl", base::Path( SRC_PATH ) + "/src/sky.ps.glsl" );
+	skyShader->setUniform( "transmittanceSampler", sky_transmittanceTexture->getUniform() );
 
 
 
