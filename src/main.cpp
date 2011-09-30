@@ -35,8 +35,6 @@
 
 #include <ops/ops.h>
 
-
-
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
@@ -46,6 +44,8 @@
 //#include "tiffio.h"
 
 #include "Main.h"
+
+#include <ttl/var/variant.hpp>
 
 composer::widgets::GLViewer *glviewer;
 
@@ -861,9 +861,32 @@ void init()
 	//updateView();
 }
 
+struct event_visitor
+{
+   void operator()( int x )
+   {
+	  std::cout<<"int event: "<<x<<"\n";
+   }
+   void operator()( double x )
+   {
+	  std::cout<<"double event: "<<x<<"\n";
+   }
+};
 
 int main(int argc, char ** argv)
 {
+	// ttl test --------
+	ttl::var::variant<double, int> test;
+
+	test = 2.3;
+	event_visitor ev;
+	std::cout << "test\n";
+	ttl::var::apply_visitor(ev, test);
+	std::cout << "test2\n";
+	std::cout << std::flush;
+	// ----------
+
+
 	QApplication app(argc, argv);
 	app.setOrganizationName("test");
 	app.setApplicationName("test");
@@ -872,12 +895,14 @@ int main(int argc, char ** argv)
 	mainWin.resize(800, 600);
 	width = 800;
 	height = 600;
+
 	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	glviewer->setView( math::Vec3f(0.0f, innerRadius, 0.0f), 10.0f, 0.0f, 0.0f );
+
 	mainWin.setCentralWidget( glviewer );
-	mainWin.show();
+	//mainWin.show();
 
 
 	return app.exec();
