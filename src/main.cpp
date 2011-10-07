@@ -45,8 +45,6 @@
 
 #include "Main.h"
 
-#include <ttl/var/variant.hpp>
-
 composer::widgets::GLViewer *glviewer;
 
 
@@ -743,6 +741,9 @@ base::Texture2dPtr setupTransmittanceTexture()
 			float u = (float)i/(float)(tex->m_xres-1);
 			float v = (float)j/(float)(tex->m_yres-1);
 
+			// we need to flip v vertically because opengl textures have 0,0 at lower bottom
+			v = 1.0f - v;
+
 			float cosViewAngle = 2.0f * u - 1.0f;
 			float height = innerRadius + v*(outerRadius-innerRadius);
 
@@ -830,6 +831,8 @@ void init()
 
 	skyShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/sky.vs.glsl", base::Path( SRC_PATH ) + "/src/sky.ps.glsl" );
 	skyShader->setUniform( "transmittanceSampler", sky_transmittanceTexture->getUniform() );
+	skyShader->setUniform( "innerRadius", innerRadius );
+	skyShader->setUniform( "outerRadius", outerRadius );
 
 
 
@@ -875,18 +878,6 @@ struct event_visitor
 
 int main(int argc, char ** argv)
 {
-	// ttl test --------
-	ttl::var::variant<double, int> test;
-
-	test = 2.3;
-	event_visitor ev;
-	std::cout << "test\n";
-	ttl::var::apply_visitor(ev, test);
-	std::cout << "test2\n";
-	std::cout << std::flush;
-	// ----------
-
-
 	QApplication app(argc, argv);
 	app.setOrganizationName("test");
 	app.setApplicationName("test");
@@ -899,11 +890,10 @@ int main(int argc, char ** argv)
 	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
-	glviewer->setView( math::Vec3f(0.0f, innerRadius, 0.0f), 10.0f, 0.0f, 0.0f );
+	glviewer->setView( math::Vec3f(0.0f, innerRadius + 0.95 * (outerRadius-innerRadius), 0.0f), 10.0f, 0.0f, 0.0f );
 
 	mainWin.setCentralWidget( glviewer );
-	//mainWin.show();
-
+	mainWin.show();
 
 	return app.exec();
 }

@@ -12,7 +12,8 @@ float PI = 3.14159265358979323846264;
 
 
 uniform sampler2D transmittanceSampler;
-
+uniform float innerRadius;
+uniform float outerRadius;
 
 
 
@@ -44,10 +45,11 @@ vec4 phong(in vec3 n,in vec3 v,in vec3 l)
 void main()
 {
 	// get height and viewangle from position
-	float height = length(ep);
-	float cosViewAngle = dot(normalize(ep), normalize(ed))
+	float height = (length(ep) - innerRadius)/(outerRadius-innerRadius);
+	float cosViewAngle = dot(normalize(ep), normalize(ed));
 
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 0.0);
 	//gl_FragData[0] = texture2D( transmittanceSampler, uv );
-	gl_FragData[0] = texture2D( transmittanceSampler, vec2( cosViewAngle, height ) );
+	gl_FragData[0] = texture2D( transmittanceSampler, vec2( cosViewAngle*0.5 + 1.0, height ) );
+	//gl_FragData[0] = vec4( cosViewAngle*0.5 + 1.0, cosViewAngle, cosViewAngle, 1.0 );
 }
