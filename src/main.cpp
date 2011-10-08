@@ -35,17 +35,16 @@
 
 #include <ops/ops.h>
 
-
+#include "TimeOp.h"
+#include "CameraOp.h"
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
 
-#include "vec3.h"
-#include "mat4.h"
-//#include "tiffio.h"
 
-#include "Main.h"
+#include "ttl/func/function.hpp"
+
 
 composer::widgets::GLViewer *glviewer;
 
@@ -58,10 +57,16 @@ base::ShaderPtr baseShader;
 base::Texture2dPtr baseTexture;
 base::GeometryPtr baseGeo;
 
+base::ops::OpPtr opRoot;
+base::ops::ConstantOpPtr orbitTransform;
+
 
 void render( base::CameraPtr cam )
 {
 
+	orbitTransform->m_variant = cam->m_transform;
+
+	/*
 	//glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
 	glDisable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
@@ -75,9 +80,26 @@ void render( base::CameraPtr cam )
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	context->render( geo, baseShader );
+	*/
+
+	opRoot->execute();
 
 
 }
+
+
+void render2()
+{
+	std::cout << "render2!\n";
+	
+	// render to screen
+	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	context->render( geo, baseShader );
+
+}
+
 
 
 
@@ -99,6 +121,20 @@ void init()
 	base::ops::SphereOpPtr s = base::ops::SphereOp::create(1.0f);
 	base::MeshPtr m = s->getMesh(0);
 	geo = m->getGeometry();
+
+
+	// demo
+	TimeOpPtr time = TimeOp::create();
+	CameraOpPtr cam = CameraOp::create();
+	orbitTransform = base::ops::ConstantOp::create();
+	base::ops::FuncOpPtr renderFunc = base::ops::FuncOp::create( render2 );
+
+	renderFunc->plug( cam );
+	cam->plug( time );
+
+	orbitTransform->plug( cam, "transformMatrix" );
+
+	opRoot = time;
 
 
 	// rendering
@@ -151,6 +187,10 @@ void init()
 
 int main(int argc, char ** argv)
 {
+	ttl::func::function<void> f(render2);
+
+	f();
+
 	QApplication app(argc, argv);
 	app.setOrganizationName("test");
 	app.setApplicationName("test");
