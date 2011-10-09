@@ -35,5 +35,5 @@ n32-msvc2010 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools
 
 linux
 ----------------
-configure -prefix /mpc/devel/david-k/dev/libs/qt/4.7.3 -prefix-install -debug-and-release -opensource -shared -platform linux-g++-64 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools -no-qt3support -no-multimedia
+configure -prefix /directory/libs/qt/4.7.3 -prefix-install -debug-and-release -opensource -shared -platform linux-g++-64 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools -no-qt3support -no-multimedia
                                      
