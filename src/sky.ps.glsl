@@ -48,8 +48,18 @@ void main()
 	float height = (length(ep) - innerRadius)/(outerRadius-innerRadius);
 	float cosViewAngle = dot(normalize(ep), normalize(ed));
 
+	vec4 result = texture2D( transmittanceSampler, vec2( cosViewAngle*0.5 + 0.5, height ) );
+
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 0.0);
 	//gl_FragData[0] = texture2D( transmittanceSampler, uv );
-	gl_FragData[0] = texture2D( transmittanceSampler, vec2( cosViewAngle*0.5 + 1.0, height ) );
-	//gl_FragData[0] = vec4( cosViewAngle*0.5 + 1.0, cosViewAngle, cosViewAngle, 1.0 );
+	//gl_FragData[0] = result*0.5 + texture2D( transmittanceSampler, uv )*0.5;
+	//gl_FragData[0] = vec4( 0.0, 0.0, 0.0, 1.0 );
+	//if( (cosViewAngle+1.0)*0.5 > 1.0 )
+	//	gl_FragData[0] = vec4( 1.0, 0.0, 0.0, 1.0 );
+	gl_FragData[0] = result;
+	//gl_FragData[0] = texture2D( transmittanceSampler, vec2( cosViewAngle*0.5 + 1.0, height ) );
+	//gl_FragData[0] = texture2D( transmittanceSampler, vec2( cosViewAngle*0.5 + 1.0, height ) );
+	//gl_FragData[0] = vec4( cosViewAngle*0.5 + 1.0, cosViewAngle*0.5 + 1.0, cosViewAngle*0.5 + 1.0, 1.0 );
+	//gl_FragData[0] = vec4( cosViewAngle*0.5, cosViewAngle*0.5 + 1.0, cosViewAngle*0.5 + 1.0, 1.0 );
+	//gl_FragData[0] = vec4( cosViewAngle*0.5 + 1.0, cosViewAngle*0.5 + 1.0, cosViewAngle*0.5 + 1.0, 1.0 );
 }

@@ -39,6 +39,8 @@
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
 
+#include "sky.ui.h"
+
 #include "vec3.h"
 #include "mat4.h"
 //#include "tiffio.h"
@@ -673,7 +675,7 @@ float closestIntersection(float height, float cosViewAngle)
 		// computer inner sphere intersection
 		float inner_t1 = -height*cosViewAngle + sqrt(inner_discriminant);
 		// is it in front of ray origin ?
-		if(inner_t1 >= 0.0)
+		if(inner_t1 > 0.1f) // note: we should do inner_t1 >= 0.0 but when camera position is on the inner sphere we get false positives from numerical instability
 		{
 			return std::min( inner_t1, outer_t1 );
 		}
@@ -694,7 +696,6 @@ float getOpticalDepth( float height, float cosViewAngle, float heightScale )
 		   ->update position with raystep
 	   ->return accumulated density
 	   */
-
 	// get length of one raysegment
 	float dx = closestIntersection( height, cosViewAngle )/(float)(transmittanceIntegralSamples);
 	float opticalDepth = 0.0f;
@@ -711,8 +712,6 @@ float getOpticalDepth( float height, float cosViewAngle, float heightScale )
 
 		lastDensity = currentDensity;
 	}
-
-
 
 	return opticalDepth;
 }
@@ -741,9 +740,6 @@ base::Texture2dPtr setupTransmittanceTexture()
 			float u = (float)i/(float)(tex->m_xres-1);
 			float v = (float)j/(float)(tex->m_yres-1);
 
-			// we need to flip v vertically because opengl textures have 0,0 at lower bottom
-			v = 1.0f - v;
-
 			float cosViewAngle = 2.0f * u - 1.0f;
 			float height = innerRadius + v*(outerRadius-innerRadius);
 
@@ -755,11 +751,11 @@ base::Texture2dPtr setupTransmittanceTexture()
 			data[j*tex->m_xres*4 + i*4] = transmittance.x;
 			data[j*tex->m_xres*4 + i*4 + 1] = transmittance.y;
 			data[j*tex->m_xres*4 + i*4 + 2] = transmittance.z;
-			data[j*tex->m_xres*4 + i*4 + 3] = 0.0f;
-			//std::cout << "height: " << height << "     cosViewAngle: " << cosViewAngle << "       transmittance: " << transmittance.x << ", " << transmittance.y << ", " << transmittance.z << std::endl;
+			data[j*tex->m_xres*4 + i*4 + 3] = 1.0f;
 		}
 
 	tex->uploadRGBAFloat32( tex->m_xres, tex->m_yres, data );
+
 	return tex;
 }
 
@@ -857,7 +853,10 @@ void init()
 
 
 
-
+	CloudsUI *widget = new CloudsUI();
+	//glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
+	widget->show();
+	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
 
 	//loadData();
 	//precompute();
@@ -890,7 +889,7 @@ int main(int argc, char ** argv)
 	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
-	glviewer->setView( math::Vec3f(0.0f, innerRadius + 0.95 * (outerRadius-innerRadius), 0.0f), 10.0f, 0.0f, 0.0f );
+	glviewer->setView( math::Vec3f(0.0f, innerRadius + 0.0 * (outerRadius-innerRadius), 0.0f), 10.0f, 0.0f, 0.0f );
 
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
