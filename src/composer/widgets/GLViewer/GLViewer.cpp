@@ -8,7 +8,7 @@ namespace composer
 {
 	namespace widgets
 	{
-		GLViewer::GLViewer( InitCallback init, RenderCallback render, QWidget *parent ) : QGLWidget(parent), m_init(init), m_render(render), m_lastX(0), m_lastY(0), m_renderThread(this)
+		GLViewer::GLViewer( InitCallback init, RenderCallback render, QWidget *parent ) : QGLWidget(parent), m_init(init), m_render(render), m_lastX(0), m_lastY(0), m_renderThread(this), m_isInitialized(false), m_renderInSeperateThread(false)
 		{
 			setMouseTracking( true );
 			// this will make sure swapbuffers is not called by qt when doing double buffering
@@ -46,6 +46,9 @@ namespace composer
 		{
 			if(m_init)
 				m_init();
+			m_isInitialized = true;
+			if(m_renderInSeperateThread)
+				setRenderInSeperateThread(true);
 		}
 
 		void GLViewer::resizeGL(int w, int h)
@@ -101,19 +104,23 @@ namespace composer
 
 		void GLViewer::setRenderInSeperateThread( bool state )
 		{
-			if(state)
+			if( m_isInitialized )
 			{
-				doneCurrent();
-				// start seperate render thread
-				m_renderThread.start();
-			}else
-			{
-				// notify to stop seperate render thread
-				m_renderThread.stop();
-				// wait for renderthread to finish
-				m_renderThread.wait();
-				makeCurrent();
+				if(state)
+				{
+					doneCurrent();
+					// start seperate render thread
+					m_renderThread.start();
+				}else
+				{
+					// notify to stop seperate render thread
+					m_renderThread.stop();
+					// wait for renderthread to finish
+					m_renderThread.wait();
+					makeCurrent();
+				}
 			}
+			m_renderInSeperateThread = state;
 		}
 	}
 }

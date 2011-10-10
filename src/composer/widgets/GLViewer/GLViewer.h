@@ -38,8 +38,10 @@ namespace composer
 			InitCallback m_init;
 			RenderCallback m_render;
 			base::OrbitNavigator m_orbitNavigator;
-			int m_lastX;
-			int m_lastY;
+			int                         m_lastX;
+			int                         m_lastY;
+			bool                m_isInitialized;
+			bool       m_renderInSeperateThread;
 
 			GLThread m_renderThread;
 

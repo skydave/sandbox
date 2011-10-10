@@ -42,67 +42,12 @@
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
 
+#include "OSCDispatcher.h"
 
-#include <osc/OscReceivedElements.h>
-#include <osc/OscPacketListener.h>
-#include <ip/UdpSocket.h>
-
-
-#define PORT 7000
-
-class ExamplePacketListener : public osc::OscPacketListener {
-protected:
-
-	virtual void ProcessMessage( const osc::ReceivedMessage& m,
-				const IpEndpointName& remoteEndpoint )
-	{
-		try{
-			// example of parsing single messages. osc::OsckPacketListener
-			// handles the bundle traversal.
-
-			if( std::strcmp( m.AddressPattern(), "/test1" ) == 0 ){
-				// example #1 -- argument stream interface
-				osc::ReceivedMessageArgumentStream args = m.ArgumentStream();
-				bool a1;
-				osc::int32 a2;
-				float a3;
-				const char *a4;
-				args >> a1 >> a2 >> a3 >> a4 >> osc::EndMessage;
-
-				std::cout << "received '/test1' message with arguments: "
-					<< a1 << " " << a2 << " " << a3 << " " << a4 << "\n";
-
-			}else if( std::strcmp( m.AddressPattern(), "/test2" ) == 0 ){
-				// example #2 -- argument iterator interface, supports
-				// reflection for overloaded messages (eg you can call
-				// (*arg)->IsBool() to check if a bool was passed etc).
-				osc::ReceivedMessage::const_iterator arg = m.ArgumentsBegin();
-				bool a1 = (arg++)->AsBool();
-				int a2 = (arg++)->AsInt32();
-				float a3 = (arg++)->AsFloat();
-				const char *a4 = (arg++)->AsString();
-				if( arg != m.ArgumentsEnd() )
-					throw osc::ExcessArgumentException();
-
-				std::cout << "received '/test2' message with arguments: "
-					<< a1 << " " << a2 << " " << a3 << " " << a4 << "\n";
-			}
-		}catch( osc::Exception& e ){
-			// any parsing errors such as unexpected argument types, or
-			// missing arguments get thrown as exceptions.
-			std::cout << "error while parsing message: "
-				<< m.AddressPattern() << ": " << e.what() << "\n";
-		}
-	}
-};
+float g_testValue = 0.0f;
 
 
-
-ExamplePacketListener listener;
-UdpListeningReceiveSocket s( IpEndpointName( IpEndpointName::ANY_ADDRESS, PORT ), &listener );
-
-
-
+OSCDispatcher oscDispatcher;
 
 composer::widgets::GLViewer *glviewer;
 
@@ -123,39 +68,13 @@ void render( base::CameraPtr cam )
 {
 
 	orbitTransform->m_variant = cam->m_transform;
-
-	/*
-	//glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
-	glDisable( GL_CULL_FACE );
-	glEnable( GL_DEPTH_TEST );
-
-
-	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
-
-
-	// render to screen
-	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	context->render( geo, baseShader );
-	*/
-
 	opRoot->execute();
-
-
 }
 
 
 void render2()
 {
-	std::cout << "render2!\n";
-	
-	// render to screen
-	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	context->render( geo, baseShader );
-
 }
 
 
@@ -184,10 +103,13 @@ void init()
 	// demo
 	TimeOpPtr time = TimeOp::create();
 	CameraOpPtr cam = CameraOp::create();
+	base::ops::ClearOpPtr clear = base::ops::ClearOp::create();
 	orbitTransform = base::ops::ConstantOp::create();
 	base::ops::FuncOpPtr renderFunc = base::ops::FuncOp::create( render2 );
 
+	clear->plug( cam );
 	renderFunc->plug( cam );
+
 	cam->plug( time );
 
 	orbitTransform->plug( cam, "transformMatrix" );
@@ -207,29 +129,7 @@ void init()
 
 	*/
 
-	/*
 
-	  create 2d transmittance texture (256x64, rgba_float_16, clamp, linear)
-		for each pixel
-			-> get r and view angle
-				x:r goes from Rg to Rt
-				y:muS goes from -0.15 to 1.0
-			->compute optical depth
-				which is a sum of opticalDepth for Rayleigh and Miescattering (multiplied by respective beta values)
-			->compute transmittance by exp(-opticalDepth)
-		computeOpticalDepth
-			->intersect ray from camera to outerSphere and innerSphere
-			->construct ray from closest intersection and divide ray length by number of sampling points
-			->do raymarching
-				->compute density at current height
-				->add density to accumulated height
-				->update position with raystep
-			->return accumulated density
-
-	  */
-
-
-	// tmp for obj io:
 
 	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );
 	baseGeo = base::importObj( base::Path( SRC_PATH ) + "/data/test.1.obj" );
@@ -254,11 +154,13 @@ int main(int argc, char ** argv)
 	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
+	glviewer->setRenderInSeperateThread(true);
 	mainWin.setCentralWidget( glviewer );
-	//mainWin.show();
+	mainWin.show();
 
-	s.RunUntilSigInt();
 
+
+	oscDispatcher.start();
 
 	return app.exec();
 }

@@ -99,13 +99,18 @@ namespace composer
 					doResize = false;
 				}
 
-				context->getUniform("time")->set(0, m_stopWatch.elapsedSeconds());
+				if( context )
+				{
+					base::AttributePtr timeAttr = context->getUniform("time");
+					if( timeAttr )
+						timeAttr->set(0, m_stopWatch.elapsedSeconds());
 
-				// Rendering code goes here
-				if(m_glViewer->m_render)
-					m_glViewer->m_render(m_glViewer->m_orbitNavigator.m_camera);
+					// Rendering code goes here
+					if(m_glViewer->m_render)
+						m_glViewer->m_render(m_glViewer->m_orbitNavigator.m_camera);
 
-				m_glViewer->swapBuffers();
+					m_glViewer->swapBuffers();
+				}
 				msleep(40);
 			}
 
