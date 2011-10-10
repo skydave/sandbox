@@ -41,11 +41,6 @@
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
 
-#include "vec3.h"
-#include "mat4.h"
-//#include "tiffio.h"
-
-#include "Main.h"
 
 composer::widgets::GLViewer *glviewer;
 

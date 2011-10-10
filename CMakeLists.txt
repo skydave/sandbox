@@ -89,7 +89,7 @@ add_definitions(${QT_DEFINITIONS})
 #
 
 #specify app sources
-file(GLOB_RECURSE app_sources src/*.c src/*.cpp src/*.h src/*.glsl src/*.ui)
+file(GLOB_RECURSE app_sources src/*.c src/*.cpp src/*.h src/*.hpp src/*.glsl src/*.ui)
 sourceGroups( app_sources )
 
 
@@ -101,6 +101,9 @@ add_executable(app ${app_sources} ${moc_outputs} ${ui_outputs})
 
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
+
+# add 3rdparty path to include directories
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base/3rdparty )
 
 # qt ui headers are generated in build dir
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
