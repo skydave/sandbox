@@ -8,7 +8,7 @@ namespace composer
 {
 	namespace widgets
 	{
-		GLViewer::GLViewer( InitCallback init, RenderCallback render, QWidget *parent ) : QGLWidget(parent), m_init(init), m_render(render), m_lastX(0), m_lastY(0), m_renderThread(this), m_isInitialized(false), m_renderInSeperateThread(false)
+		GLViewer::GLViewer( InitCallback init, RenderCallback render, ShutdownCallback shutdown, QWidget *parent ) : QGLWidget(parent), m_init(init), m_render(render), m_shutdown(shutdown), m_lastX(0), m_lastY(0), m_renderThread(this), m_isInitialized(false), m_renderInSeperateThread(false)
 		{
 			setMouseTracking( true );
 			// this will make sure swapbuffers is not called by qt when doing double buffering
@@ -23,6 +23,8 @@ namespace composer
 				m_renderThread.stop();
 				m_renderThread.wait();
 			}
+			if(m_shutdown)
+				m_shutdown();
 		}
 
 		base::CameraPtr GLViewer::getCamera()
@@ -101,6 +103,7 @@ namespace composer
 					update();
 			}
 		}
+
 
 		void GLViewer::setRenderInSeperateThread( bool state )
 		{

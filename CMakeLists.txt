@@ -5,6 +5,7 @@ project("app")
 cmake_minimum_required(VERSION 2.8)
 
 add_definitions(-DSRC_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}\")
+add_definitions(-DPA_USE_DS) # portaudio to use directx sound
 
 if( CMAKE_SYSTEM_NAME MATCHES Windows )
 	# windows defines min and max in winbase.h which clashes with stl

@@ -19,8 +19,9 @@ namespace composer
 		public:
 			typedef void (*InitCallback)( void );
 			typedef void (*RenderCallback)( base::CameraPtr );
+			typedef void (*ShutdownCallback)( void );
 
-			GLViewer( InitCallback init = 0, RenderCallback render = 0, QWidget *parent = 0 );
+			GLViewer( InitCallback init = 0, RenderCallback render = 0, ShutdownCallback shutdown = 0, QWidget *parent = 0 );
 			virtual ~GLViewer();
 
 			base::CameraPtr                                                               getCamera();
@@ -37,6 +38,7 @@ namespace composer
 		private:
 			InitCallback m_init;
 			RenderCallback m_render;
+			ShutdownCallback m_shutdown;
 			base::OrbitNavigator m_orbitNavigator;
 			int                         m_lastX;
 			int                         m_lastY;
