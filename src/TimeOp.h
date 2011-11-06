@@ -15,7 +15,7 @@ BASE_DECL_SMARTPTR(TimeOp);
 class TimeOp : public base::ops::Op
 {
 public:
-	TimeOp::TimeOp() : base::ops::Op(), m_startTime(0.0f), m_endTime(0.0f)
+	TimeOp() : base::ops::Op(), m_startTime(0.0f), m_endTime(0.0f)
 	{
 	}
 

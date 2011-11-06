@@ -269,7 +269,7 @@ int main(int argc, char ** argv)
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	glviewer->setRenderInSeperateThread(true);
 	mainWin.setCentralWidget( glviewer );
-	mainWin.show();
+	//mainWin.show();
 
 
 

@@ -13,7 +13,7 @@ BASE_DECL_SMARTPTR(CameraOp);
 class CameraOp : public base::ops::Op
 {
 public:
-	CameraOp::CameraOp() : base::ops::Op(), m_camera(base::CameraPtr(new base::Camera()))
+	CameraOp() : base::ops::Op(), m_camera(base::CameraPtr(new base::Camera()))
 	{
 	}
 
