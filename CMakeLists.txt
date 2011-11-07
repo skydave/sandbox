@@ -5,7 +5,8 @@ project("app")
 cmake_minimum_required(VERSION 2.8)
 
 add_definitions(-DSRC_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}\")
-add_definitions(-DPA_USE_DS) # portaudio to use directx sound
+add_definitions(-DPA_USE_DS) # portaudio to use directx sound on windows
+add_definitions(-DPA_USE_ALSA) # portaudio to use alsa on linux
 
 if( CMAKE_SYSTEM_NAME MATCHES Windows )
 	# windows defines min and max in winbase.h which clashes with stl
@@ -113,16 +114,25 @@ include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 # set link dependecies
 #
 
-# X11 on linux
+# on linux
 if( CMAKE_SYSTEM_NAME MATCHES Linux )
+	# X11
 	find_package(X11)
 
 	if(NOT X11_FOUND)
 		message(FATAL_ERROR "Failed to find X11 which is required to build under linux")
 	endif(NOT X11_FOUND)
 
-
 	target_link_libraries(app ${X11_LIBRARIES})
+
+	# alsa
+	find_package(ALSA)
+
+	if(NOT ALSA_FOUND)
+		message(FATAL_ERROR "Failed to find ALSA which is required to build under linux")
+	endif(NOT ALSA_FOUND)
+
+	target_link_libraries(app ${ALSA_LIBRARIES})
 
 endif( CMAKE_SYSTEM_NAME MATCHES Linux )
 

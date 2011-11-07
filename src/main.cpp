@@ -198,7 +198,8 @@ void init()
 	int channels;
 	StreamData *streamData = new StreamData();
 	streamData->current = 0;
-	streamData->len = stb_vorbis_decode_filename("C:\\projects\\sandbox\\temp\\code\\sketch039.ogg", &channels, &streamData->data);
+	//streamData->len = stb_vorbis_decode_filename("C:\\projects\\sandbox\\temp\\code\\sketch039.ogg", &channels, &streamData->data);
+	streamData->len = stb_vorbis_decode_filename("/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg", &channels, &streamData->data);
 
 	if(!streamData->len)
 		printf("error loading ogg file\n");
@@ -269,7 +270,7 @@ int main(int argc, char ** argv)
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	glviewer->setRenderInSeperateThread(true);
 	mainWin.setCentralWidget( glviewer );
-	//mainWin.show();
+	mainWin.show();
 
 
 
