@@ -25,12 +25,12 @@ public:
 		// find current time
 		float currentTime = (parentTime - m_startTime)/(m_endTime - m_startTime);
 		// push new time on context
-		base::ops::Context::pushTime( currentTime );
+		base::ops::Context::setTime( currentTime );
 		// execute inputs
 		for( OpList::iterator it = m_opList.begin(); it != m_opList.end(); ++it)
 			(*it)->execute();
 		// pop time
-		base::ops::Context::popTime();
+		base::ops::Context::setTime( parentTime );
 	}
 
 	static TimeOpPtr create()

@@ -23,18 +23,20 @@ public:
 		get( "projectionMatrix", m_camera->m_projectionMatrix );
 		get( "viewMatrix", m_camera->m_viewMatrix );
 		get( "transformMatrix", m_camera->m_transform );
+
 		// update camera
 		m_camera->update();
 
 		// push camera.view
-		base::ops::Context::pushCamera( m_camera );
+		base::CameraPtr parentCamera = base::ops::Context::camera();
+		base::ops::Context::setCamera( m_camera );
 
 		// execute inputs
 		for( OpList::iterator it = m_opList.begin(); it != m_opList.end(); ++it)
 			(*it)->execute();
 
 		// pop camera view
-		base::ops::Context::popCamera();
+		base::ops::Context::setCamera(parentCamera);
 	}
 
 	static CameraOpPtr create()
