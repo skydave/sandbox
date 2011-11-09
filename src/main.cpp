@@ -35,11 +35,9 @@
 
 #include <ops/ops.h>
 
-#include <portaudio/portaudio.h>
-#include <stblib/stb_vorbis.h>
-
 #include "TimeOp.h"
 #include "CameraOp.h"
+#include "DemoOp.h"
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
@@ -66,6 +64,7 @@ base::Texture2dPtr baseTexture;
 base::GeometryPtr baseGeo;
 
 base::ops::OpPtr opRoot;
+DemoOpPtr demoOp;
 base::ops::ConstantOpPtr orbitTransform;
 
 
@@ -83,55 +82,6 @@ void render2()
 }
 
 
-
-struct StreamData
-{
-	short *data;
-	int len;
-	int current;
-};
-
-
-PaStream *stream;
-
-
-// This routine will be called by the PortAudio engine when audio is needed.
-// It may called at interrupt level on some machines so don't do anything
-// that could mess up the system like calling malloc() or free().
-//
-static int patestCallback( const void *inputBuffer, void *outputBuffer,
-                            unsigned long framesPerBuffer,
-                            const PaStreamCallbackTimeInfo* timeInfo,
-                            PaStreamCallbackFlags statusFlags,
-                            void *userData )
-{
-	StreamData *streamData = (StreamData *)userData;
-    short *out = (short*)outputBuffer;
-    unsigned long i;
-
-    (void) timeInfo; /* Prevent unused variable warnings. */
-    (void) statusFlags;
-    (void) inputBuffer;
-    
-    for( i=0; i<framesPerBuffer; i++ )
-    {
-		*out++ = streamData->data[streamData->current];  // left
-        *out++ = streamData->data[streamData->current+1];  // right
-		streamData->current += 2;
-    }
-    
-    return paContinue;
-}
-
-//
-// This routine is called by portaudio when playback is done.
-//
-static void StreamFinished( void* userData )
-{
-   StreamData *streamData = (StreamData *) userData;
-   delete streamData;
-   printf( "Stream Completed\n" );
-} 
 
 
 void init()
@@ -155,6 +105,7 @@ void init()
 
 
 	// demo
+	demoOp = DemoOp::create( "/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg" );
 	TimeOpPtr time = TimeOp::create();
 	CameraOpPtr cam = CameraOp::create();
 	base::ops::ClearOpPtr clear = base::ops::ClearOp::create();
@@ -164,11 +115,11 @@ void init()
 	clear->plug( cam );
 	renderFunc->plug( cam );
 
-	cam->plug( time );
+	cam->plug( demoOp );
 
 	orbitTransform->plug( cam, "transformMatrix" );
 
-	opRoot = time;
+	opRoot = demoOp;
 
 
 	// rendering
@@ -193,64 +144,12 @@ void init()
 	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref2.png" );
 	baseShader->setUniform( "input", baseTexture->getUniform() );
 
-
-	// load ogg vorbis ============
-	int channels;
-	StreamData *streamData = new StreamData();
-	streamData->current = 0;
-	//streamData->len = stb_vorbis_decode_filename("C:\\projects\\sandbox\\temp\\code\\sketch039.ogg", &channels, &streamData->data);
-	streamData->len = stb_vorbis_decode_filename("/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg", &channels, &streamData->data);
-
-	if(!streamData->len)
-		printf("error loading ogg file\n");
-	printf("channels %i\n", channels);
-	printf("len %i\n", streamData->len);
-
-
-	// setup audio ===============
-	PaStreamParameters outputParameters;
-
-	PaError err;
-  
-    err = Pa_Initialize();
-
-    outputParameters.device = Pa_GetDefaultOutputDevice(); // default output device
-    if (outputParameters.device == paNoDevice)
-	{
-      fprintf(stderr,"Error: No default output device.\n");
-    }
-    outputParameters.channelCount = 2;       // stereo output
-	outputParameters.sampleFormat = paInt16;
-    outputParameters.suggestedLatency = Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
-    outputParameters.hostApiSpecificStreamInfo = NULL;
-
-    err = Pa_OpenStream(
-              &stream,
-              NULL, // no input
-              &outputParameters,
-              44100,
-              64,
-              paClipOff,      // we won't output out of range samples so don't bother clipping them
-              patestCallback,
-              streamData );
-
-    err = Pa_SetStreamFinishedCallback( stream, &StreamFinished );
-
-	// play..
-    err = Pa_StartStream( stream );
-
+	demoOp->startAudio();
 }
 
 void shutdown()
 {
-	PaError err;
-	// stop
-    err = Pa_StopStream( stream );
-
-    err = Pa_CloseStream( stream );
-
-    Pa_Terminate();
-    printf("Test finished.\n");
+	demoOp->stopAudio();
 }
 
 
