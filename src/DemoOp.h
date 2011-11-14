@@ -7,7 +7,7 @@
 
 
 #include <ops/Context.h>
-
+#include <util/fs.h>
 #include <portaudio/portaudio.h>
 #include <stblib/stb_vorbis.h>
 
@@ -52,21 +52,49 @@ public:
 		// try to load stream ============
 		if(!m_streamPath.empty())
 		{
-			int channels;
-			StreamData *streamData = new StreamData();
-			streamData->current = 0;
-			std::cout << "DemoOp::startAudio - loading stream " << m_streamPath << std::endl;
-			streamData->len = stb_vorbis_decode_filename( const_cast<char *>(m_streamPath.c_str()), &channels, &streamData->data);
+			if( base::fs::exists( m_streamPath ) )
+			{
+				base::fs::File *f = base::fs::open( m_streamPath );
 
-			if(!streamData->len)
-			{
-				std::cerr << "DemoOp::startAudio - error loading ogg file\n";
-			}else
-			{
-				std::cout << "DemoOp::startAudio - number of channels " << channels << std::endl;
-				std::cout << "DemoOp::startAudio - number of samples " << streamData->len << std::endl;
-				m_streamData = streamData;
+				// read file content
+				unsigned int size = (unsigned int)base::fs::size(f);
+
+				unsigned char *data = (unsigned char *)malloc( size*sizeof(unsigned char) );
+				base::fs::read(f, data, size, sizeof(char));
+
+				// close file
+				base::fs::close(f);
+
+				// load from file content
+				//unsigned char *result = stbi_load_from_memory( data, size, &width, &height, &comp, 4 );
+				int channels;
+				StreamData *streamData = new StreamData();
+				streamData->current = 0;
+				std::cout << "DemoOp::startAudio - loading stream " << m_streamPath << std::endl;
+				streamData->len = stb_vorbis_decode_memory( data, size, &channels, &streamData->data);
+
+				// dispose file content
+				free(data);
+
+				if(!streamData->len)
+				{
+					std::cerr << "DemoOp::startAudio - error loading ogg file\n";
+				}else
+				{
+					std::cout << "DemoOp::startAudio - number of channels " << channels << std::endl;
+					std::cout << "DemoOp::startAudio - number of samples " << streamData->len << std::endl;
+					m_streamData = streamData;
+				}
+
 			}
+
+
+
+
+
+
+
+
 
 			// setup audio ===============
 			PaStreamParameters outputParameters;
