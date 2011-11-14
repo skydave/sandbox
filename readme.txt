@@ -4,22 +4,38 @@ DEMO
 the demo branch is about building the very basics required to run the demo. So this is actually about the juicy bits! Camera, motionpath, timing, sound, fx generalisation
 
 
+fbx:
 
-stage one
----------
+aim: get basic scene player functionality in a way which allows us to extend and ammend scene aspects
 
+1. renderFBX scene op
+->problem: nothing is exposed
+2. turn fbx into full operator graph
+->problem we will spend a lot of work replicating fbx features
+
+
+first stage (end december): basic demo functionality
+----------------------------------------------------
+-mesh import and rendering (with nice shader) using fbx http://usa.autodesk.com/adsk/servlet/pc/index?id=6837478&siteID=123112
 -animated camera
+DONE:-sound
+-animated object (animated parameter in operator graph)
+-zipfile support (3rd party library zlib - fs api)
 
-stage two
----------
 
--sound
+second stage (March): effects
+-----------------------------
 
-stage three
------------
+-demoOp: sequencer
+-postprocessing (ssao, dof, tonemapping, vignetting)
+-particle nebulae
+-animated clouds surface shader
+-particle - clouds with fake translucency
+-atmospheric scattering
 
--animated object
 
+third stage (April): art direction
+----------------------------------
 
 
 
