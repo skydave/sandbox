@@ -185,6 +185,8 @@ private:
 	static void streamFinishedCallback( void* userData )
 	{
 		StreamData *streamData = (StreamData *) userData;
+		if(streamData->data)
+			free(streamData->data);
 		delete streamData;
 
 	}
