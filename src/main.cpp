@@ -84,6 +84,9 @@ void render2()
 
 
 
+
+
+
 void init()
 {
 	std::cout << "init!\n";
@@ -143,6 +146,7 @@ void init()
 
 	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref2.png" );
 	baseShader->setUniform( "input", baseTexture->getUniform() );
+
 
 	demoOp->startAudio();
 }

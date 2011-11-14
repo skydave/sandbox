@@ -17,9 +17,6 @@
 
 
 
-
-
-
 //
 // root of the demo - provides audio playback
 //
@@ -59,8 +56,6 @@ public:
 			StreamData *streamData = new StreamData();
 			streamData->current = 0;
 			std::cout << "DemoOp::startAudio - loading stream " << m_streamPath << std::endl;
-			//streamData->len = stb_vorbis_decode_filename("C:\\projects\\sandbox\\temp\\code\\sketch039.ogg", &channels, &streamData->data);
-			//streamData->len = stb_vorbis_decode_filename("/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg", &channels, &streamData->data);
 			streamData->len = stb_vorbis_decode_filename( const_cast<char *>(m_streamPath.c_str()), &channels, &streamData->data);
 
 			if(!streamData->len)
@@ -70,7 +65,7 @@ public:
 			{
 				std::cout << "DemoOp::startAudio - number of channels " << channels << std::endl;
 				std::cout << "DemoOp::startAudio - number of samples " << streamData->len << std::endl;
-				m_stream = streamData;
+				m_streamData = streamData;
 			}
 
 			// setup audio ===============
@@ -83,7 +78,7 @@ public:
 			outputParameters.device = Pa_GetDefaultOutputDevice(); // default output device
 			if (outputParameters.device == paNoDevice)
 			{
-				std::cerr << "DemoOp::startAudio - error: No default output device.\n";
+				std::cerr << "DemoOp::startAudio - error no default output device\n";
 			}
 			outputParameters.channelCount = 2;       // stereo output
 			outputParameters.sampleFormat = paInt16;
@@ -91,20 +86,20 @@ public:
 			outputParameters.hostApiSpecificStreamInfo = NULL;
 
 			err = Pa_OpenStream(
-			&m_stream,
-			NULL, // no input
-			&outputParameters,
-			44100,
-			64,
-			paClipOff,      // we won't output out of range samples so don't bother clipping them
-			streamDataCallback,
-			streamData );
+					  &m_stream,
+					  NULL, // no input
+					  &outputParameters,
+					  44100,
+					  64,
+					  paClipOff,      // we won't output out of range samples so don't bother clipping them
+					  streamDataCallback,
+					  m_streamData );
 
-			err = Pa_SetStreamFinishedCallback( m_stream, &streamFinishedCallback );
-
+			err = Pa_SetStreamFinishedCallback( m_stream, &DemoOp::streamFinishedCallback );
 
 			// play..
 			err = Pa_StartStream( m_stream );
+
 		}else
 			std::cerr << "DemoOp::startAudio - empty streampath";
 
@@ -116,14 +111,12 @@ public:
 		if( m_stream )
 		{
 			PaError err;
-
 			// stop
 			err = Pa_StopStream( m_stream );
 
 			err = Pa_CloseStream( m_stream );
 
 			Pa_Terminate();
-			std::cout << "DemoOp::stopAudio - finished\n";
 		}
 	}
 
@@ -151,7 +144,7 @@ private:
 		short *out = (short*)outputBuffer;
 		unsigned long i;
 
-		(void) timeInfo; // Prevent unused variable warnings.
+		(void) timeInfo; /* Prevent unused variable warnings. */
 		(void) statusFlags;
 		(void) inputBuffer;
 
@@ -177,7 +170,9 @@ private:
 
 
 	PaStream               *m_stream;
+	StreamData         *m_streamData;
 	std::string         m_streamPath;
 
 };
+
 
