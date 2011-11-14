@@ -66,7 +66,6 @@ public:
 				base::fs::close(f);
 
 				// load from file content
-				//unsigned char *result = stbi_load_from_memory( data, size, &width, &height, &comp, 4 );
 				int channels;
 				StreamData *streamData = new StreamData();
 				streamData->current = 0;
@@ -87,12 +86,6 @@ public:
 				}
 
 			}
-
-
-
-
-
-
 
 
 
