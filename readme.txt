@@ -88,3 +88,19 @@ linux
 ----------------
 configure -prefix /somedir/dev/libs/qt/4.7.3 -prefix-install -debug-and-release -opensource -shared -platform linux-g++-64 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools -no-qt3support -no-multimedia
                                      
+
+
+
+BUILDING DEMO
+==============
+
+
+-you need to install cmake and the fbxsdk first
+
+windows
+-------
+
+
+linux
+-----
+-setenv FBXSDKPATH /to/the/path/of/fbxsdk
