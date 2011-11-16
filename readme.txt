@@ -13,6 +13,15 @@ aim: get basic scene player functionality in a way which allows us to extend and
 2. turn fbx into full operator graph
 ->problem we will spend a lot of work replicating fbx features
 
+-> what we will do
+importFBX will create a operator graph which represents what the code would look like if I were to render
+the fbx content programatically:
+
+setCamera (using transform from baked fbx transform hierarchy)
+for each entity:
+	transform (baked from fbx transform hierarchy)
+		renderEntity (e.g. renderMesh/Geometry)
+
 
 first stage (end december): basic demo functionality
 ----------------------------------------------------
