@@ -36,9 +36,9 @@
 
 #include <ops/ops.h>
 
-#include "TimeOp.h"
-#include "CameraOp.h"
-#include "DemoOp.h"
+#include "ops/TimeOp.h"
+#include "ops/CameraOp.h"
+#include "ops/DemoOp.h"
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
@@ -69,22 +69,46 @@ DemoOpPtr demoOp;
 base::ops::ConstantOpPtr orbitTransform;
 
 
+void renderGeo()
+{
+	context->render( geo, baseShader );
+}
+
 void render( base::CameraPtr cam )
 {
-
 	orbitTransform->m_variant = cam->m_transform;
 	opRoot->execute();
 }
 
 
-void render2()
+
+// Initialize the sdk manager. This object handles all our memory management.
+KFbxSdkManager* lSdkManager = NULL;
+KFbxIOSettings *ios = NULL;
+
+base::ops::OpPtr buildFromFBX( std::string path )
 {
-	context->render( geo, baseShader );
+	// Create an importer using our sdk manager.
+	KFbxImporter* lImporter = KFbxImporter::Create(lSdkManager,"");
+
+	// Use the first argument as the filename for the importer.
+	if(!lImporter->Initialize(path.c_str(), -1, lSdkManager->GetIOSettings()))
+	{
+		printf("Call to KFbxImporter::Initialize() failed.\n");
+		printf("Error returned: %s\n\n", lImporter->GetLastErrorString());
+		exit(-1);
+	}
+
+
+	// Create a new scene so it can be populated by the imported file.
+	KFbxScene* lScene = KFbxScene::Create(lSdkManager,"myScene");
+
+	// Import the contents of the file into the scene.
+	lImporter->Import(lScene);
+
+	// The file has been imported; we can get rid of the importer.
+	lImporter->Destroy();
 }
-
-
-
-
 
 
 
@@ -99,22 +123,32 @@ void init()
 		std::cout << "glew init failed\n";
 	}
 
+	std::string fbxTest = "asfasf";
+
+	// Initialize the sdk manager. This object handles all our memory management.
+	lSdkManager = KFbxSdkManager::Create();
+	// Create the io settings object.
+	ios = KFbxIOSettings::Create(lSdkManager, IOSROOT);
+	lSdkManager->SetIOSettings(ios);
+
+
+
 	context = base::ContextPtr( new base::Context() );
 
 
-	// op testing
+	// op testing =============
 	base::ops::SphereOpPtr s = base::ops::SphereOp::create(1.0f);
 	base::MeshPtr m = s->getMesh(0);
 	geo = m->getGeometry();
 
 
-	// demo
+	// demo =============
 	demoOp = DemoOp::create( "/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg" );
 	TimeOpPtr time = TimeOp::create();
 	CameraOpPtr cam = CameraOp::create();
 	base::ops::ClearOpPtr clear = base::ops::ClearOp::create();
 	orbitTransform = base::ops::ConstantOp::create();
-	base::ops::FuncOpPtr renderFunc = base::ops::FuncOp::create( render2 );
+	base::ops::FuncOpPtr renderFunc = base::ops::FuncOp::create( renderGeo );
 
 	clear->plug( cam );
 	renderFunc->plug( cam );
@@ -125,21 +159,11 @@ void init()
 
 	opRoot = demoOp;
 
-
-	// rendering
-	/*
-
-	RenderOpPtr rop = base::ops::RenderOp::create();
-	rop->append( base::ops::ClearOp::create() );
-	rop->append( base::ops::SkyOp::create() );
-	rop->append( base::ops::RenderMeshOp::create() );
-
-	rop->execute();
-
-	*/
+	// fbx import test =============
+	buildFromFBX(fbxTest);
 
 
-
+	//
 	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );
 	baseGeo = base::importObj( base::Path( SRC_PATH ) + "/data/test.1.obj" );
 	//base::apply_transform( baseGeo, math::Matrix44f::ScaleMatrix( 30000.0f ) );
@@ -149,12 +173,12 @@ void init()
 	baseShader->setUniform( "input", baseTexture->getUniform() );
 
 
-	demoOp->startAudio();
+	//demoOp->startAudio();
 }
 
 void shutdown()
 {
-	demoOp->stopAudio();
+	//demoOp->stopAudio();
 }
 
 
