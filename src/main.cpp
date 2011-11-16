@@ -36,9 +36,9 @@
 
 #include <ops/ops.h>
 
-#include "TimeOp.h"
-#include "CameraOp.h"
-#include "DemoOp.h"
+#include "ops/TimeOp.h"
+#include "ops/CameraOp.h"
+#include "ops/DemoOp.h"
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
