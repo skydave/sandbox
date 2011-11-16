@@ -5,6 +5,7 @@
 //============================================================================
 
 
+#include <fbxsdk.h>
 
 #include <QtGui>
 #include <QApplication>

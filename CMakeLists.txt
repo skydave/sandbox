@@ -84,7 +84,13 @@ find_package(Qt4 COMPONENTS QtCore QtGui QtOpenGL REQUIRED)
 include(${QT_USE_FILE})
 add_definitions(${QT_DEFINITIONS})
 
-
+# FBX
+get_filename_component( FBXSDKPATH "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Autodesk FBX SDK 2012.2;Install_Dir]" PATH)
+set( FBX_LIBRARIES "optimized;${FBXSDKPATH}/2012.2/lib/vs2010/x64/fbxsdk-2012.2-mt.lib;debug;${FBXSDKPATH}/2012.2/lib/vs2010/x64/fbxsdk-2012.2-mtd.lib" )
+set( FBX_INCLUDES "${FBXSDKPATH}/2012.2/include" )
+message( "test ${QT_INCLUDES}" )
+include_directories( ${FBX_INCLUDES} )
+#include(${QT_USE_FILE})
 
 #
 # build app application
@@ -142,3 +148,6 @@ target_link_libraries(app ${OPENGL_gl_LIBRARY})
 
 # Qt
 target_link_libraries(app ${QT_LIBRARIES})
+
+# FBX
+target_link_libraries(app ${FBX_LIBRARIES})
