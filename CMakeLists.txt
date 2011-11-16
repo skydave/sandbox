@@ -74,12 +74,12 @@ add_definitions(-DSRC_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}\")
 # on windows
 if( CMAKE_SYSTEM_NAME MATCHES Windows )
 	add_definitions(-DNOMINMAX) # windows defines min and max in winbase.h which clashes with stl
-	add_definitions(-DPA_USE_ALSA) # portaudio to use alsa on linux
+	add_definitions(-DPA_USE_DS) # portaudio to use directx sound on windows
 endif( CMAKE_SYSTEM_NAME MATCHES Windows )
 
 # on linux
 if( CMAKE_SYSTEM_NAME MATCHES Linux )
-	add_definitions(-DPA_USE_DS) # portaudio to use directx sound on windows
+	add_definitions(-DPA_USE_ALSA) # portaudio to use alsa on linux
 endif( CMAKE_SYSTEM_NAME MATCHES Linux )
 
 
