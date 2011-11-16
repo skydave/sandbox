@@ -7,6 +7,12 @@
 
 #include <fbxsdk.h>
 
+// need this to make fbxsdk happy
+#ifdef _WINDOWS
+#pragma message("     _Adding library: wininet.lib" ) // apparently not linking this library causes unresolved symbols when statically linking fbxsdk - it starts getting messy :(
+#pragma comment (lib, "wininet.lib")
+#endif 
+
 #include <QtGui>
 #include <QApplication>
 
@@ -108,6 +114,8 @@ base::ops::OpPtr buildFromFBX( std::string path )
 
 	// The file has been imported; we can get rid of the importer.
 	lImporter->Destroy();
+
+	base::ops::OpPtr();
 }
 
 
@@ -143,7 +151,8 @@ void init()
 
 
 	// demo =============
-	demoOp = DemoOp::create( "/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg" );
+	//demoOp = DemoOp::create( "/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg" );
+	demoOp = DemoOp::create( "c:\\projects\\sandbox\\temp\\code\\sketch039.ogg" );
 	TimeOpPtr time = TimeOp::create();
 	CameraOpPtr cam = CameraOp::create();
 	base::ops::ClearOpPtr clear = base::ops::ClearOp::create();
@@ -160,7 +169,7 @@ void init()
 	opRoot = demoOp;
 
 	// fbx import test =============
-	buildFromFBX(fbxTest);
+	//buildFromFBX(fbxTest);
 
 
 	//
@@ -173,12 +182,12 @@ void init()
 	baseShader->setUniform( "input", baseTexture->getUniform() );
 
 
-	//demoOp->startAudio();
+	demoOp->startAudio();
 }
 
 void shutdown()
 {
-	//demoOp->stopAudio();
+	demoOp->stopAudio();
 }
 
 

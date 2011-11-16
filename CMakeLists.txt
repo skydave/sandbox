@@ -75,6 +75,15 @@ add_definitions(-DSRC_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}\")
 if( CMAKE_SYSTEM_NAME MATCHES Windows )
 	add_definitions(-DNOMINMAX) # windows defines min and max in winbase.h which clashes with stl
 	add_definitions(-DPA_USE_DS) # portaudio to use directx sound on windows
+
+	# static runtime (http://www.cmake.org/Wiki/CMake_FAQ#How_can_I_build_my_MSVC_application_with_a_static_runtime.3F)
+	foreach(flag_var
+			CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+			CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+	   if(${flag_var} MATCHES "/MD")
+		  string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+	   endif(${flag_var} MATCHES "/MD")
+	endforeach(flag_var)
 endif( CMAKE_SYSTEM_NAME MATCHES Windows )
 
 # on linux
