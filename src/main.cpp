@@ -44,6 +44,7 @@
 
 #include "ops/TimeOp.h"
 #include "ops/CameraOp.h"
+#include "ops/RenderGeoOp.h"
 #include "ops/DemoOp.h"
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
@@ -91,6 +92,45 @@ void render( base::CameraPtr cam )
 // Initialize the sdk manager. This object handles all our memory management.
 KFbxSdkManager* lSdkManager = NULL;
 KFbxIOSettings *ios = NULL;
+KFbxGeometryConverter  *geoConverter = NULL;
+
+// creates a rendergeometry op from given fbxmesh
+RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
+{
+	// create geometry from fbxMesh
+	KFbxMesh *fbxTriMesh = geoConverter->TriangulateMesh( fbxMesh );
+
+	// triangulate mesh
+	base::GeometryPtr geo = base::Geometry::createTriangleGeometry();
+
+	// get point attribute
+	base::AttributePtr pAttr = geo->getAttr("P");
+
+	// get points
+	int numPoints = fbxTriMesh->GetControlPointsCount();
+	for( int i=0; i<numPoints; ++i )
+	{
+		KFbxVector4 p = fbxTriMesh->GetControlPointAt(i);
+		pAttr->appendElement<math::Vec3f>( math::Vec3f( p[0], p[1], p[2] ) );
+	}
+
+	// get triangles
+	int numTris = fbxTriMesh->GetPolygonCount();
+	for( int i = 0; i<numTris; ++i )
+	{
+		int numVertices = fbxTriMesh->GetPolygonSize(i);
+		if( numVertices == 3 )
+			geo->addTriangle( fbxTriMesh->GetPolygonVertex(i, 0), fbxTriMesh->GetPolygonVertex(i, 1), fbxTriMesh->GetPolygonVertex(i, 2) );
+	}
+
+	// create and setup renderop
+	RenderGeoOpPtr renderGeoOp = RenderGeoOp::create();
+	renderGeoOp->m_geo = geo;
+	renderGeoOp->m_shader = baseShader;
+
+	return renderGeoOp;
+}
+
 
 base::ops::OpPtr buildFromFBX( std::string path )
 {
@@ -100,8 +140,8 @@ base::ops::OpPtr buildFromFBX( std::string path )
 	// Use the first argument as the filename for the importer.
 	if(!lImporter->Initialize(path.c_str(), -1, lSdkManager->GetIOSettings()))
 	{
-		printf("Call to KFbxImporter::Initialize() failed.\n");
-		printf("Error returned: %s\n\n", lImporter->GetLastErrorString());
+		std::cout << "Call to KFbxImporter::Initialize() failed.\n";
+		std::cout << "Error returned: %s\n\n" << std::string(lImporter->GetLastErrorString());
 		exit(-1);
 	}
 
@@ -110,12 +150,90 @@ base::ops::OpPtr buildFromFBX( std::string path )
 	KFbxScene* lScene = KFbxScene::Create(lSdkManager,"myScene");
 
 	// Import the contents of the file into the scene.
+	std::cout << "importing " << path << std::endl;
 	lImporter->Import(lScene);
 
 	// The file has been imported; we can get rid of the importer.
 	lImporter->Destroy();
 
-	base::ops::OpPtr();
+	// now we will build an operator graph which looks like this:
+	//setCamera (using world transform from fbx transform hierarchy)
+	//for each entity:
+	//	transform (worldTransform from fbx transform hierarchy)
+	//		renderEntity (e.g. renderMesh/Geometry)
+	// Print the nodes of the scene and their attributes recursively.
+	// Note that we are not printing the root node, because it should
+	// not contain any attributes.
+
+	TimeOpPtr root = TimeOp::create();
+
+	// iterate over all nodes
+	int numNodes = lScene->GetNodeCount();
+	for( int i=0;i < numNodes; ++i )
+	{
+		KFbxNode *node = lScene->GetNode(i);
+
+		std::cout << node->GetName() << std::endl;
+
+		// items ===
+		int numAttrs = node->GetNodeAttributeCount();
+
+		for( int j=0;j<numAttrs;++j )
+		{
+			KFbxNodeAttribute const *attr = node->GetNodeAttributeByIndex(j);
+
+			switch( attr->GetAttributeType() )
+			{
+			/*
+				eNULL,
+				eMARKER,
+				eSKELETON,
+				eNURB,
+				ePATCH,
+				eCAMERA_STEREO,
+				eCAMERA_SWITCHER,
+				eLIGHT,
+				eOPTICAL_REFERENCE,
+				eOPTICAL_MARKER,
+				eNURBS_CURVE,
+				eTRIM_NURBS_SURFACE,
+				eBOUNDARY,
+				eNURBS_SURFACE,
+				eSHAPE,
+				eLODGROUP,
+				eSUBDIV,
+				eCACHED_EFFECT,
+				eLINE
+			*/
+				case KFbxNodeAttribute::eMESH:
+				{
+					std::cout << "has a mesh!\n";
+					//base::ops::OpPtr
+					RenderGeoOpPtr op = buildFromFBX( (KFbxMesh *)attr  );
+					op->plug( root );
+				}break;
+				case KFbxNodeAttribute::eCAMERA:
+				{
+					std::cout << "has a camera!\n";
+					//CameraOpPtr
+				}break;
+				case KFbxNodeAttribute::eUNIDENTIFIED:
+				default:
+				{
+					std::cout << "has a something unknown!\n";
+				}break;
+			};
+
+			// camera
+			//KFbxCamera *cam = node->GetCamera();
+
+			// geometry ===
+		}
+
+	}
+
+
+	return root;
 }
 
 
@@ -131,28 +249,30 @@ void init()
 		std::cout << "glew init failed\n";
 	}
 
-	std::string fbxTest = "asfasf";
+	std::string fbxTest = std::string(SRC_PATH) + std::string("/data/cube01_ascii.FBX");
 
 	// Initialize the sdk manager. This object handles all our memory management.
 	lSdkManager = KFbxSdkManager::Create();
 	// Create the io settings object.
 	ios = KFbxIOSettings::Create(lSdkManager, IOSROOT);
 	lSdkManager->SetIOSettings(ios);
+	geoConverter = new KFbxGeometryConverter(lSdkManager);
 
 
 
 	context = base::ContextPtr( new base::Context() );
+	base::ops::Context::setContext(context);
 
 
 	// op testing =============
-	base::ops::SphereOpPtr s = base::ops::SphereOp::create(1.0f);
-	base::MeshPtr m = s->getMesh(0);
-	geo = m->getGeometry();
+	//base::ops::SphereOpPtr s = base::ops::SphereOp::create(1.0f);
+	//base::MeshPtr m = s->getMesh(0);
+	//geo = m->getGeometry();
 
 
 	// demo =============
-	//demoOp = DemoOp::create( "/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg" );
-	demoOp = DemoOp::create( "c:\\projects\\sandbox\\temp\\code\\sketch039.ogg" );
+	demoOp = DemoOp::create( "/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg" );
+	//demoOp = DemoOp::create( "c:\\projects\\sandbox\\temp\\code\\sketch039.ogg" );
 	TimeOpPtr time = TimeOp::create();
 	CameraOpPtr cam = CameraOp::create();
 	base::ops::ClearOpPtr clear = base::ops::ClearOp::create();
@@ -160,16 +280,13 @@ void init()
 	base::ops::FuncOpPtr renderFunc = base::ops::FuncOp::create( renderGeo );
 
 	clear->plug( cam );
-	renderFunc->plug( cam );
+	//renderFunc->plug( cam );
 
 	cam->plug( demoOp );
 
 	orbitTransform->plug( cam, "transformMatrix" );
 
 	opRoot = demoOp;
-
-	// fbx import test =============
-	//buildFromFBX(fbxTest);
 
 
 	//
@@ -182,12 +299,17 @@ void init()
 	baseShader->setUniform( "input", baseTexture->getUniform() );
 
 
-	demoOp->startAudio();
+
+	// fbx import test =============
+	base::ops::OpPtr renderFBXSceneOp = buildFromFBX(fbxTest);
+	renderFBXSceneOp->plug( cam );
+
+	//demoOp->startAudio();
 }
 
 void shutdown()
 {
-	demoOp->stopAudio();
+	//demoOp->stopAudio();
 }
 
 
