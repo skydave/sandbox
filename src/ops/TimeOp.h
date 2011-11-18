@@ -3,7 +3,7 @@
 #include <ops/Op.h>
 
 
-#include <ops/Context.h>
+#include <ops/Manager.h>
 
 
 
@@ -21,16 +21,16 @@ public:
 
 	virtual void execute()
 	{
-		float parentTime = base::ops::Context::time();
+		float parentTime = base::ops::Manager::context()->time();
 		// find current time
 		float currentTime = (parentTime - m_startTime)/(m_endTime - m_startTime);
 		// push new time on context
-		base::ops::Context::setTime( currentTime );
+		base::ops::Manager::context()->setTime( currentTime );
 		// execute inputs
 		for( OpList::iterator it = m_opList.begin(); it != m_opList.end(); ++it)
 			(*it)->execute();
 		// pop time
-		base::ops::Context::setTime( parentTime );
+		base::ops::Manager::context()->setTime( parentTime );
 	}
 
 	static TimeOpPtr create()

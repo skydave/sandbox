@@ -93,6 +93,7 @@ void render( base::CameraPtr cam )
 KFbxSdkManager* lSdkManager = NULL;
 KFbxIOSettings *ios = NULL;
 KFbxGeometryConverter  *geoConverter = NULL;
+KFbxAnimEvaluator *animEvaluator = NULL;
 
 // creates a rendergeometry op from given fbxmesh
 RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
@@ -112,6 +113,7 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 	{
 		KFbxVector4 p = fbxTriMesh->GetControlPointAt(i);
 		pAttr->appendElement<math::Vec3f>( math::Vec3f( p[0], p[1], p[2] ) );
+		std::cout << "p: " << p[0] << " " << p[1] << " " << p[2] << std::endl;
 	}
 
 	// get triangles
@@ -132,6 +134,48 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 }
 
 
+// creates a camer op from given fbxcamera
+CameraOpPtr buildFromFBX( KFbxCamera *fbxCamera, KFbxNode *node )
+{
+	// we will need the transform
+	KTime myTime;
+	KFbxXMatrix& worldTransform = animEvaluator->GetNodeGlobalTransform(node, myTime);
+	double *values = worldTransform;
+
+
+	// create and setup cameraop
+	CameraOpPtr cameraOp = CameraOp::create();
+
+	// setup transform directly for now
+	//cameraOp->m_camera->m_transform
+	for( int i=0;i<4;++i )
+	{
+		for( int j=0;j<4;++j )
+		{
+			cameraOp->m_camera->m_transform.m[i][j] = worldTransform.Get( i, j );
+		}
+	}
+
+	//cameraOp->m_camera->m_transform.rotateY( math::degToRad(180.0f) );
+
+	for( int i=0;i<4;++i )
+	{
+		for( int j=0;j<4;++j )
+		{
+			std::cout << cameraOp->m_camera->m_transform.m[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
+
+
+	//orbitTransform->plug( cameraOp, "transformMatrix" );
+	cameraOp->m_camera->m_fov = 80.0f;
+	cameraOp->m_camera->m_znear = 0.0001f;
+	cameraOp->m_camera->m_zfar = 100.0f;
+
+	return cameraOp;
+}
+
 base::ops::OpPtr buildFromFBX( std::string path )
 {
 	// Create an importer using our sdk manager.
@@ -146,12 +190,24 @@ base::ops::OpPtr buildFromFBX( std::string path )
 	}
 
 
+
+
 	// Create a new scene so it can be populated by the imported file.
 	KFbxScene* lScene = KFbxScene::Create(lSdkManager,"myScene");
 
 	// Import the contents of the file into the scene.
 	std::cout << "importing " << path << std::endl;
 	lImporter->Import(lScene);
+
+	//KFbxAxisSystem max(KFbxAxisSystem::eOpenGL);
+	//max.ConvertScene(lScene);
+
+	int dir, dirSign, front, frontSign;
+	dir = lScene->GetGlobalSettings().GetAxisSystem().GetUpVector(dirSign);
+	front = lScene->GetGlobalSettings().GetAxisSystem().GetFrontVector(frontSign);
+	std::cout << "up axis :" << dir << " " << dirSign << std::endl;
+	std::cout << "front axis :" << front << " " << frontSign << std::endl;
+
 
 	// The file has been imported; we can get rid of the importer.
 	lImporter->Destroy();
@@ -165,13 +221,22 @@ base::ops::OpPtr buildFromFBX( std::string path )
 	// Note that we are not printing the root node, because it should
 	// not contain any attributes.
 
+
+	// tmp
+	animEvaluator = lScene->GetEvaluator();
+
 	TimeOpPtr root = TimeOp::create();
+	CameraOpPtr cameraOp;
+	std::vector<base::ops::OpPtr> items;
 
 	// iterate over all nodes
 	int numNodes = lScene->GetNodeCount();
 	for( int i=0;i < numNodes; ++i )
 	{
 		KFbxNode *node = lScene->GetNode(i);
+
+		// disable pre/post rotation
+		node->SetRotationActive(false);
 
 		std::cout << node->GetName() << std::endl;
 
@@ -208,14 +273,14 @@ base::ops::OpPtr buildFromFBX( std::string path )
 				case KFbxNodeAttribute::eMESH:
 				{
 					std::cout << "has a mesh!\n";
-					//base::ops::OpPtr
 					RenderGeoOpPtr op = buildFromFBX( (KFbxMesh *)attr  );
-					op->plug( root );
+					items.push_back(op);
 				}break;
 				case KFbxNodeAttribute::eCAMERA:
 				{
+					// TODO: handle multiple cameras
 					std::cout << "has a camera!\n";
-					//CameraOpPtr
+					cameraOp = buildFromFBX( (KFbxCamera *)attr, node );
 				}break;
 				case KFbxNodeAttribute::eUNIDENTIFIED:
 				default:
@@ -224,13 +289,19 @@ base::ops::OpPtr buildFromFBX( std::string path )
 				}break;
 			};
 
-			// camera
-			//KFbxCamera *cam = node->GetCamera();
+		} // for each node attribute
+	} // for each node
 
-			// geometry ===
-		}
 
-	}
+	// if there is no camera
+	// TODO: create default cam
+
+	// plug camera into root
+	cameraOp->plug( root );
+
+	// now plug all items into camera
+	for( std::vector<base::ops::OpPtr>::iterator it = items.begin(); it != items.end(); ++it )
+		(*it)->plug( cameraOp );
 
 
 	return root;
@@ -249,7 +320,7 @@ void init()
 		std::cout << "glew init failed\n";
 	}
 
-	std::string fbxTest = std::string(SRC_PATH) + std::string("/data/cube01_ascii.FBX");
+	std::string fbxTest = std::string(SRC_PATH) + std::string("/data/cube01_maya.fbx");
 
 	// Initialize the sdk manager. This object handles all our memory management.
 	lSdkManager = KFbxSdkManager::Create();
@@ -257,11 +328,13 @@ void init()
 	ios = KFbxIOSettings::Create(lSdkManager, IOSROOT);
 	lSdkManager->SetIOSettings(ios);
 	geoConverter = new KFbxGeometryConverter(lSdkManager);
+	animEvaluator = KFbxAnimEvaluator::Create( lSdkManager, "" );
+
 
 
 
 	context = base::ContextPtr( new base::Context() );
-	base::ops::Context::setContext(context);
+	base::ops::Manager::setContext(context);
 
 
 	// op testing =============
@@ -279,12 +352,12 @@ void init()
 	orbitTransform = base::ops::ConstantOp::create();
 	base::ops::FuncOpPtr renderFunc = base::ops::FuncOp::create( renderGeo );
 
-	clear->plug( cam );
+	//clear->plug( cam );
 	//renderFunc->plug( cam );
 
-	cam->plug( demoOp );
+	//cam->plug( demoOp );
 
-	orbitTransform->plug( cam, "transformMatrix" );
+	//orbitTransform->plug( cam, "transformMatrix" );
 
 	opRoot = demoOp;
 
@@ -302,7 +375,9 @@ void init()
 
 	// fbx import test =============
 	base::ops::OpPtr renderFBXSceneOp = buildFromFBX(fbxTest);
-	renderFBXSceneOp->plug( cam );
+
+	clear->plug( opRoot );
+	renderFBXSceneOp->plug( opRoot );
 
 	//demoOp->startAudio();
 }

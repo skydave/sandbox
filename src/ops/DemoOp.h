@@ -6,7 +6,7 @@
 #include <ops/Op.h>
 
 
-#include <ops/Context.h>
+#include <ops/Manager.h>
 #include <util/fs.h>
 #include <portaudio/portaudio.h>
 #include <stblib/stb_vorbis.h>
@@ -41,7 +41,7 @@ public:
 	virtual void execute()
 	{
 		// TODO: maybe use streamtime over watchclock?
-		base::ops::Context::setTime( 1.0f );
+		base::ops::Manager::context()->setTime( 1.0f );
 		// execute inputs
 		for( OpList::iterator it = m_opList.begin(); it != m_opList.end(); ++it)
 			(*it)->execute();

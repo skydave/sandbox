@@ -2,7 +2,7 @@
 #pragma once
 
 #include <ops/Op.h>
-#include <ops/Context.h>
+#include <ops/Manager.h>
 #include <gfx/Camera.h>
 
 
@@ -24,19 +24,28 @@ public:
 		get( "viewMatrix", m_camera->m_viewMatrix );
 		get( "transformMatrix", m_camera->m_transform );
 
+		for( int i=0;i<4;++i )
+		{
+			for( int j=0;j<4;++j )
+			{
+				//std::cout << m_camera->m_transform.m[i][j] << " ";
+			}
+			//std::cout << std::endl;
+		}
+
 		// update camera
 		m_camera->update();
 
 		// push camera.view
-		base::CameraPtr parentCamera = base::ops::Context::camera();
-		base::ops::Context::setCamera( m_camera );
+		base::CameraPtr parentCamera = base::ops::Manager::context()->camera();
+		base::ops::Manager::context()->setCamera( m_camera );
 
 		// execute inputs
 		for( OpList::iterator it = m_opList.begin(); it != m_opList.end(); ++it)
 			(*it)->execute();
 
 		// pop camera view
-		base::ops::Context::setCamera(parentCamera);
+		base::ops::Manager::context()->setCamera(parentCamera);
 	}
 
 	static CameraOpPtr create()
@@ -44,6 +53,6 @@ public:
 		return CameraOpPtr( new CameraOp() );
 	}
 
-private:
+//private:
 	base::CameraPtr             m_camera;
 };

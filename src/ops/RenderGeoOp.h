@@ -2,7 +2,7 @@
 #pragma once
 
 #include <ops/Op.h>
-#include <ops/Context.h>
+#include <ops/Manager.h>
 #include <gfx/Geometry.h>
 #include <gfx/Shader.h>
 
@@ -22,7 +22,7 @@ public:
 	{
 		// TODO: get shader
 		// TODO: get geometry
-		base::ops::Context::context()->render( m_geo, m_shader );
+		base::ops::Manager::context()->render( m_geo, m_shader );
 	}
 
 	static RenderGeoOpPtr create()
