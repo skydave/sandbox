@@ -24,15 +24,6 @@ public:
 		get( "viewMatrix", m_camera->m_viewMatrix );
 		get( "transformMatrix", m_camera->m_transform );
 
-		for( int i=0;i<4;++i )
-		{
-			for( int j=0;j<4;++j )
-			{
-				//std::cout << m_camera->m_transform.m[i][j] << " ";
-			}
-			//std::cout << std::endl;
-		}
-
 		// update camera
 		m_camera->update();
 

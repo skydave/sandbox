@@ -169,8 +169,8 @@ CameraOpPtr buildFromFBX( KFbxCamera *fbxCamera, KFbxNode *node )
 
 
 	//orbitTransform->plug( cameraOp, "transformMatrix" );
-	cameraOp->m_camera->m_fov = 80.0f;
-	cameraOp->m_camera->m_znear = 0.0001f;
+	cameraOp->m_camera->m_fov = math::degToRad(54.0f);
+	cameraOp->m_camera->m_znear = 0.1f;
 	cameraOp->m_camera->m_zfar = 100.0f;
 
 	return cameraOp;
