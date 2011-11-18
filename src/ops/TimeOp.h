@@ -15,15 +15,17 @@ BASE_DECL_SMARTPTR(TimeOp);
 class TimeOp : public base::ops::Op
 {
 public:
-	TimeOp() : base::ops::Op(), m_startTime(0.0f), m_endTime(0.0f)
+	TimeOp() : base::ops::Op(), m_inTimeStart(0.0f), m_inTimeEnd(1.0f), m_outTimeStart(0.0f), m_outTimeEnd(1.0f)
 	{
 	}
 
 	virtual void execute()
 	{
 		float parentTime = base::ops::Manager::context()->time();
-		// find current time
-		float currentTime = (parentTime - m_startTime)/(m_endTime - m_startTime);
+		// normalized CurrentTime
+		float currentTime = (parentTime - m_inTimeStart)/(m_inTimeEnd - m_inTimeStart);
+		// map to outputtimerange
+		currentTime = currentTime*(m_outTimeEnd - m_outTimeStart ) + m_outTimeStart;
 		// push new time on context
 		base::ops::Manager::context()->setTime( currentTime );
 		// execute inputs
@@ -38,7 +40,7 @@ public:
 		return TimeOpPtr( new TimeOp() );
 	}
 
-private:
-	float                   m_startTime;
-	float                     m_endTime;
+//private:
+	float        m_inTimeStart, m_inTimeEnd;
+	float      m_outTimeStart, m_outTimeEnd;
 };

@@ -46,6 +46,7 @@
 #include "ops/CameraOp.h"
 #include "ops/RenderGeoOp.h"
 #include "ops/DemoOp.h"
+#include "ops/FBXTransformOp.h"
 
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
@@ -146,13 +147,17 @@ CameraOpPtr buildFromFBX( KFbxCamera *fbxCamera, KFbxNode *node )
 	// create and setup cameraop
 	CameraOpPtr cameraOp = CameraOp::create();
 
+
+	FBXTransformOpPtr fbxTransform = FBXTransformOp::create( node );
+	fbxTransform->plug( cameraOp, "transformMatrix" );
+
 	// setup transform directly for now
 	//cameraOp->m_camera->m_transform
 	for( int i=0;i<4;++i )
 	{
 		for( int j=0;j<4;++j )
 		{
-			cameraOp->m_camera->m_transform.m[i][j] = worldTransform.Get( i, j );
+			//cameraOp->m_camera->m_transform.m[i][j] = worldTransform.Get( i, j );
 		}
 	}
 
@@ -226,6 +231,10 @@ base::ops::OpPtr buildFromFBX( std::string path )
 	animEvaluator = lScene->GetEvaluator();
 
 	TimeOpPtr root = TimeOp::create();
+
+	// 100 frames == 4s
+	root->m_outTimeEnd = 4.0f;
+
 	CameraOpPtr cameraOp;
 	std::vector<base::ops::OpPtr> items;
 
@@ -378,6 +387,8 @@ void init()
 
 	clear->plug( opRoot );
 	renderFBXSceneOp->plug( opRoot );
+
+	base::ops::Manager::context()->setTime( .5 );
 
 	//demoOp->startAudio();
 }
