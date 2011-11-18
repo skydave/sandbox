@@ -8,7 +8,7 @@ namespace composer
 {
 	namespace widgets
 	{
-		GLViewer::GLViewer( InitCallback init, RenderCallback render, ShutdownCallback shutdown, QWidget *parent ) : QGLWidget(parent), m_init(init), m_render(render), m_shutdown(shutdown), m_lastX(0), m_lastY(0), m_renderThread(this), m_isInitialized(false), m_renderInSeperateThread(false)
+		GLViewer::GLViewer( InitCallback init, RenderCallback render, ShutdownCallback shutdown, QWidget *parent ) : QGLWidget(parent), m_init(init), m_render(render), m_shutdown(shutdown), m_mouseMove(0), m_lastX(0), m_lastY(0), m_renderThread(this), m_isInitialized(false), m_renderInSeperateThread(false)
 		{
 			setMouseTracking( true );
 			// this will make sure swapbuffers is not called by qt when doing double buffering
@@ -80,6 +80,29 @@ namespace composer
 			m_lastX = event->x();
 			m_lastY = event->y();
 
+			if(m_mouseMove)
+			{
+				base::MouseState ms;
+				if( buttons & Qt::LeftButton )
+					ms.buttons[0] = 1;
+				else
+					ms.buttons[0] = 0;
+				if( buttons & Qt::MidButton )
+					ms.buttons[1] = 1;
+				else
+					ms.buttons[1] = 0;
+				if( buttons & Qt::RightButton )
+					ms.buttons[2] = 1;
+				else
+					ms.buttons[2] = 0;
+				ms.dx = dx;
+				ms.dy = dy;
+				ms.x = event->x();
+				ms.y = event->y();
+
+				m_mouseMove(ms);
+			}
+
 
 			// if a mousebutton had been pressed
 			if( buttons != Qt::NoButton )
@@ -102,6 +125,11 @@ namespace composer
 				if( !m_renderThread.isRunning() )
 					update();
 			}
+		}
+
+		void GLViewer::setMouseMoveCallback( MouseMoveCallback mouseMoveCallback )
+		{
+			m_mouseMove = mouseMoveCallback;
 		}
 
 

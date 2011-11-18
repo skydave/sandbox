@@ -6,6 +6,9 @@
 #include <gfx/OrbitNavigator.h>
 #include <gfx/Camera.h>
 
+#include <ui/EventInfo.h>
+
+
 #include "GLThread.h"
 
 namespace composer
@@ -20,12 +23,14 @@ namespace composer
 			typedef void (*InitCallback)( void );
 			typedef void (*RenderCallback)( base::CameraPtr );
 			typedef void (*ShutdownCallback)( void );
+			typedef void (*MouseMoveCallback)( base::MouseState state );
 
 			GLViewer( InitCallback init = 0, RenderCallback render = 0, ShutdownCallback shutdown = 0, QWidget *parent = 0 );
 			virtual ~GLViewer();
 
 			base::CameraPtr                                                               getCamera();
 			void        setView( math::Vec3f lookat, float distance, float azimuth, float elevation );
+			void                          setMouseMoveCallback( MouseMoveCallback mouseMoveCallback );
 		public slots:
 			void setRenderInSeperateThread( bool state );
 		public:
@@ -36,10 +41,11 @@ namespace composer
 			void paintGL();
 			void mouseMoveEvent( QMouseEvent * event );
 		private:
-			InitCallback m_init;
-			RenderCallback m_render;
-			ShutdownCallback m_shutdown;
-			base::OrbitNavigator m_orbitNavigator;
+			InitCallback                             m_init;
+			RenderCallback                         m_render;
+			ShutdownCallback                     m_shutdown;
+			MouseMoveCallback                   m_mouseMove;
+			base::OrbitNavigator           m_orbitNavigator;
 			int                         m_lastX;
 			int                         m_lastY;
 			bool                m_isInitialized;

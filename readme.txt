@@ -25,8 +25,8 @@ for each entity:
 
 first stage (end december): basic demo functionality
 ----------------------------------------------------
--mesh import and rendering (with nice shader) using fbx http://usa.autodesk.com/adsk/servlet/pc/index?id=6837478&siteID=123112
--animated camera
+-mesh import and rendering (uv, vertexcolor, normals with nice shader) using fbx http://usa.autodesk.com/adsk/servlet/pc/index?id=6837478&siteID=123112
+DONE:-animated camera
 DONE:-sound
 -animated object (animated parameter in operator graph)
 -zipfile support (3rd party library zlib - fs api)

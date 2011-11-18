@@ -87,7 +87,11 @@ void render( base::CameraPtr cam )
 	orbitTransform->m_variant = cam->m_transform;
 	opRoot->execute();
 }
-
+void mouseMove( base::MouseState ms )
+{
+	float t = (float)ms.x / (float)glviewer->width();
+	base::ops::Manager::context()->setTime(t);
+}
 
 
 // Initialize the sdk manager. This object handles all our memory management.
@@ -414,6 +418,7 @@ int main(int argc, char ** argv)
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	glviewer->setRenderInSeperateThread(true);
+	glviewer->setMouseMoveCallback( mouseMove );
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
 
