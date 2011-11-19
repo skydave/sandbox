@@ -69,6 +69,7 @@ base::ContextPtr context;
 base::GeometryPtr geo;
 
 base::ShaderPtr baseShader;
+base::ShaderPtr defaultGeometryShader;
 base::Texture2dPtr baseTexture;
 base::GeometryPtr baseGeo;
 
@@ -84,11 +85,13 @@ void renderGeo()
 
 void render( base::CameraPtr cam )
 {
+	glEnable( GL_DEPTH_TEST );
 	orbitTransform->m_variant = cam->m_transform;
 	opRoot->execute();
 }
 void mouseMove( base::MouseState ms )
 {
+	//if(ms.buttons)
 	float t = (float)ms.x / (float)glviewer->width();
 	base::ops::Manager::context()->setTime(t);
 }
@@ -100,18 +103,239 @@ KFbxIOSettings *ios = NULL;
 KFbxGeometryConverter  *geoConverter = NULL;
 KFbxAnimEvaluator *animEvaluator = NULL;
 
+
+
+struct FBXMeshVertex
+{
+	FBXMeshVertex()
+	{
+		//elementTypes = {0,0,0,0,0,0,0};
+	}
+
+	//char elementTypes[7]; // identifies the different layerelement types (unused, float, vec2, vec3, vec4) for up to 7 possible layerelements
+	std::vector<float> data;
+};
+
 // creates a rendergeometry op from given fbxmesh
 RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 {
 	// create geometry from fbxMesh
 	KFbxMesh *fbxTriMesh = geoConverter->TriangulateMesh( fbxMesh );
+	//geoConverter->EmulateNormalsByPolygonVertex( fbxTriMesh );
 
 	// triangulate mesh
 	base::GeometryPtr geo = base::Geometry::createTriangleGeometry();
 
-	// get point attribute
-	base::AttributePtr pAttr = geo->getAttr("P");
 
+	// what do we have?
+	std::vector<KFbxLayerElementNormal *> normalElements;
+	std::vector<KFbxLayerElementUV *> uvElements;
+	std::vector<KFbxLayerElementVertexColor *> vertexColorElements;
+	std::vector<base::AttributePtr> attributes;
+	std::vector<std::string> attributeNames;
+
+	attributes.push_back( geo->getAttr("P") );
+	attributeNames.push_back("P");
+
+	// get additional layers (normals, vertex colors)
+	int numLayers = fbxTriMesh->GetLayerCount();
+	for( int i=0;i<numLayers;++i )
+	{
+		KFbxLayer *layer = fbxTriMesh->GetLayer(0);
+
+		std::cout << "got Layer!\n";
+		if( layer->GetNormals() != NULL )
+		{
+			std::cout << "got N!\n";
+			normalElements.push_back(layer->GetNormals());
+			attributes.push_back( base::Attribute::createVec3f() );
+			if( i==0 )
+				attributeNames.push_back("N");
+			else
+			{
+				std::stringstream ss;ss << "N" << i;
+				attributeNames.push_back(ss.str());
+			}
+			//geo->setAttr( attributeNames.back(), attributes.back()  );
+		}
+		if( layer->GetUVs() != NULL )
+		{
+			std::cout << "got UV!\n";
+			uvElements.push_back(layer->GetUVs());
+			attributes.push_back( base::Attribute::createVec2f() );
+			if( i==0 )
+				attributeNames.push_back("UV");
+			else
+			{
+				std::stringstream ss;ss << "UV" << i;
+				attributeNames.push_back(ss.str());
+			}
+			//geo->setAttr( attributeNames.back(), attributes.back()  );
+		}
+		if( layer->GetVertexColors() != NULL )
+		{
+			std::cout << "got Cd!\n";
+			vertexColorElements.push_back(layer->GetVertexColors());
+			attributes.push_back( base::Attribute::createVec3f() );
+			if( i==0 )
+				attributeNames.push_back("Cd");
+			else
+			{
+				std::stringstream ss;ss << "Cd" << i;
+				attributeNames.push_back(ss.str());
+			}
+			geo->setAttr( attributeNames.back(), attributes.back()  );
+		}
+	}
+
+	// temp
+	std::vector<FBXMeshVertex> vertices;
+
+	// deindex ---
+	// get triangles
+	int numTris = fbxTriMesh->GetPolygonCount();
+	vertices.reserve( numTris * 3 );
+	int indexByPolygonVertex = 0;
+	for( int i = 0; i<numTris; ++i )
+	{
+		int numVertices = fbxTriMesh->GetPolygonSize(i);
+		if( numVertices == 3 )
+		{
+			for( int j=0;j<3;++j )
+			{
+				FBXMeshVertex vertex;
+				KFbxVector4 p = fbxTriMesh->GetControlPointAt( fbxTriMesh->GetPolygonVertex(i, j) );
+				vertex.data.push_back(p[0]);
+				vertex.data.push_back(p[1]);
+				vertex.data.push_back(p[2]);
+
+				for( std::vector<KFbxLayerElementNormal *>::iterator it = normalElements.begin(); it != normalElements.end(); ++it )
+				{
+					KFbxLayerElementNormal *n = *it;
+
+					/*
+			KFbxLayerElementNormal::EMappingMode mapping = n->GetMappingMode();
+			switch( mapping )
+			{
+				case KFbxLayerElementNormal::eBY_CONTROL_POINT:
+				{
+					std::cout << "point attribute\n";
+				}break;
+				case KFbxLayerElementNormal::eBY_POLYGON_VERTEX:
+				{
+					std::cout << "vertex attribute\n";
+				}break;
+			};
+					*/
+					vertex.data.push_back( 0.0f );
+					vertex.data.push_back( 0.0f );
+					vertex.data.push_back( 0.0f );
+				}
+				for( std::vector<KFbxLayerElementUV *>::iterator it = uvElements.begin(); it != uvElements.end(); ++it )
+				{
+					KFbxLayerElementUV *uv = *it;
+
+					/*
+								KFbxLayerElementUV::EMappingMode mapping = uv->GetMappingMode();
+			switch( mapping )
+			{
+				case KFbxLayerElementUV::eBY_CONTROL_POINT:
+				{
+					std::cout << "point attribute\n";
+				}break;
+				case KFbxLayerElementUV::eBY_POLYGON_VERTEX:
+				{
+					std::cout << "vertex attribute\n";
+				}break;
+			};*/
+					vertex.data.push_back( 0.0f );
+					vertex.data.push_back( 0.0f );
+
+				}
+				for( std::vector<KFbxLayerElementVertexColor *>::iterator it = vertexColorElements.begin(); it != vertexColorElements.end(); ++it )
+				{
+					KFbxLayerElementVertexColor *cd = *it;
+
+					switch( cd->GetMappingMode() )
+					{
+						case KFbxLayerElementVertexColor::eBY_CONTROL_POINT:
+						{
+							//TODO
+						}break;
+						case KFbxLayerElementVertexColor::eBY_POLYGON_VERTEX:
+						{
+							int vertexColorIndex = 0;
+							switch(cd->GetReferenceMode())
+							{
+							case KFbxLayerElementVertexColor::eDIRECT:
+								{
+									vertexColorIndex = indexByPolygonVertex;
+								}break;
+							case KFbxLayerElementVertexColor::eINDEX_TO_DIRECT:
+								{
+									vertexColorIndex = cd->GetIndexArray().GetAt(indexByPolygonVertex);
+								}break;
+							};
+							KFbxColor c = cd->GetDirectArray().GetAt(vertexColorIndex);
+							vertex.data.push_back( c[2] );
+							vertex.data.push_back( c[1] );
+							vertex.data.push_back( c[0] );
+						}break;
+					};
+
+					
+				} // for each vertexcolor layer
+
+				vertices.push_back( vertex );
+
+				++indexByPolygonVertex;
+			} // for each vertex
+		} // if numvertices == 3
+	} // for each face
+
+	// reindex ---
+
+
+	// fill attributes
+	for( std::vector<FBXMeshVertex>::iterator it = vertices.begin(); it != vertices.end(); ++it )
+	{
+		FBXMeshVertex &v = *it;
+		int attributeIndex = 0;
+		int dataIndex = 0;
+
+		attributes[attributeIndex++]->appendElement<math::Vec3f>( math::Vec3f( v.data[dataIndex++], v.data[dataIndex++], v.data[dataIndex++] ) );
+
+		for( std::vector<KFbxLayerElementNormal *>::iterator it = normalElements.begin(); it != normalElements.end(); ++it )
+		{
+			KFbxLayerElementNormal *n = *it;
+			attributeIndex++;
+			dataIndex++;
+			dataIndex++;
+			dataIndex++;
+		}
+		for( std::vector<KFbxLayerElementUV *>::iterator it = uvElements.begin(); it != uvElements.end(); ++it )
+		{
+			KFbxLayerElementUV *uv = *it;
+			attributeIndex++;
+			dataIndex++;
+			dataIndex++;
+		}
+		for( std::vector<KFbxLayerElementVertexColor *>::iterator it = vertexColorElements.begin(); it != vertexColorElements.end(); ++it )
+		{
+			KFbxLayerElementVertexColor *cd = *it;
+			attributes[attributeIndex++]->appendElement<math::Vec3f>( math::Vec3f( v.data[dataIndex++], v.data[dataIndex++], v.data[dataIndex++] ) );
+		} // for each vertexcolor layer
+	}
+
+	// tris
+	int triVertexIndex = 0;
+	for( int i=0;i<numTris;++i )
+	{
+		//geo->addTriangle( fbxTriMesh->GetPolygonVertex(i, 0), fbxTriMesh->GetPolygonVertex(i, 1), fbxTriMesh->GetPolygonVertex(i, 2) );
+		geo->addTriangle( triVertexIndex++, triVertexIndex++, triVertexIndex++ );
+	}
+
+/*
 	// get points
 	int numPoints = fbxTriMesh->GetControlPointsCount();
 	for( int i=0; i<numPoints; ++i )
@@ -120,20 +344,15 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 		pAttr->appendElement<math::Vec3f>( math::Vec3f( p[0], p[1], p[2] ) );
 		std::cout << "p: " << p[0] << " " << p[1] << " " << p[2] << std::endl;
 	}
+*/
 
-	// get triangles
-	int numTris = fbxTriMesh->GetPolygonCount();
-	for( int i = 0; i<numTris; ++i )
-	{
-		int numVertices = fbxTriMesh->GetPolygonSize(i);
-		if( numVertices == 3 )
-			geo->addTriangle( fbxTriMesh->GetPolygonVertex(i, 0), fbxTriMesh->GetPolygonVertex(i, 1), fbxTriMesh->GetPolygonVertex(i, 2) );
-	}
+
+
 
 	// create and setup renderop
 	RenderGeoOpPtr renderGeoOp = RenderGeoOp::create();
 	renderGeoOp->m_geo = geo;
-	renderGeoOp->m_shader = baseShader;
+	renderGeoOp->m_shader = defaultGeometryShader;
 
 	return renderGeoOp;
 }
@@ -154,28 +373,6 @@ CameraOpPtr buildFromFBX( KFbxCamera *fbxCamera, KFbxNode *node )
 
 	FBXTransformOpPtr fbxTransform = FBXTransformOp::create( node );
 	fbxTransform->plug( cameraOp, "transformMatrix" );
-
-	// setup transform directly for now
-	//cameraOp->m_camera->m_transform
-	for( int i=0;i<4;++i )
-	{
-		for( int j=0;j<4;++j )
-		{
-			//cameraOp->m_camera->m_transform.m[i][j] = worldTransform.Get( i, j );
-		}
-	}
-
-	//cameraOp->m_camera->m_transform.rotateY( math::degToRad(180.0f) );
-
-	for( int i=0;i<4;++i )
-	{
-		for( int j=0;j<4;++j )
-		{
-			std::cout << cameraOp->m_camera->m_transform.m[i][j] << " ";
-		}
-		std::cout << std::endl;
-	}
-
 
 	//orbitTransform->plug( cameraOp, "transformMatrix" );
 	cameraOp->m_camera->m_fov = math::degToRad(54.0f);
@@ -208,7 +405,7 @@ base::ops::OpPtr buildFromFBX( std::string path )
 	std::cout << "importing " << path << std::endl;
 	lImporter->Import(lScene);
 
-	//KFbxAxisSystem max(KFbxAxisSystem::eOpenGL);
+	//KFbxAxisSystem max(KFbxAxisSystem::eDirectX);
 	//max.ConvertScene(lScene);
 
 	int dir, dirSign, front, frontSign;
@@ -333,7 +530,7 @@ void init()
 		std::cout << "glew init failed\n";
 	}
 
-	std::string fbxTest = std::string(SRC_PATH) + std::string("/data/cube01_maya.fbx");
+	std::string fbxTest = std::string(SRC_PATH) + std::string("/data/cube01_max.fbx");
 
 	// Initialize the sdk manager. This object handles all our memory management.
 	lSdkManager = KFbxSdkManager::Create();
@@ -380,6 +577,8 @@ void init()
 	baseGeo = base::importObj( base::Path( SRC_PATH ) + "/data/test.1.obj" );
 	//base::apply_transform( baseGeo, math::Matrix44f::ScaleMatrix( 30000.0f ) );
 	base::apply_normals( baseGeo );
+
+	defaultGeometryShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/glsl/defaultGeometry.vs.glsl", base::Path( SRC_PATH ) + "/src/glsl/defaultGeometry.ps.glsl" );
 
 	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref2.png" );
 	baseShader->setUniform( "input", baseTexture->getUniform() );
