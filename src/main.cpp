@@ -33,8 +33,6 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
-#include <ops/ops.h>
-
 #include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
@@ -614,7 +612,8 @@ void render( base::CameraPtr cam )
 	//glEnable( GL_DEPTH_TEST );
 
 
-	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
+	//context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
+	context->setCamera( cam );
 
 
 	// render to screen
@@ -667,12 +666,12 @@ float closestIntersection(float height, float cosViewAngle)
 {
 	//calculate intersection with outer atmosphere
 	float outer_t1 = -height*cosViewAngle + sqrt( height*height*(cosViewAngle*cosViewAngle - 1.0f) + outerRadius*outerRadius );
-	//computer disciminant of inner sphere intersection
+	//compute disciminant of inner sphere intersection
 	float inner_discriminant =  height*height*(cosViewAngle*cosViewAngle - 1.0f) + innerRadius*innerRadius;
 	// is there an intersection?
 	if(inner_discriminant)
 	{
-		// computer inner sphere intersection
+		// compute inner sphere intersection
 		float inner_t1 = -height*cosViewAngle + sqrt(inner_discriminant);
 		// is it in front of ray origin ?
 		if(inner_t1 > 0.1f) // note: we should do inner_t1 >= 0.0 but when camera position is on the inner sphere we get false positives from numerical instability
@@ -774,24 +773,6 @@ void init()
 	context = base::ContextPtr( new base::Context() );
 
 
-	// op testing
-	base::ops::SphereOpPtr s = base::ops::SphereOp::create(innerRadius);
-	base::MeshPtr m = s->getMesh(0);
-	geo = m->getGeometry();
-
-
-	// rendering
-	/*
-
-	RenderOpPtr rop = base::ops::RenderOp::create();
-	rop->append( base::ops::ClearOp::create() );
-	rop->append( base::ops::SkyOp::create() );
-	rop->append( base::ops::RenderMeshOp::create() );
-
-	rop->execute();
-
-	*/
-
 	/*
 
 	  create 2d transmittance texture (256x64, rgba_float_16, clamp, linear)
@@ -853,10 +834,10 @@ void init()
 
 
 
-	CloudsUI *widget = new CloudsUI();
+	//CloudsUI *widget = new CloudsUI();
 	//glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
-	widget->show();
-	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
+	//widget->show();
+	//glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
 
 	//loadData();
 	//precompute();
