@@ -104,3 +104,19 @@ windows
 linux
 -----
 -setenv FBXSDKPATH /to/the/path/of/fbxsdk
+
+ISSUES
+=======
+
+-bad rotatation when exporting from 3dsmax
+
+
+-animation glitches
+try:
+KFbxAnimCurveNode *curveNode = boneNode->LclRotation.GetCurveNode(lAnimLayer);
+ if (curveNode)
+ {
+ KFbxAnimCurveFilterUnroll lUnrollFilter;
+ lUnrollFilter.SetForceAutoTangents(true);
+ lUnrollFilter.Apply(*curveNode);
+ } 
