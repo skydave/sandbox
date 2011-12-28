@@ -22,13 +22,12 @@ public:
 	{
 		// TODO: get shader
 		// TODO: get geometry
-		//glDepthMask( GL_FALSE );
+		////glDepthMask( GL_FALSE );
+
 		glDisable( GL_DEPTH_TEST );
 		glDisable( GL_CULL_FACE );
 		glEnable( GL_BLEND );
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-		//glBlendFunc( GL_ONE, GL_ONE );
-		//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		base::ops::Manager::context()->render( m_geo, m_shader );
 
 		/*
@@ -74,7 +73,7 @@ public:
 
 
 		glDisable( GL_BLEND );
-		//glDepthMask( GL_TRUE );
+		////glDepthMask( GL_TRUE );
 		glEnable( GL_DEPTH_TEST );
 	}
 

@@ -85,6 +85,7 @@ struct TempTest
 	float dist2;
 	math::Vec3f center;
 	int indices[3];
+	int indices2[3];
 	// Für sortierung
 	bool operator < (const TempTest &s) const
 	{
@@ -99,7 +100,8 @@ base::GeometryPtr spriteGeo;
 
 void renderGeo()
 {
-	context->render( geo, baseShader );
+	//context->render( geo, baseShader );
+	context->render( baseGeo, cloudSpriteShader );
 }
 
 void render( base::CameraPtr cam )
@@ -127,6 +129,10 @@ void render( base::CameraPtr cam )
 		spriteGeo->m_indexBuffer[c++] = tt.indices[0];
 		spriteGeo->m_indexBuffer[c++] = tt.indices[1];
 		spriteGeo->m_indexBuffer[c++] = tt.indices[2];
+
+		spriteGeo->m_indexBuffer[c++] = tt.indices2[0];
+		spriteGeo->m_indexBuffer[c++] = tt.indices2[1];
+		spriteGeo->m_indexBuffer[c++] = tt.indices2[2];
 	}
 	spriteGeo->m_indexBufferIsDirty = true;
 
@@ -389,16 +395,23 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 
 	// tris
 	int triVertexIndex = 0;
-	for( int i=0;i<numTris;++i )
+	for( int i=0;i<numTris; i+=2 )
 	{
 		// temp
 		TempTest tt;
 		tt.indices[0] = triVertexIndex;
 		tt.indices[1] = triVertexIndex+1;
 		tt.indices[2] = triVertexIndex+2;
-		tt.center = (pattr->get<math::Vec3f>(triVertexIndex + 0) + pattr->get<math::Vec3f>(triVertexIndex + 1) + pattr->get<math::Vec3f>(triVertexIndex + 2))/3.0f;
+		tt.indices2[0] = triVertexIndex+3;
+		tt.indices2[1] = triVertexIndex+4;
+		tt.indices2[2] = triVertexIndex+5;
+		tt.center = (pattr->get<math::Vec3f>(triVertexIndex + 0) + pattr->get<math::Vec3f>(triVertexIndex + 1) + pattr->get<math::Vec3f>(triVertexIndex + 2)
+					  + pattr->get<math::Vec3f>(triVertexIndex + 3)
+					  + pattr->get<math::Vec3f>(triVertexIndex + 4)
+					  + pattr->get<math::Vec3f>(triVertexIndex + 5))/6.0f;
 		sprites.push_back( tt );
 		//geo->addTriangle( fbxTriMesh->GetPolygonVertex(i, 0), fbxTriMesh->GetPolygonVertex(i, 1), fbxTriMesh->GetPolygonVertex(i, 2) );
+		geo->addTriangle( triVertexIndex++, triVertexIndex++, triVertexIndex++ );
 		geo->addTriangle( triVertexIndex++, triVertexIndex++, triVertexIndex++ );
 	}
 
@@ -422,6 +435,8 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 	// create and setup renderop
 	RenderGeoOpPtr renderGeoOp = RenderGeoOp::create();
 	renderGeoOp->m_geo = geo;
+	//renderGeoOp->m_geo = base::geo_sphere(30, 30, 1.0f);
+	base::apply_normals( renderGeoOp->m_geo );
 	//renderGeoOp->m_shader = defaultGeometryShader;
 	renderGeoOp->m_shader = cloudSpriteShader;
 
@@ -442,10 +457,10 @@ CameraOpPtr buildFromFBX( KFbxCamera *fbxCamera, KFbxNode *node )
 	CameraOpPtr cameraOp = CameraOp::create();
 
 
-	FBXTransformOpPtr fbxTransform = FBXTransformOp::create( node );
-	fbxTransform->plug( cameraOp, "transformMatrix" );
+	//FBXTransformOpPtr fbxTransform = FBXTransformOp::create( node );
+	//fbxTransform->plug( cameraOp, "transformMatrix" );
 
-	//orbitTransform->plug( cameraOp, "transformMatrix" );
+	orbitTransform->plug( cameraOp, "transformMatrix" );
 	cameraOp->m_camera->m_fov = math::degToRad(54.0f);
 	cameraOp->m_camera->m_znear = 0.1f;
 	cameraOp->m_camera->m_zfar = 100.0f;
@@ -628,7 +643,7 @@ void init()
 	}
 
 	//std::string fbxTest = std::string(SRC_PATH) + std::string("/data/plane01_max.fbx");
-	std::string fbxTest = std::string(SRC_PATH) + std::string("/data/cloudscape02_max.fbx");
+	std::string fbxTest = std::string(SRC_PATH) + std::string("/data/cloudscape02_max.FBX");
 
 	// Initialize the sdk manager. This object handles all our memory management.
 	lSdkManager = KFbxSdkManager::Create();
@@ -660,12 +675,7 @@ void init()
 	orbitTransform = base::ops::ConstantOp::create();
 	base::ops::FuncOpPtr renderFunc = base::ops::FuncOp::create( renderGeo );
 
-	//clear->plug( cam );
-	//renderFunc->plug( cam );
-
-	//cam->plug( demoOp );
-
-	//orbitTransform->plug( cam, "transformMatrix" );
+	orbitTransform->plug( cam, "transformMatrix" );
 
 	opRoot = demoOp;
 
@@ -675,7 +685,8 @@ void init()
 
 	//
 	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );
-	baseGeo = base::importObj( base::Path( SRC_PATH ) + "/data/test.1.obj" );
+	//baseGeo = base::importObj( base::Path( SRC_PATH ) + "/data/test.1.obj" );
+	baseGeo = base::geo_sphere( 30, 30, 1.0f );
 	//base::apply_transform( baseGeo, math::Matrix44f::ScaleMatrix( 30000.0f ) );
 	base::apply_normals( baseGeo );
 
@@ -693,6 +704,11 @@ void init()
 
 	clear->plug( opRoot );
 	renderFBXSceneOp->plug( opRoot );
+
+	// alternate test
+	//cam->plug( opRoot );
+	//renderFunc->plug( cam );
+
 
 	base::ops::Manager::context()->setTime( .5 );
 
