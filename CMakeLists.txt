@@ -135,6 +135,9 @@ add_executable(app ${app_sources} ${glsl_outputs} ${moc_outputs} ${ui_outputs})
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
 
+# we compile some third party code with base which we want to include conveniently
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base/3rdparty )
+
 # qt ui headers are generated in build dir
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 
@@ -142,16 +145,25 @@ include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 # set link dependecies
 #
 
-# X11 on linux
+# on linux
 if( CMAKE_SYSTEM_NAME MATCHES Linux )
+	# X11
 	find_package(X11)
 
 	if(NOT X11_FOUND)
-		message(FATAL_ERROR "Failed to find X11 which is required to build under linux")
+	message(FATAL_ERROR "Failed to find X11 which is required to build under linux")
 	endif(NOT X11_FOUND)
 
-
 	target_link_libraries(app ${X11_LIBRARIES})
+
+	# alsa
+	find_package(ALSA)
+
+	if(NOT ALSA_FOUND)
+	message(FATAL_ERROR "Failed to find ALSA which is required to build under linux")
+	endif(NOT ALSA_FOUND)
+
+	target_link_libraries(app ${ALSA_LIBRARIES})
 
 endif( CMAKE_SYSTEM_NAME MATCHES Linux )
 
