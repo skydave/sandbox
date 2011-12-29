@@ -181,7 +181,7 @@ void render2( base::CameraPtr cam )
 	glEnable( GL_DEPTH_TEST );
 
 
-	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
+	context->setCamera( cam );
 
 
 	// render to screen
@@ -226,9 +226,15 @@ void init()
 	//particles = base::geo_sphere(28, 28, 1.0f, math::Vec3f(0.0f,0.0f,0.0f) );
 	
 
+	// todo: use texture for storing particle positions, position is retrieved by looking up texture in vertex shader, initial position of particle is the uv
+	// coordinate into position texture
+	// vertex shader: position lookup using uv
+	// init: store uv position with particle, store position in texture
 
-	particlePositions = base::Texture2d::createRGBAFloat32( 1024, 1024 );
-	float *posArray = (float *)malloc( 1024*1024*sizeof(float)*4 );
+	int particlesDataRes = 1024;
+	int maxNumParticles = particlesDataRes*particlesDataRes;
+	particlePositions = base::Texture2d::createRGBAFloat32( particlesDataRes, particlesDataRes );
+	float *posArray = (float *)malloc( particlesDataRes*particlesDataRes*sizeof(float)*4 );
 
 	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/circlealpha.bmp" );
 	particleTex = base::Texture2d::createRGBA8();
@@ -240,6 +246,7 @@ void init()
 
 
 	base::AttributePtr positions = particles->getAttr("P");
+	std::vector<math::Vec3f> posVec;
 
 
 	math::Vec3f p(0.1f, 0.1f, 0.1f);
@@ -283,7 +290,7 @@ void init()
 		p.z = znew;
 
 		// draw the new point
-		particles->addPoint(positions->appendElement( p ));
+		posVec.push_back( p );
 	}
 
 
@@ -291,17 +298,46 @@ void init()
 	math::PerlinNoise pn;
 	pn.setFrequency( .5f );
 	pn.setDepth(3);
-	int numElements = positions->numElements();
+	int numElements = posVec.size();
 	for( int i=0;i<numElements;++i )
 	{
-		math::Vec3f &p = positions->get<math::Vec3f>(i);
+		math::Vec3f &p = posVec[i];
 		float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
 		float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
 		float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
 		p += math::Vec3f(t1,t2,t3);
 
 	}
+
+	// tmp
+	int count2 = 0;
+	for( std::vector<math::Vec3f>::iterator it = posVec.begin(); it != posVec.end(); ++it, ++count2 )
+	{
+		math::Vec3f &v = *it;
+		//particles->addPoint(positions->appendElement(v));
+		posArray[count2*4 + 0] = v.x;
+		posArray[count2*4 + 1] = v.y;
+		posArray[count2*4 + 2] = v.z;
+		posArray[count2*4 + 3] = 1.0f;
+	}
+
+	float count = 0;
+	for( int j=0; j<particlesDataRes; ++j )
+		for( int i=0; i<particlesDataRes; ++i, ++count )
+		{
+			if( count < maxNumParticles )
+			{
+				float u = ((float)i+0.5f)/(float)(particlesDataRes);
+				float v = ((float)j+0.5f)/(float)(particlesDataRes);
+				particles->addPoint(positions->appendElement(math::Vec3f(u,v,0.0f)));
+			}
+		}
+
 	//base::apply_normals(particles);
+
+	// upload initial particle positions
+	particlePositions->uploadRGBAFloat32( 1024, 1024, posArray );
+	particleShader->setUniform( "pos", particlePositions->getUniform() );
 }
 
 

@@ -6,10 +6,13 @@ uniform mat3 mvminvt;
 
 varying vec3 n;
 
+uniform sampler2D pos;
+
 void main()
 {
 	n = N;
 	// read particle position from particle texture
-	gl_Position = mvpm * vec4(P, 1.0);
+	//gl_Position = mvpm * vec4(P, 1.0);
+	gl_Position = mvpm * texture2D(pos, P.xy).xyzw;
 	gl_PointSize = 10.0;
 }
