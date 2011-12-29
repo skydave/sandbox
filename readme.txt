@@ -89,14 +89,14 @@ homogenise particles (http://www.infinity-universe.com/Infinity/index.php?option
 -make the system more consistent across attractors and different parameters
 -Today, i implemented a grid and split particles into this grid. I then discarded all the particles in a cell of that grid except the first one, giving a more or less uniform distribution of particles. Thanks to that, the set of parameters i then choose ( particles size, particles alpha ) is coherent, whatever the attractor is.
 
+pointsprites mixed with traditional billboards (http://www.infinity-universe.com/Infinity/index.php?option=com_smf&Itemid=75&topic=1769.0)
+-black dust / blok globules
+-Fortunately, i found a good trade-off: i render the "large features" ( variable point sizes ) with normal billboarding ( where i can control the size and the texture coordinates in a vertex shader ), and the "small features" ( constant point sizes, around 95% of the cloud ) with point sprites. So there's no loss of quality at all. Performance also improved a lot, and i'm now getting from 15 to 60 fps depending on where the camera is located in the nebulae ( don't forget it's fully volumetric ! ).
+
 negative blending
 -I've also added negative blending in order to simulate black dust / bok globules. The drawback is that, as there is no sorting, it can look a bit weird if you move quickly in 3D ( as in the coming video ), but in a sky box it won't be noticeable. 
 ->http://www.opengl.org/sdk/docs/man/xhtml/glBlendEquation.xml
 ->http://www.andersriggelsen.dk/glblendfunc.php
-
-pointsprites mixed with traditional billboards (http://www.infinity-universe.com/Infinity/index.php?option=com_smf&Itemid=75&topic=1769.0)
--black dust / blok globules
--Fortunately, i found a good trade-off: i render the "large features" ( variable point sizes ) with normal billboarding ( where i can control the size and the texture coordinates in a vertex shader ), and the "small features" ( constant point sizes, around 95% of the cloud ) with point sprites. So there's no loss of quality at all. Performance also improved a lot, and i'm now getting from 15 to 60 fps depending on where the camera is located in the nebulae ( don't forget it's fully volumetric ! ).
 
 lighting/coloring
 -add "main stars" to the nebulae and light it based on the color and distance between each point and these stars.

@@ -40,6 +40,7 @@ base::Texture2dPtr particlePositions;
 base::Texture2dPtr particleTex;
 base::GeometryPtr particles;
 base::ShaderPtr particleShader;
+base::ShaderPtr billboardShader;
 
 
 void onPlayButtonPressed( bool checked )
@@ -107,7 +108,7 @@ struct StrangeAttractor
 
 
 //
-// ============= GRID ==================
+// ============= grid ==================
 //
 
 struct V3i
@@ -134,6 +135,42 @@ struct V3iEqual
 
 typedef std::tr1::unordered_map<V3i, math::Vec3f, V3iHashFunction, V3iEqual> Grid;
 Grid grid;
+
+
+
+//
+// =============== billboards ==================
+//
+struct Billboards
+{
+	Billboards()
+	{
+		geo = base::Geometry::createQuadGeometry();
+		pAttr = geo->getAttr( "P" );
+		oAttr = base::Attribute::createVec3f();
+		geo->setAttr( "offset", oAttr );
+		add( math::Vec3f() );
+	}
+
+	void add( const math::Vec3f &p )
+	{
+		int i0 = pAttr->appendElement( p );oAttr->appendElement(-0.5f, -0.5f, 0.0f);
+		int i1 = pAttr->appendElement( p );oAttr->appendElement(-0.5f, 0.5f, 0.0f);
+		int i2 = pAttr->appendElement( p );oAttr->appendElement(0.5f, 0.5f, 0.0f);
+		int i3 = pAttr->appendElement( p );oAttr->appendElement(0.5f, -0.5f, 0.0f);
+		geo->addQuad( i3, i2, i1, i0 );
+	}
+
+	base::GeometryPtr geo;
+	base::AttributePtr pAttr;
+	base::AttributePtr oAttr; // billboard vertex offsets
+};
+
+Billboards *billboards;
+
+
+
+
 
 void render2( base::CameraPtr cam )
 {
@@ -163,6 +200,9 @@ void render2( base::CameraPtr cam )
 	glDisable( GL_POINT_SPRITE );
 
 	glDisable( GL_BLEND );
+
+
+	context->render( billboards->geo, billboardShader );
 
 }
 
@@ -203,6 +243,8 @@ void init()
 
 	particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/particles.vs.glsl", base::Path( SRC_PATH ) + "src/particles.ps.glsl" );
 	particleShader->setUniform( "tex", particleTex->getUniform() );
+	billboardShader = base::Shader::load( base::Path( SRC_PATH ) + "src/billboard.vs.glsl", base::Path( SRC_PATH ) + "src/billboard.ps.glsl" );
+	billboardShader->setUniform( "tex", particleTex->getUniform() );
 
 
 	base::AttributePtr positions = particles->getAttr("P");
@@ -223,6 +265,8 @@ void init()
 
 
 	// go through the equations many times, drawing a point for each iteration
+	int skipped = 0;
+	/*
 	while( grid.size() < maxNumParticles )
 	{
 		math::Vec3f p = sa.next();
@@ -237,15 +281,21 @@ void init()
 		key.k = (int)std::floor(p.z / voxelSize);
 		// if particle falls into already existing bucket
 		if( grid.find( key ) != grid.end() )
+		{
+			++skipped;
 			// drop it
 			continue;
+		}
 
 		// else: create bucket and put in the particle
 		grid[key] = p;
 	}
+	std::cout << "skipped " << skipped << " particles during generation...\n";
+	*/
 
 
 	// TODO: randomly remove buckets and spawn bigger billboard particles
+	billboards = new Billboards();
 
 	// the grid now contains all particles which we want to render
 	// we transfer the particle positions into pos array and create the points geometry
