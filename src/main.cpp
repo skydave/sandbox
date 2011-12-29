@@ -96,6 +96,7 @@ struct TempTest
 
 std::vector<TempTest> sprites;
 base::GeometryPtr spriteGeo;
+bool               g_doSort = true;
 
 
 void renderGeo()
@@ -109,33 +110,36 @@ void render( base::CameraPtr cam )
 	glEnable( GL_DEPTH_TEST );
 	orbitTransform->m_variant = cam->m_transform;
 
-
-	// compute distance to camera
-	math::Vec3f camPos = cam->m_transform.getTranslation();
-	math::Vec3f dir = cam->m_transform.getDir();
-	for( std::vector<TempTest>::iterator it = sprites.begin(); it != sprites.end(); ++it )
+	if(g_doSort)
 	{
-		TempTest &tt = *it;
-		//tt.dist2 = (tt.center - camPos).getSquaredLength();
-		tt.dist2 = -math::dotProduct( tt.center - camPos, dir );
-	}
-	// sort
-	std::sort(sprites.begin(), sprites.end());
-	// update indexbuffer
-	int c = 0;
-	for( std::vector<TempTest>::iterator it = sprites.begin(); it != sprites.end(); ++it )
-	{
-		TempTest &tt = *it;
-		spriteGeo->m_indexBuffer[c++] = tt.indices[0];
-		spriteGeo->m_indexBuffer[c++] = tt.indices[1];
-		spriteGeo->m_indexBuffer[c++] = tt.indices[2];
+		// compute distance to camera
+		math::Vec3f camPos = cam->m_transform.getTranslation();
+		math::Vec3f dir = cam->m_transform.getDir();
+		for( std::vector<TempTest>::iterator it = sprites.begin(); it != sprites.end(); ++it )
+		{
+			TempTest &tt = *it;
+			//tt.dist2 = (tt.center - camPos).getSquaredLength();
+			tt.dist2 = -math::dotProduct( tt.center - camPos, dir );
+		}
+		// sort
+		std::sort(sprites.begin(), sprites.end());
+		// update indexbuffer
+		int c = 0;
+		for( std::vector<TempTest>::iterator it = sprites.begin(); it != sprites.end(); ++it )
+		{
+			TempTest &tt = *it;
+			spriteGeo->m_indexBuffer[c++] = tt.indices[0];
+			spriteGeo->m_indexBuffer[c++] = tt.indices[1];
+			spriteGeo->m_indexBuffer[c++] = tt.indices[2];
 
-		spriteGeo->m_indexBuffer[c++] = tt.indices2[0];
-		spriteGeo->m_indexBuffer[c++] = tt.indices2[1];
-		spriteGeo->m_indexBuffer[c++] = tt.indices2[2];
-	}
-	spriteGeo->m_indexBufferIsDirty = true;
+			spriteGeo->m_indexBuffer[c++] = tt.indices2[0];
+			spriteGeo->m_indexBuffer[c++] = tt.indices2[1];
+			spriteGeo->m_indexBuffer[c++] = tt.indices2[2];
+		}
+		spriteGeo->m_indexBufferIsDirty = true;
 
+		g_doSort = false;
+	}
 
 	opRoot->execute();
 }
@@ -144,6 +148,15 @@ void mouseMove( base::MouseState ms )
 	//if(ms.buttons)
 	float t = (float)ms.x / (float)glviewer->width();
 	base::ops::Manager::context()->setTime(t);
+}
+
+void keyPress( base::KeyboardState &ks )
+{
+	if( ks.press[KEY_S] )
+	{
+		// SORT!
+		g_doSort = true;
+	}
 }
 
 
@@ -737,6 +750,7 @@ int main(int argc, char ** argv)
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	glviewer->setRenderInSeperateThread(true);
 	glviewer->setMouseMoveCallback( mouseMove );
+	glviewer->setKeyPressCallback( keyPress );
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
 

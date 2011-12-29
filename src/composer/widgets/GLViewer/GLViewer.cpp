@@ -10,9 +10,16 @@ namespace composer
 	{
 		GLViewer::GLViewer( InitCallback init, RenderCallback render, ShutdownCallback shutdown, QWidget *parent ) : QGLWidget(parent), m_init(init), m_render(render), m_shutdown(shutdown), m_mouseMove(0), m_lastX(0), m_lastY(0), m_renderThread(this), m_isInitialized(false), m_renderInSeperateThread(false)
 		{
+			setFocusPolicy( Qt::StrongFocus );
 			setMouseTracking( true );
 			// this will make sure swapbuffers is not called by qt when doing double buffering
 			setAutoBufferSwap(false);
+
+			memset( m_keyboardState.press, 0, 256 * sizeof(int) );
+			memset( m_keyboardState.state, 0, 256 * sizeof(int) );
+
+			m_qtKey[ Qt::Key_S ] = KEY_S;
+
 		}
 
 
@@ -125,6 +132,24 @@ namespace composer
 				if( !m_renderThread.isRunning() )
 					update();
 			}
+		}
+
+		void GLViewer::keyPressEvent( QKeyEvent * event )
+		{
+			m_keyboardState.press[ m_qtKey[event->key()] ] = 1;
+			m_keyPress(m_keyboardState);
+			if( !m_renderThread.isRunning() )
+				update();
+		}
+		void GLViewer::keyReleaseEvent( QKeyEvent * event )
+		{
+			m_keyboardState.press[ m_qtKey[event->key()] ] = 0;
+			// TODO: callback/update?
+		}
+
+		void GLViewer::setKeyPressCallback( KeyPressCallback keyPressCallback )
+		{
+			m_keyPress = keyPressCallback;
 		}
 
 		void GLViewer::setMouseMoveCallback( MouseMoveCallback mouseMoveCallback )
