@@ -96,6 +96,7 @@ negative blending
 
 pointsprites mixed with traditional billboards (http://www.infinity-universe.com/Infinity/index.php?option=com_smf&Itemid=75&topic=1769.0)
 -black dust / blok globules
+-Fortunately, i found a good trade-off: i render the "large features" ( variable point sizes ) with normal billboarding ( where i can control the size and the texture coordinates in a vertex shader ), and the "small features" ( constant point sizes, around 95% of the cloud ) with point sprites. So there's no loss of quality at all. Performance also improved a lot, and i'm now getting from 15 to 60 fps depending on where the camera is located in the nebulae ( don't forget it's fully volumetric ! ).
 
 lighting/coloring
 -add "main stars" to the nebulae and light it based on the color and distance between each point and these stars.
@@ -108,6 +109,7 @@ http://www.gamedev.net/index.php?showtopic=440395
 
 -run strange attractor
 	->use grid to have uniform distribution of particles
+	->refactor so that we can control the number of particles more easily
 -randomly select particles, scale them up and lower density value
 	->these particles will be rendered as traditional billboards (using a smoke like texture)
 ---- this should give a volume like nebulae ----

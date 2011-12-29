@@ -14,6 +14,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <tr1/unordered_map>
 
 #include <ui/GLViewer.h>
 #include <gltools/gl.h>
@@ -28,7 +29,6 @@
 #include <gfx/FCurve.h>
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
-
 
 
 #include "composer/widgets/GLViewer/GLViewer.h"
@@ -57,123 +57,83 @@ void onPlayButtonPressed( bool checked )
 	}
 }
 
-void render( base::CameraPtr cam )
+
+
+//
+// ============= strange attractor ==================
+//
+
+struct StrangeAttractor
 {
-	/*
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glMatrixMode( GL_PROJECTION );
-	glPushMatrix();
-	glLoadMatrixf( cam->m_projectionMatrix.ma );
-
-	glMatrixMode( GL_MODELVIEW );
-	glPushMatrix();
-	glLoadMatrixf( (GLfloat *)cam->m_viewMatrix.ma );
-
-	// draw scene
-	base::drawGrid(false);
-
-	glEnable( GL_POINT_SPRITE_ARB );
-
-
-	float quadratic[] =  { 0.0f, 0.0f, 0.01f };
-
-	glPointParameterfvARB( GL_POINT_DISTANCE_ATTENUATION_ARB, quadratic );
-
-	float maxSize = 0.0f;
-
-	glGetFloatv( GL_POINT_SIZE_MAX_ARB, &maxSize );
-
-	glPointSize( maxSize );
-
-	glPointParameterfARB( GL_POINT_SIZE_MAX_ARB, maxSize );
-
-	glPointParameterfARB( GL_POINT_SIZE_MIN_ARB, 1.0f );
-
-	glTexEnvf( GL_POINT_SPRITE_ARB, GL_COORD_REPLACE_ARB, GL_TRUE );
-
-	glEnable( GL_POINT_SPRITE_ARB );
-
-	glBegin( GL_POINTS );
+	StrangeAttractor( math::Vec3f initialP = math::Vec3f(0.1f, 0.1f, 0.1f), int initialIterations = 100 )
 	{
-		for(int i=0;i<1;i++)
-		{
-			//glColor4f(VecParticle[i].Color.x,VecParticle[i].Color.y,VecParticle[i].Color.z,1.0f);
-			//glVertex3f(VecParticle[i].Position.x,VecParticle[i].Position.y,VecParticle[i].Position.z);
-			glVertex3f(1.0f, 1.0f, 1.0f);
-		}
+		// coefficients for "The King's Dream"
+		a = -2.643f;
+		b = 1.155f;
+		c = 2.896f;
+		d = 1.986f;
+
+		p = initialP;
+
+		// compute some initial iterations to settle into the orbit of the attractor
+		for (int i = 0; i <initialIterations; ++i)
+			next();
 	}
 
-	glEnd();
-
-	glDisable( GL_POINT_SPRITE_ARB );
-
-
-
-	//
-	base::AttributePtr a = geo->getAttr("P");
-
-	switch( geo->primitiveType() )
+	math::Vec3f next()
 	{
-		default:
-		case base::Geometry::POINT:
-		{
-			for( unsigned int i=0; i<geo->numPrimitives();++i )
-			{
-				glBegin( GL_POINTS );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v=a->get<math::Vec3f>(i);
-				glVertex3f( v.x, v.y, v.z );
-				glEnd();
-			}
-		}break;
-		case base::Geometry::TRIANGLE:
-		{
-			std::vector<unsigned int>::iterator it = geo->m_indexBuffer.begin();
-			std::vector<unsigned int>::iterator end = geo->m_indexBuffer.end();
-			while( it != end )
-			{
-				glBegin( GL_TRIANGLES );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v0=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v1=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v2=a->get<math::Vec3f>(*it++);
-				glVertex3f( v0.x, v0.y, v0.z );
-				glVertex3f( v1.x, v1.y, v1.z );
-				glVertex3f( v2.x, v2.y, v2.z );
-				glEnd();
-			}
-		}break;
-		case base::Geometry::QUAD:
-		{
-			std::vector<unsigned int>::iterator it = geo->m_indexBuffer.begin();
-			std::vector<unsigned int>::iterator end = geo->m_indexBuffer.end();
-			while( it != end )
-			{
-				glBegin( GL_QUADS );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v0=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v1=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v2=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v3=a->get<math::Vec3f>(*it++);
-				glVertex3f( v0.x, v0.y, v0.z );
-				glVertex3f( v1.x, v1.y, v1.z );
-				glVertex3f( v2.x, v2.y, v2.z );
-				glVertex3f( v3.x, v3.y, v3.z );
-				glEnd();
-			}
-		}break;
-	};
+		// compute a new point using the strange attractor equations
+		float xnew = sin(a * p.y) - p.z * cos(b * p.x);
+		float ynew = p.z * sin(c * p.x) - cos(d * p.y);
+		float znew = sin(p.x);
+
+		// save the new point
+		p.x = xnew;
+		p.y = ynew;
+		p.z = znew;
+
+		return p;
+	}
 
 
-	glMatrixMode( GL_PROJECTION );
-	glPopMatrix();
 
-	glMatrixMode( GL_MODELVIEW );
-	glPopMatrix();
-*/
-}
+	math::Vec3f              p; // last point which was being generated
+	float           a, b, c, d; // coefficients for the update formula
+
+
+
+};
+
+
+
+//
+// ============= GRID ==================
+//
+
+struct V3i
+{
+	int i,j,k;
+};
+
+
+struct V3iHashFunction
+{
+	std::size_t operator ()(const V3i &key) const
+	{
+		// hash function proposed in [Worley 1996]
+		return 541*key.i + 79*key.j + 31*key.k;
+	}
+};
+struct V3iEqual
+{
+	bool operator ()(const V3i &a, const V3i &b) const
+	{
+		return (a.i == b.i)&&(a.j == b.j)&(a.k == b.k);
+	}
+};
+
+typedef std::tr1::unordered_map<V3i, math::Vec3f, V3iHashFunction, V3iEqual> Grid;
+Grid grid;
 
 void render2( base::CameraPtr cam )
 {
@@ -249,67 +209,79 @@ void init()
 	std::vector<math::Vec3f> posVec;
 
 
-	math::Vec3f p(0.1f, 0.1f, 0.1f);
-	//float a = -0.966918;                  // coefficients for "The King's Dream"
-	//float b = 2.879879;
-	//float c = 0.765145;
-	//float d = 0.744728;
-	float a = -2.643f;                  // coefficients for "The King's Dream"
-	float b = 1.155f;
-	float c = 2.896f;
-	float d = 1.986f;
-	int initialIterations = 100;        // initial number of iterations to allow the attractor to settle
-	int iterations = 1000000;            // number of times to iterate through the functions and draw a point
-
-	// compute some initial iterations to settle into the orbit of the attractor
-	for (int i = 0; i <initialIterations; ++i)
-	{
-		// compute a new point using the strange attractor equations
-		float xnew = sin(a * p.y) - p.z * cos(b * p.x);
-		float ynew = p.z * sin(c * p.x) - cos(d * p.y);
-		float znew = sin(p.x);
-
-		// save the new point
-		p.x = xnew;
-		p.y = ynew;
-		p.z = znew;
-	}
+	StrangeAttractor sa;
 
 
-	// go through the equations many times, drawing a point for each iteration
-	for (int i = 0; i<iterations; ++i)
-	{
-		// compute a new point using the strange attractor equations
-		float xnew = sin(a * p.y) - p.z * cos(b * p.x);
-		float ynew = p.z * sin(c * p.x) - cos(d * p.y);
-		float znew = sin(p.x);
-
-		// save the new point
-		p.x = xnew;
-		p.y = ynew;
-		p.z = znew;
-
-		// draw the new point
-		posVec.push_back( p );
-	}
+	int iterations = maxNumParticles;            // number of times to iterate through the functions and draw a point
 
 
-	//apply perlin noise
 	math::PerlinNoise pn;
 	pn.setFrequency( .5f );
 	pn.setDepth(3);
-	int numElements = posVec.size();
-	for( int i=0;i<numElements;++i )
+
+	float voxelSize = .025f;
+
+
+	// go through the equations many times, drawing a point for each iteration
+	while( grid.size() < maxNumParticles )
 	{
-		math::Vec3f &p = posVec[i];
+		math::Vec3f p = sa.next();
 		float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
 		float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
 		float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
 		p += math::Vec3f(t1,t2,t3);
 
+		V3i key;
+		key.i = (int)std::floor(p.x / voxelSize);
+		key.j = (int)std::floor(p.y / voxelSize);
+		key.k = (int)std::floor(p.z / voxelSize);
+		// if particle falls into already existing bucket
+		if( grid.find( key ) != grid.end() )
+			// drop it
+			continue;
+
+		// else: create bucket and put in the particle
+		grid[key] = p;
 	}
 
-	// tmp
+
+	// TODO: randomly remove buckets and spawn bigger billboard particles
+
+	// the grid now contains all particles which we want to render
+	// we transfer the particle positions into pos array and create the points geometry
+	int count = 0;
+	int i = 0;
+	int j = 0;
+
+	for( Grid::iterator it = grid.begin(); it != grid.end(); ++it, ++count )
+	{
+		const V3i &key = it->first;
+		math::Vec3f &value = it->second;
+
+		if( count < maxNumParticles )
+		{
+			posArray[count*4 + 0] = value.x;
+			posArray[count*4 + 1] = value.y;
+			posArray[count*4 + 2] = value.z;
+			posArray[count*4 + 3] = 1.0f;
+
+			float u = ((float)i+0.5f)/(float)(particlesDataRes);
+			float v = ((float)j+0.5f)/(float)(particlesDataRes);
+
+			particles->addPoint(positions->appendElement(math::Vec3f(u,v,0.0f)));
+		}
+
+
+		if( ++i >= particlesDataRes )
+		{
+			i = 0;
+			j +=1;
+		}
+	}
+
+
+	/*
+	// transfer particle positions to array (which will be used to initialize position texture)
 	int count2 = 0;
 	for( std::vector<math::Vec3f>::iterator it = posVec.begin(); it != posVec.end(); ++it, ++count2 )
 	{
@@ -321,6 +293,8 @@ void init()
 		posArray[count2*4 + 3] = 1.0f;
 	}
 
+
+	// add particles to geometry
 	float count = 0;
 	for( int j=0; j<particlesDataRes; ++j )
 		for( int i=0; i<particlesDataRes; ++i, ++count )
@@ -332,7 +306,7 @@ void init()
 				particles->addPoint(positions->appendElement(math::Vec3f(u,v,0.0f)));
 			}
 		}
-
+	*/
 	//base::apply_normals(particles);
 
 	// upload initial particle positions
