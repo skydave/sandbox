@@ -7,6 +7,9 @@ uniform mat3 mvminvt;
 uniform mat4 vm;
 
 varying vec3 n;
+varying vec2 uv;
+
+uniform float scale = 1.0;
 
 void main()
 {
@@ -21,7 +24,8 @@ void main()
 						vm[1][1],
 						vm[2][1]);
 
-	vec3 corner = P + (offset.x*axis1 + offset.y*axis2);
+	vec3 corner = P + (offset.x*axis1 + offset.y*axis2)*scale;
+	uv = vec2( 0.5, 0.5 ) + offset;
 
 	gl_Position = mvpm * vec4(corner, 1.0);
 }

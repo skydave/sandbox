@@ -4,6 +4,8 @@ uniform mat4 vminv;
 varying vec3 n;
 varying vec3 p;
 
+uniform float alpha;
+
 vec3 getCameraPos()
 {
 	// vmatrix transforms from camera to world space
@@ -35,7 +37,7 @@ void main()
 	vec3 color = texture2D(tex, uv);
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 1.0);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, color.r);
-	gl_FragData[0] = vec4(1.0, 1.0, 1.0, color.r*0.005);
+	gl_FragData[0] = vec4(1.0, 1.0, 1.0, color.r*alpha);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, 1.0);
 	//gl_FragData[0] = lambert( n, E, vec3(1.0, 0.0,0.0)  );
 	

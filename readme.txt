@@ -120,6 +120,27 @@ http://www.gamedev.net/index.php?showtopic=440395
 ---- this should give final result ----
 
 
+parameters:
+-strange attractor type + its parameters (controls shape)
+-maxnumparticles (fidelity ?)
+-grid voxelsize (controls how evenly distribute particles are - and therefore the importance of shape features)
+-particle scale
+-particle alpha
+-particle texture
+-billboard scale
+-billboard alpha
+-billboard texture
+-number of lights, light colors, light attenuation
+
+
+lookdev:
+-find shapes
+	use 2 attractors ?
+-place lights
+-settle on particle size and alpha
+-find number of billboards, settle on size and alpha
+
+
 
 
 Martin Jondo Reggae

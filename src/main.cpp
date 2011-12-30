@@ -32,15 +32,15 @@
 
 
 #include "composer/widgets/GLViewer/GLViewer.h"
+#include "Nebulae.h"
+#include "Nebulae.ui.h"
 
 composer::widgets::GLViewer *glviewer;
 
 base::ContextPtr context;
-base::Texture2dPtr particlePositions;
-base::Texture2dPtr particleTex;
-base::GeometryPtr particles;
-base::ShaderPtr particleShader;
-base::ShaderPtr billboardShader;
+
+
+NebulaePtr nebulae;
 
 
 void onPlayButtonPressed( bool checked )
@@ -60,113 +60,15 @@ void onPlayButtonPressed( bool checked )
 
 
 
-//
-// ============= strange attractor ==================
-//
-
-struct StrangeAttractor
-{
-	StrangeAttractor( math::Vec3f initialP = math::Vec3f(0.1f, 0.1f, 0.1f), int initialIterations = 100 )
-	{
-		// coefficients for "The King's Dream"
-		a = -2.643f;
-		b = 1.155f;
-		c = 2.896f;
-		d = 1.986f;
-
-		p = initialP;
-
-		// compute some initial iterations to settle into the orbit of the attractor
-		for (int i = 0; i <initialIterations; ++i)
-			next();
-	}
-
-	math::Vec3f next()
-	{
-		// compute a new point using the strange attractor equations
-		float xnew = sin(a * p.y) - p.z * cos(b * p.x);
-		float ynew = p.z * sin(c * p.x) - cos(d * p.y);
-		float znew = sin(p.x);
-
-		// save the new point
-		p.x = xnew;
-		p.y = ynew;
-		p.z = znew;
-
-		return p;
-	}
 
 
 
-	math::Vec3f              p; // last point which was being generated
-	float           a, b, c, d; // coefficients for the update formula
 
 
 
-};
 
 
 
-//
-// ============= grid ==================
-//
-
-struct V3i
-{
-	int i,j,k;
-};
-
-
-struct V3iHashFunction
-{
-	std::size_t operator ()(const V3i &key) const
-	{
-		// hash function proposed in [Worley 1996]
-		return 541*key.i + 79*key.j + 31*key.k;
-	}
-};
-struct V3iEqual
-{
-	bool operator ()(const V3i &a, const V3i &b) const
-	{
-		return (a.i == b.i)&&(a.j == b.j)&(a.k == b.k);
-	}
-};
-
-typedef std::tr1::unordered_map<V3i, math::Vec3f, V3iHashFunction, V3iEqual> Grid;
-Grid grid;
-
-
-
-//
-// =============== billboards ==================
-//
-struct Billboards
-{
-	Billboards()
-	{
-		geo = base::Geometry::createQuadGeometry();
-		pAttr = geo->getAttr( "P" );
-		oAttr = base::Attribute::createVec3f();
-		geo->setAttr( "offset", oAttr );
-		add( math::Vec3f() );
-	}
-
-	void add( const math::Vec3f &p )
-	{
-		int i0 = pAttr->appendElement( p );oAttr->appendElement(-0.5f, -0.5f, 0.0f);
-		int i1 = pAttr->appendElement( p );oAttr->appendElement(-0.5f, 0.5f, 0.0f);
-		int i2 = pAttr->appendElement( p );oAttr->appendElement(0.5f, 0.5f, 0.0f);
-		int i3 = pAttr->appendElement( p );oAttr->appendElement(0.5f, -0.5f, 0.0f);
-		geo->addQuad( i3, i2, i1, i0 );
-	}
-
-	base::GeometryPtr geo;
-	base::AttributePtr pAttr;
-	base::AttributePtr oAttr; // billboard vertex offsets
-};
-
-Billboards *billboards;
 
 
 
@@ -195,14 +97,13 @@ void render2( base::CameraPtr cam )
 
 	glEnable( GL_POINT_SPRITE );
 
-	context->render( particles, particleShader );
+	context->render( nebulae->m_particles, nebulae->m_particleShader );
 
 	glDisable( GL_POINT_SPRITE );
 
+	context->render( nebulae->m_billboards->geo, nebulae->m_billboardShader );
+
 	glDisable( GL_BLEND );
-
-
-	context->render( billboards->geo, billboardShader );
 
 }
 
@@ -219,149 +120,17 @@ void init()
 
 	context = base::ContextPtr( new base::Context() );
 
-	//particles = base::geo_blank(base::Geometry::POINT);
-	//particles = base::geo_grid(14,14,base::Geometry::POINT);
-	particles = base::Geometry::createPointGeometry();
-	//particles = base::geo_sphere(14, 14, 1.0f, math::Vec3f(0.0f,0.0f,0.0f), base::Geometry::POINT);
-	//particles = base::geo_sphere(28, 28, 1.0f, math::Vec3f(0.0f,0.0f,0.0f) );
-	
+	nebulae = Nebulae::create();
 
-	// todo: use texture for storing particle positions, position is retrieved by looking up texture in vertex shader, initial position of particle is the uv
-	// coordinate into position texture
-	// vertex shader: position lookup using uv
-	// init: store uv position with particle, store position in texture
-
-	int particlesDataRes = 1024;
-	int maxNumParticles = particlesDataRes*particlesDataRes;
-	particlePositions = base::Texture2d::createRGBAFloat32( particlesDataRes, particlesDataRes );
-	float *posArray = (float *)malloc( particlesDataRes*particlesDataRes*sizeof(float)*4 );
-
-	base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/circlealpha.bmp" );
-	particleTex = base::Texture2d::createRGBA8();
-	particleTex->upload( img );
+	// generate
+	nebulae->generate();
 
 
-	particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/particles.vs.glsl", base::Path( SRC_PATH ) + "src/particles.ps.glsl" );
-	particleShader->setUniform( "tex", particleTex->getUniform() );
-	billboardShader = base::Shader::load( base::Path( SRC_PATH ) + "src/billboard.vs.glsl", base::Path( SRC_PATH ) + "src/billboard.ps.glsl" );
-	billboardShader->setUniform( "tex", particleTex->getUniform() );
 
 
-	base::AttributePtr positions = particles->getAttr("P");
-	std::vector<math::Vec3f> posVec;
-
-
-	StrangeAttractor sa;
-
-
-	int iterations = maxNumParticles;            // number of times to iterate through the functions and draw a point
-
-
-	math::PerlinNoise pn;
-	pn.setFrequency( .5f );
-	pn.setDepth(3);
-
-	float voxelSize = .025f;
-
-
-	// go through the equations many times, drawing a point for each iteration
-	int skipped = 0;
-	/*
-	while( grid.size() < maxNumParticles )
-	{
-		math::Vec3f p = sa.next();
-		float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
-		float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
-		float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
-		p += math::Vec3f(t1,t2,t3);
-
-		V3i key;
-		key.i = (int)std::floor(p.x / voxelSize);
-		key.j = (int)std::floor(p.y / voxelSize);
-		key.k = (int)std::floor(p.z / voxelSize);
-		// if particle falls into already existing bucket
-		if( grid.find( key ) != grid.end() )
-		{
-			++skipped;
-			// drop it
-			continue;
-		}
-
-		// else: create bucket and put in the particle
-		grid[key] = p;
-	}
-	std::cout << "skipped " << skipped << " particles during generation...\n";
-	*/
-
-
-	// TODO: randomly remove buckets and spawn bigger billboard particles
-	billboards = new Billboards();
-
-	// the grid now contains all particles which we want to render
-	// we transfer the particle positions into pos array and create the points geometry
-	int count = 0;
-	int i = 0;
-	int j = 0;
-
-	for( Grid::iterator it = grid.begin(); it != grid.end(); ++it, ++count )
-	{
-		const V3i &key = it->first;
-		math::Vec3f &value = it->second;
-
-		if( count < maxNumParticles )
-		{
-			posArray[count*4 + 0] = value.x;
-			posArray[count*4 + 1] = value.y;
-			posArray[count*4 + 2] = value.z;
-			posArray[count*4 + 3] = 1.0f;
-
-			float u = ((float)i+0.5f)/(float)(particlesDataRes);
-			float v = ((float)j+0.5f)/(float)(particlesDataRes);
-
-			particles->addPoint(positions->appendElement(math::Vec3f(u,v,0.0f)));
-		}
-
-
-		if( ++i >= particlesDataRes )
-		{
-			i = 0;
-			j +=1;
-		}
-	}
-
-
-	/*
-	// transfer particle positions to array (which will be used to initialize position texture)
-	int count2 = 0;
-	for( std::vector<math::Vec3f>::iterator it = posVec.begin(); it != posVec.end(); ++it, ++count2 )
-	{
-		math::Vec3f &v = *it;
-		//particles->addPoint(positions->appendElement(v));
-		posArray[count2*4 + 0] = v.x;
-		posArray[count2*4 + 1] = v.y;
-		posArray[count2*4 + 2] = v.z;
-		posArray[count2*4 + 3] = 1.0f;
-	}
-
-
-	// add particles to geometry
-	float count = 0;
-	for( int j=0; j<particlesDataRes; ++j )
-		for( int i=0; i<particlesDataRes; ++i, ++count )
-		{
-			if( count < maxNumParticles )
-			{
-				float u = ((float)i+0.5f)/(float)(particlesDataRes);
-				float v = ((float)j+0.5f)/(float)(particlesDataRes);
-				particles->addPoint(positions->appendElement(math::Vec3f(u,v,0.0f)));
-			}
-		}
-	*/
-	//base::apply_normals(particles);
-
-	// upload initial particle positions
-	particlePositions->uploadRGBAFloat32( 1024, 1024, posArray );
-	particleShader->setUniform( "pos", particlePositions->getUniform() );
+	NebulaeUI *widget = new NebulaeUI();
+	widget->show();
+	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
 }
 
 
