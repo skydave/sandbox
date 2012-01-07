@@ -119,6 +119,7 @@ void init()
 	}
 
 	context = base::ContextPtr( new base::Context() );
+	base::Context::setCurrentContext(context);
 
 	nebulae = Nebulae::create();
 

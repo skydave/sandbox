@@ -19,6 +19,7 @@
 #include <gfx/Shader.h>
 #include <gfx/Texture.h>
 #include <gfx/Image.h>
+#include <gfx/Context.h>
 
 
 
@@ -60,6 +61,20 @@ Nebulae::Nebulae()
 
 	m_particles = base::Geometry::createPointGeometry();
 	m_particlePositions = (float *)malloc( m_particleDataRes*m_particleDataRes*sizeof(float)*4 );
+
+
+
+
+	// tmp
+	m_perlinNoiseFBO = base::FBOPtr( new base::FBO( m_particleDataRes, m_particleDataRes) );
+	m_perlinNoiseFBOOutput = base::Texture2d::createRGBAFloat32( m_particleDataRes, m_particleDataRes );
+	m_perlinNoiseFBO->setOutputs( m_perlinNoiseFBOOutput );
+
+	m_perlinNoiseShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.perlinnoise.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.perlinnoise.ps.glsl" );
+	m_perlinNoiseShader->setUniform( "inputPositions", m_particlePositionsTex->getUniform() );
+
+	// TMP TEST!
+	m_particleShader->setUniform( "pos", m_perlinNoiseFBOOutput->getUniform() );
 }
 
 
@@ -161,10 +176,12 @@ void Nebulae::generate()
 			// apply perlin noise
 			math::Vec3f p = value;
 
+			/*
 			float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
 			float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
 			float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
 			p += math::Vec3f(t1,t2,t3);
+			*/
 
 
 			m_particlePositions[count*4 + 0] = p.x;
@@ -179,7 +196,6 @@ void Nebulae::generate()
 			m_particles->addPoint(positions->appendElement(math::Vec3f(u,v,0.0f)));
 		}
 
-
 		if( ++i >= m_particleDataRes )
 		{
 			i = 0;
@@ -187,25 +203,62 @@ void Nebulae::generate()
 		}
 	}
 
-	// TODO: randomly remove buckets and spawn bigger billboard particles
+	/*
+	// run perlin noise as postprocess
+	for( int i=0;i<count;++i )
+	{
+		math::Vec3f p;
+		p.x = m_particlePositions[i*4 + 0];
+		p.y = m_particlePositions[i*4 + 1];
+		p.z = m_particlePositions[i*4 + 2];
+
+		// pn
+		float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
+		float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
+		float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
+		p += math::Vec3f(t1,t2,t3);
+
+		m_particlePositions[i*4 + 0] = p.x;
+		m_particlePositions[i*4 + 1] = p.y;
+		m_particlePositions[i*4 + 2] = p.z;
+	}
+	*/
+
+	// ... ongpu
+	applyPerlinNoise();
+
+
+
+	// upload initial particle positions
+	m_particlePositionsTex->uploadRGBAFloat32( m_particleDataRes, m_particleDataRes, m_particlePositions );
+
+
+	generateBillboards();
+}
+
+void Nebulae::generateBillboards()
+{
 	m_billboards->geo->clear();
 	float bratio = .0001f;// percent of particles which will be turned into billboards
-	int numBillboards =  (int)(bratio * (float)grid.size());
+	int numBillboards =  (int)(bratio * (float)m_particles->numPrimitives());
 	std::cout << "number of billboards " << numBillboards << std::endl;
 	std::cerr << "adding billboards\n";
 	for( int i=0; i<numBillboards; ++i )
 	{
 		// randomly select a particle
-		int index = (int)(math::g_randomNumber()*grid.size());
+		int index = (int)(math::g_randomNumber()*m_particles->numPrimitives());
 		math::Vec3f p( m_particlePositions[index*4 + 0], m_particlePositions[index*4 + 1], m_particlePositions[index*4 + 2] );
 		// create billboard
 		m_billboards->add( p );
 	}
 	std::cerr << "done\n";
+}
 
-
-	// upload initial particle positions
-	m_particlePositionsTex->uploadRGBAFloat32( m_particleDataRes, m_particleDataRes, m_particlePositions );
+void Nebulae::applyPerlinNoise()
+{
+	m_perlinNoiseFBO->begin();
+	base::Context::current()->renderScreen( m_perlinNoiseShader );
+	m_perlinNoiseFBO->end();
 }
 
 

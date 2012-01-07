@@ -6,6 +6,7 @@
 #include <gfx/Shader.h>
 #include <gfx/Geometry.h>
 #include <gfx/Texture.h>
+#include <gfx/FBO.h>
 
 
 
@@ -140,7 +141,9 @@ struct Nebulae
 	Nebulae();
 
 
-	void            generate();
+	void                      generate();
+	void            generateBillboards();
+	void              applyPerlinNoise();
 
 	static NebulaePtr create();
 
@@ -162,4 +165,8 @@ struct Nebulae
 	base::Texture2dPtr         m_particlePositionsTex;
 
 	StrangeAttractor                      m_attractor;
+
+	base::FBOPtr                     m_perlinNoiseFBO;
+	base::ShaderPtr               m_perlinNoiseShader;
+	base::Texture2dPtr         m_perlinNoiseFBOOutput;
 };
