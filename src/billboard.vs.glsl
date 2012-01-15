@@ -10,10 +10,17 @@ varying vec3 n;
 varying vec2 uv;
 
 uniform float scale = 1.0;
+uniform sampler2D pos;
 
 void main()
 {
 	n = N;
+
+	// use position straight
+	//vec3 p = P;
+	// read billboard position from particle texture:
+	vec3 p = texture2D(pos, P.xy).xyzw;
+
 
 	//screen-aligned axes
 	vec3 axis1 = vec3(  vm[0][0],
@@ -24,7 +31,7 @@ void main()
 						vm[1][1],
 						vm[2][1]);
 
-	vec3 corner = P + (offset.x*axis1 + offset.y*axis2)*scale;
+	vec3 corner = p + (offset.x*axis1 + offset.y*axis2)*scale;
 	uv = vec2( 0.5, 0.5 ) + offset;
 
 	gl_Position = mvpm * vec4(corner, 1.0);

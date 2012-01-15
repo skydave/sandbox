@@ -4,7 +4,13 @@ project("app")
 
 cmake_minimum_required(VERSION 2.8)
 
+
+# this changes per project ===========
+set( CMAKE_CURRENT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
+
+
 add_definitions(-DSRC_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}\")
+add_definitions(-DBASE_PATH=\"${CMAKE_CURRENT_BASE_DIR}\")
 
 
 #
@@ -133,10 +139,10 @@ generateQtOutputs( app_sources moc_outputs ui_outputs)
 add_executable(app ${app_sources} ${glsl_outputs} ${moc_outputs} ${ui_outputs})
 
 # add base to include directories
-include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
+include_directories( ${CMAKE_CURRENT_BASE_DIR} )
 
 # we compile some third party code with base which we want to include conveniently
-include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base/3rdparty )
+include_directories( ${CMAKE_CURRENT_BASE_DIR}/3rdparty )
 
 # qt ui headers are generated in build dir
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )

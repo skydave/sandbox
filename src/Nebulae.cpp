@@ -20,6 +20,7 @@
 #include <gfx/Texture.h>
 #include <gfx/Image.h>
 #include <gfx/Context.h>
+#include <gfx/glsl/noise.h>
 
 
 
@@ -70,7 +71,7 @@ Nebulae::Nebulae()
 	m_perlinNoiseFBOOutput = base::Texture2d::createRGBAFloat32( m_particleDataRes, m_particleDataRes );
 	m_perlinNoiseFBO->setOutputs( m_perlinNoiseFBOOutput );
 
-	m_perlinNoiseShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.perlinnoise.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.perlinnoise.ps.glsl" );
+	m_perlinNoiseShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.perlinnoise.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.perlinnoise.ps.glsl" ).attachPS( base::glsl::noiseSrc() );
 	m_perlinNoiseShader->setUniform( "inputPositions", m_particlePositionsTex->getUniform() );
 
 	// TMP TEST!
@@ -106,15 +107,6 @@ void Nebulae::generate()
 	while( grid.size() < m_maxNumParticles )
 	{
 		math::Vec3f p = m_attractor.next();
-
-		/*
-		// apply perlin noise
-		float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
-		float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
-		float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
-		p += math::Vec3f(t1,t2,t3);
-		*/
-
 
 		V3i key;
 		key.i = (int)std::floor(p.x / voxelSize);
@@ -176,19 +168,10 @@ void Nebulae::generate()
 			// apply perlin noise
 			math::Vec3f p = value;
 
-			/*
-			float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
-			float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
-			float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
-			p += math::Vec3f(t1,t2,t3);
-			*/
-
-
 			m_particlePositions[count*4 + 0] = p.x;
 			m_particlePositions[count*4 + 1] = p.y;
 			m_particlePositions[count*4 + 2] = p.z;
 			m_particlePositions[count*4 + 3] = 1.0f;
-
 
 			float u = ((float)i+0.5f)/(float)(m_particleDataRes);
 			float v = ((float)j+0.5f)/(float)(m_particleDataRes);
@@ -247,7 +230,8 @@ void Nebulae::generateBillboards()
 	{
 		// randomly select a particle
 		int index = (int)(math::g_randomNumber()*m_particles->numPrimitives());
-		math::Vec3f p( m_particlePositions[index*4 + 0], m_particlePositions[index*4 + 1], m_particlePositions[index*4 + 2] );
+		//math::Vec3f p( m_particlePositions[index*4 + 0], m_particlePositions[index*4 + 1], m_particlePositions[index*4 + 2] );
+		math::Vec3f p = m_particles->getAttr("P")->get<math::Vec3f>(index);
 		// create billboard
 		m_billboards->add( p );
 	}

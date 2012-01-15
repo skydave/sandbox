@@ -23,6 +23,7 @@ NebulaeUI::NebulaeUI( QWidget *parent) : QWidget(parent)//, m_nebulae(nebulae)
 	connect( ui.attractor_d, SIGNAL(valueChanged(double)), this, SLOT(onAttractorDValueChanged(double)) );
 	connect( ui.billboardScale, SIGNAL(valueChanged(int)), this, SLOT(onBillboardScaleValueChanged(int)) );
 	connect( ui.billboardAlpha, SIGNAL(valueChanged(int)), this, SLOT(onBillboardAlphaValueChanged(int)) );
+	connect( ui.frequency, SIGNAL(valueChanged(int)), this, SLOT(onFrequencyValueChanged(int)) );
 
 
 
@@ -107,3 +108,12 @@ void NebulaeUI::onBillboardAlphaValueChanged(int value)
 	nebulae->m_billboardShader->setUniform( "alpha", t );
 	emit makeDirty();
 }
+
+void NebulaeUI::onFrequencyValueChanged(int value)
+{
+	float t = (value/1000.0f)*10.0f;
+	nebulae->m_perlinNoiseShader->setUniform( "frequency", t );
+	nebulae->applyPerlinNoise();
+	emit makeDirty();
+}
+

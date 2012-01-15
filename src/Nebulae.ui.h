@@ -24,6 +24,7 @@ public:
 	void onAttractorDValueChanged(double value);
 	void onBillboardScaleValueChanged(int value);
 	void onBillboardAlphaValueChanged(int value);
+	void onFrequencyValueChanged(int value);
 
 	/*
 	void onIr1ValueChanged(int value);
