@@ -25,6 +25,9 @@ public:
 	void onBillboardScaleValueChanged(int value);
 	void onBillboardAlphaValueChanged(int value);
 	void onFrequencyValueChanged(int value);
+	void onOctavesValueChanged(int value);
+	void onLacunarityValueChanged(int value);
+	void onGainValueChanged(int value);
 
 	/*
 	void onIr1ValueChanged(int value);

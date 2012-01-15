@@ -24,6 +24,9 @@ NebulaeUI::NebulaeUI( QWidget *parent) : QWidget(parent)//, m_nebulae(nebulae)
 	connect( ui.billboardScale, SIGNAL(valueChanged(int)), this, SLOT(onBillboardScaleValueChanged(int)) );
 	connect( ui.billboardAlpha, SIGNAL(valueChanged(int)), this, SLOT(onBillboardAlphaValueChanged(int)) );
 	connect( ui.frequency, SIGNAL(valueChanged(int)), this, SLOT(onFrequencyValueChanged(int)) );
+	connect( ui.octaves, SIGNAL(valueChanged(int)), this, SLOT(onOctavesValueChanged(int)) );
+	connect( ui.lacunarity, SIGNAL(valueChanged(int)), this, SLOT(onLacunarityValueChanged(int)) );
+	connect( ui.gain, SIGNAL(valueChanged(int)), this, SLOT(onGainValueChanged(int)) );
 
 
 
@@ -117,3 +120,25 @@ void NebulaeUI::onFrequencyValueChanged(int value)
 	emit makeDirty();
 }
 
+void NebulaeUI::onOctavesValueChanged(int value)
+{
+	nebulae->m_perlinNoiseShader->setUniform( "octaves", value );
+	nebulae->applyPerlinNoise();
+	emit makeDirty();
+}
+
+void NebulaeUI::onLacunarityValueChanged(int value)
+{
+	float t = (value/1000.0f)*2.0;
+	nebulae->m_perlinNoiseShader->setUniform( "lacunarity", t );
+	nebulae->applyPerlinNoise();
+	emit makeDirty();
+}
+
+void NebulaeUI::onGainValueChanged(int value)
+{
+	float t = (value/1000.0f)*1.0;
+	nebulae->m_perlinNoiseShader->setUniform( "gain", t );
+	nebulae->applyPerlinNoise();
+	emit makeDirty();
+}
