@@ -66,7 +66,7 @@ Nebulae::Nebulae()
 
 
 
-	// tmp
+	// perlin noise
 	m_perlinNoiseFBO = base::FBOPtr( new base::FBO( m_particleDataRes, m_particleDataRes) );
 	m_perlinNoiseFBOOutput = base::Texture2d::createRGBAFloat32( m_particleDataRes, m_particleDataRes );
 	m_perlinNoiseFBO->setOutputs( m_perlinNoiseFBOOutput );
@@ -74,8 +74,20 @@ Nebulae::Nebulae()
 	m_perlinNoiseShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.perlinnoise.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.perlinnoise.ps.glsl" ).attachPS( base::glsl::noiseSrc() );
 	m_perlinNoiseShader->setUniform( "inputPositions", m_particlePositionsTex->getUniform() );
 
-	// TMP TEST!
 	m_particleShader->setUniform( "pos", m_perlinNoiseFBOOutput->getUniform() );
+
+
+	// color
+	m_colorFBO = base::FBOPtr( new base::FBO( m_particleDataRes, m_particleDataRes) );
+	//m_colorFBOOutput = base::Texture2d::createRGBA8( m_particleDataRes, m_particleDataRes );
+	m_colorFBOOutput = base::Texture2d::createRGBAFloat32( m_particleDataRes, m_particleDataRes );
+	m_colorFBO->setOutputs( m_colorFBOOutput );
+
+	m_colorShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.color.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.color.ps.glsl" );
+	m_colorShader->setUniform( "inputPositions", m_perlinNoiseFBOOutput->getUniform() );
+
+	m_particleShader->setUniform( "col", m_colorFBOOutput->getUniform() );
+
 }
 
 
@@ -165,7 +177,6 @@ void Nebulae::generate()
 
 		if( count < m_maxNumParticles )
 		{
-			// apply perlin noise
 			math::Vec3f p = value;
 
 			m_particlePositions[count*4 + 0] = p.x;
@@ -207,13 +218,16 @@ void Nebulae::generate()
 	}
 	*/
 
-	// ... ongpu
-	applyPerlinNoise();
-
-
-
 	// upload initial particle positions
 	m_particlePositionsTex->uploadRGBAFloat32( m_particleDataRes, m_particleDataRes, m_particlePositions );
+
+
+	//
+	applyPerlinNoise();
+
+	//
+	applyColor();
+
 
 
 	generateBillboards();
@@ -243,6 +257,15 @@ void Nebulae::applyPerlinNoise()
 	m_perlinNoiseFBO->begin();
 	base::Context::current()->renderScreen( m_perlinNoiseShader );
 	m_perlinNoiseFBO->end();
+
+	applyColor();
+}
+
+void Nebulae::applyColor()
+{
+	m_colorFBO->begin();
+	base::Context::current()->renderScreen( m_colorShader );
+	m_colorFBO->end();
 }
 
 

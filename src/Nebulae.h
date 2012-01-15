@@ -144,6 +144,7 @@ struct Nebulae
 	void                      generate();
 	void            generateBillboards();
 	void              applyPerlinNoise();
+	void                    applyColor();
 
 	static NebulaePtr create();
 
@@ -169,4 +170,8 @@ struct Nebulae
 	base::FBOPtr                     m_perlinNoiseFBO;
 	base::ShaderPtr               m_perlinNoiseShader;
 	base::Texture2dPtr         m_perlinNoiseFBOOutput;
+
+	base::FBOPtr                           m_colorFBO;
+	base::ShaderPtr                     m_colorShader;
+	base::Texture2dPtr               m_colorFBOOutput;
 };

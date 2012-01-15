@@ -3,6 +3,7 @@ uniform mat4 vminv;
 
 varying vec3 n;
 varying vec3 p;
+varying vec3 c;
 
 uniform float alpha;
 
@@ -34,10 +35,9 @@ void main()
 {
 	vec3 E = normalize(getCameraPos() - p.xyz);
 	vec2 uv = gl_PointCoord.st;
-	vec3 color = texture2D(tex, uv);
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 1.0);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, color.r);
-	gl_FragData[0] = vec4(1.0, 1.0, 1.0, color.r*alpha);
+	gl_FragData[0] = vec4(c.x, c.y, c.z, texture2D(tex, uv).r*alpha);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, 1.0);
 	//gl_FragData[0] = lambert( n, E, vec3(1.0, 0.0,0.0)  );
 	
