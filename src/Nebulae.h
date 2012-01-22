@@ -115,6 +115,8 @@ struct Billboards
 		pAttr = geo->getAttr( "P" );
 		oAttr = base::Attribute::createVec3f();
 		geo->setAttr( "offset", oAttr );
+
+		iAttr.reset();
 	}
 
 	void add( const math::Vec3f &p )
@@ -126,12 +128,39 @@ struct Billboards
 		geo->addQuad( i3, i2, i1, i0 );
 	}
 
+	void add( const math::Vec3f &p, int tileIndex, float scale )
+	{
+		if(!iAttr)
+		{
+			iAttr = base::Attribute::createFloat();
+			geo->setAttr( "index", iAttr );
+
+			sAttr = base::Attribute::createFloat();
+			geo->setAttr( "scale", sAttr );
+		}
+		int i0 = pAttr->appendElement( p );oAttr->appendElement(-0.5f, -0.5f, 0.0f);iAttr->appendElement((float)tileIndex);sAttr->appendElement(scale);
+		int i1 = pAttr->appendElement( p );oAttr->appendElement(-0.5f, 0.5f, 0.0f);iAttr->appendElement((float)tileIndex);sAttr->appendElement(scale);
+		int i2 = pAttr->appendElement( p );oAttr->appendElement(0.5f, 0.5f, 0.0f);iAttr->appendElement((float)tileIndex);sAttr->appendElement(scale);
+		int i3 = pAttr->appendElement( p );oAttr->appendElement(0.5f, -0.5f, 0.0f);iAttr->appendElement((float)tileIndex);sAttr->appendElement(scale);
+		geo->addQuad( i3, i2, i1, i0 );
+	}
+
+
 	base::GeometryPtr geo;
 	base::AttributePtr pAttr;
 	base::AttributePtr oAttr; // billboard vertex offsets
+
+	base::AttributePtr iAttr; // billboard texture tile indicees
+	base::AttributePtr sAttr; // billboard scale
 };
 
-
+// lights =========================
+struct Light
+{
+	math::Vec3f pos;
+	math::Vec3f col;
+	float       rad;
+};
 
 
 BASE_DECL_SMARTPTR_STRUCT(Nebulae);
@@ -180,4 +209,10 @@ struct Nebulae
 	BillboardsPtr                    m_billboardsGlow;
 	base::ShaderPtr		        m_billboardGlowShader;
 	base::Texture2dPtr                      m_glowTex;
+
+	BillboardsPtr             m_billboardsBokGlobules;
+	base::ShaderPtr		  m_billboardBokGlobuleShader;
+	base::Texture2dPtr                    m_cloudsTex;
+
+	std::vector<Light>                       m_lights;
 };

@@ -90,6 +90,28 @@ Nebulae::Nebulae()
 	m_particleShader->setUniform( "col", m_colorFBOOutput->getUniform() );
 	m_billboardShader->setUniform( "col", m_colorFBOOutput->getUniform() );
 
+	// connect lighting info
+	{
+		Light l;
+		l.pos = math::Vec3f(-0.1f, 0.05f, 0.0f);
+		l.col = math::Vec3f(.9f, 0.7f, 0.2f);
+		l.rad = 0.2f;
+		m_lights.push_back(l);
+	}
+	{
+		Light l;
+		l.pos = math::Vec3f(0.1f, -0.01f, 0.0f);
+		l.col = math::Vec3f(.1f, 0.5f, 0.9f);
+		l.rad = 0.2f;
+		m_lights.push_back(l);
+	}
+	m_colorShader->setUniform( "light0Pos", m_lights[0].pos );
+	m_colorShader->setUniform( "light0Col", m_lights[0].col );
+	m_colorShader->setUniform( "light0Radius", m_lights[0].rad );
+	m_colorShader->setUniform( "light1Pos", m_lights[1].pos );
+	m_colorShader->setUniform( "light1Col", m_lights[1].col );
+	m_colorShader->setUniform( "light1Radius", m_lights[1].rad );
+
 
 	// star flare billboards ======================================
 	m_billboardsFlares = BillboardsPtr( new Billboards() );
@@ -103,8 +125,8 @@ Nebulae::Nebulae()
 		m_billboardFlareShader->setUniform( "alpha", 1.0f );
 	}
 
-	m_billboardsFlares->add( math::Vec3f(0.1f, 0.0f, 0.0f) );
-	// -------
+
+	// glow -------
 	m_billboardsGlow = BillboardsPtr( new Billboards() );
 	m_billboardGlowShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.billboardFlare.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.billboardFlare.ps.glsl" );
 	{
@@ -116,8 +138,36 @@ Nebulae::Nebulae()
 		m_billboardGlowShader->setUniform( "alpha", 0.5f );
 	}
 
-	m_billboardsGlow->add( math::Vec3f(0.1f, 0.0f, 0.0f) );
+	for( std::vector<Light>::iterator it = m_lights.begin(); it != m_lights.end(); ++it )
+	{
+		Light &l = *it;
+		m_billboardsFlares->add( l.pos );
+		m_billboardsGlow->add( l.pos );
+	}
 
+
+	// bok globule -------
+	m_billboardsBokGlobules = BillboardsPtr( new Billboards() );
+	m_billboardBokGlobuleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.billboardBokGlobule.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.billboardBokGlobule.ps.glsl" );
+	{
+		base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/cumulus01.png" );
+		m_cloudsTex = base::Texture2d::createRGBA8();
+		m_cloudsTex->upload( img );
+		m_billboardBokGlobuleShader->setUniform( "tex", m_cloudsTex->getUniform() );
+		//m_billboardBokGlobuleShader->setUniform( "scale", 0.01f );
+		m_billboardBokGlobuleShader->setUniform( "alpha", 1.0f );
+	}
+
+	for( int i=0;i<10;++i )
+	{
+		float scale = math::g_randomNumber()*0.05;
+		int index = (int)(math::g_randomNumber()*16.0);
+		math::Vec3f p;
+		p.x = math::g_randomNumber()*0.19f - 0.08f;
+		p.y = math::g_randomNumber()*0.19f - 0.08f;
+		p.z = math::g_randomNumber()*0.19f - 0.08f;
+		m_billboardsBokGlobules->add( p, index, scale );
+	}
 }
 
 

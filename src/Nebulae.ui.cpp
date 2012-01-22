@@ -67,7 +67,6 @@ void NebulaeUI::onParticleAlphaValueChanged(int value)
 {
 	float t = (value/1000.0f)*2.0;
 	nebulae->m_particleShader->setUniform( "alpha", t );
-	std::cout << t << std::endl;
 	emit makeDirty();
 }
 

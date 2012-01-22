@@ -132,6 +132,10 @@ void render2( base::CameraPtr cam )
 	context->render( nebulae->m_billboardsFlares->geo, nebulae->m_billboardFlareShader );
 	context->render( nebulae->m_billboardsGlow->geo, nebulae->m_billboardGlowShader );
 
+	glBlendEquation( GL_FUNC_REVERSE_SUBTRACT );
+	context->render( nebulae->m_billboardsBokGlobules->geo, nebulae->m_billboardBokGlobuleShader );
+	glBlendEquation( GL_FUNC_ADD );
+
 	glDisable( GL_BLEND );
 	colorFBO->end();
 
