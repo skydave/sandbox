@@ -1,7 +1,6 @@
 #pragma once
 
-#include <tr1/unordered_map>
-
+#include <util/unordered_map.h>
 #include <util/shared_ptr.h>
 #include <gfx/Shader.h>
 #include <gfx/Geometry.h>

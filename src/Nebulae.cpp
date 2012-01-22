@@ -8,7 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <tr1/unordered_map>
+#include <util/unordered_map.h>
 
 #include <ui/GLViewer.h>
 #include <gltools/gl.h>
