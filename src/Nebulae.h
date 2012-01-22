@@ -173,4 +173,11 @@ struct Nebulae
 	base::FBOPtr                           m_colorFBO;
 	base::ShaderPtr                     m_colorShader;
 	base::Texture2dPtr               m_colorFBOOutput;
+
+	BillboardsPtr                  m_billboardsFlares;
+	base::ShaderPtr		       m_billboardFlareShader;
+	base::Texture2dPtr                     m_flareTex;
+	BillboardsPtr                    m_billboardsGlow;
+	base::ShaderPtr		        m_billboardGlowShader;
+	base::Texture2dPtr                      m_glowTex;
 };

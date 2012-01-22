@@ -58,15 +58,16 @@ NebulaeUI::NebulaeUI( QWidget *parent) : QWidget(parent)//, m_nebulae(nebulae)
 
 void NebulaeUI::onParticleScaleValueChanged(int value)
 {
-	float t = (value/1000.0f)*100.0f;
+	float t = (value/1000.0f)*20.0f;
 	nebulae->m_particleShader->setUniform( "scale", t );
 	emit makeDirty();
 }
 
 void NebulaeUI::onParticleAlphaValueChanged(int value)
 {
-	float t = (value/1000.0f);
+	float t = (value/1000.0f)*2.0;
 	nebulae->m_particleShader->setUniform( "alpha", t );
+	std::cout << t << std::endl;
 	emit makeDirty();
 }
 
@@ -100,14 +101,14 @@ void NebulaeUI::onAttractorDValueChanged(double value)
 
 void NebulaeUI::onBillboardScaleValueChanged(int value)
 {
-	float t = (value/1000.0f)*10.0f;
+	float t = (value/1000.0f)*1.0f;
 	nebulae->m_billboardShader->setUniform( "scale", t );
 	emit makeDirty();
 }
 
 void NebulaeUI::onBillboardAlphaValueChanged(int value)
 {
-	float t = (value/1000.0f);
+	float t = (value/1000.0f)*2.0;
 	nebulae->m_billboardShader->setUniform( "alpha", t );
 	emit makeDirty();
 }
@@ -129,7 +130,7 @@ void NebulaeUI::onOctavesValueChanged(int value)
 
 void NebulaeUI::onLacunarityValueChanged(int value)
 {
-	float t = (value/1000.0f)*2.0;
+	float t = (value/1000.0f)*4.0;
 	nebulae->m_perlinNoiseShader->setUniform( "lacunarity", t );
 	nebulae->applyPerlinNoise();
 	emit makeDirty();

@@ -37,6 +37,8 @@ void main()
 	vec2 uv = gl_PointCoord.st;
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 1.0);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, color.r);
+	//gl_FragData[0] = vec4(c.x*alpha, c.y*alpha, c.z*alpha, texture2D(tex, uv).r*alpha);
+	//gl_FragData[0] = vec4(c.x, c.y, c.z, alpha);
 	gl_FragData[0] = vec4(c.x, c.y, c.z, texture2D(tex, uv).r*alpha);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, 1.0);
 	//gl_FragData[0] = lambert( n, E, vec3(1.0, 0.0,0.0)  );

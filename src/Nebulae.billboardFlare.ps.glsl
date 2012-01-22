@@ -2,7 +2,6 @@ uniform sampler2D tex;
 uniform mat4 vminv;
 
 varying vec3 n;
-varying vec3 c;
 varying vec3 p;
 varying vec2 uv;
 
@@ -18,25 +17,13 @@ vec3 getCameraPos()
 }
 
 
-vec4 lambert(in vec3 n,in vec3 v,in vec3 l)
-{
-	vec3 ambient; // ambient color
-	vec3 diffuse; // diffuse color
-	float ka;
-	float kd;
-	ambient = vec3( 0.05, 0.05, 0.05 ); ka = 1.0;
-	diffuse = vec3( 0.5, 0.5, 0.5 ); kd = 1.0;
-	vec3 a = ka*ambient;
-	vec3 d = kd*max(dot(n,l),0.0)*diffuse;
-	return vec4(a+d,1.0);
-}
-
 
 void main()
 {
 	//vec3 E = normalize(getCameraPos() - p.xyz);
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 1.0);
 	float texAlpha = texture2D(tex, uv).x;
+	vec3 c = vec3(1.0, 1.0, 1.0);
 	gl_FragData[0] = vec4(c, texAlpha*alpha);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, 1.0);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, 1.0);

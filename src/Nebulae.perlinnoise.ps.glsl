@@ -7,6 +7,8 @@ float perlinnoise3d( vec3 P );
 float fbm3d( vec3 p, int octaves, float lacunarity, float gain );
 
 uniform float frequency;
+uniform float lacunarity;
+uniform float gain;
 uniform int octaves;
 
 void main()
@@ -17,10 +19,20 @@ void main()
 	//modify positions
 	vec3 disp;
 
-	disp.x = fbm3d( p.xyz*frequency, octaves, 2.0, 0.5 );
-	disp.y = fbm3d( p.xyz*frequency+vec3(100), octaves, 2.0, 0.5 );
-	disp.z = fbm3d( p.xyz*frequency+vec3(200), octaves, 2.0, 0.5 );
+
+	disp.x = fbm3d( p.xyz*frequency, octaves, lacunarity, gain );
+	disp.y = fbm3d( p.xyz*frequency+vec3(100), octaves, lacunarity, gain );
+	disp.z = fbm3d( p.xyz*frequency+vec3(200), octaves, lacunarity, gain );
+
+	/*
+	disp.x = fbm3d( p.xyz*frequency, octaves, lacunarity, 0.5 );
+	disp.y = fbm3d( p.xyz*frequency+vec3(100), octaves, lacunarity, 0.5 );
+	disp.z = fbm3d( p.xyz*frequency+vec3(200), octaves, lacunarity, 0.5 );
+	*/
+
+	float scale = 0.1;
+	vec3 newP = vec3(p.x+disp.x, p.y+disp.y, p.z+disp.z)*scale;
 
 	// write result
-	gl_FragData[0] = vec4(p.x+disp.x, p.y+disp.y, p.z+disp.z, 1.0);
+	gl_FragData[0] = vec4(newP, 1.0);
 }

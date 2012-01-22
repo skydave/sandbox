@@ -51,7 +51,7 @@ Nebulae::Nebulae()
 
 
 	m_billboards = BillboardsPtr( new Billboards() );
-	m_billboardShader = base::Shader::load( base::Path( SRC_PATH ) + "src/billboard.vs.glsl", base::Path( SRC_PATH ) + "src/billboard.ps.glsl" );
+	m_billboardShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.billboardAtmo.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.billboardAtmo.ps.glsl" );
 	{
 		base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/billboard_nebulae1.jpg" );
 		m_billboardTex = base::Texture2d::createRGBA8();
@@ -75,6 +75,7 @@ Nebulae::Nebulae()
 	m_perlinNoiseShader->setUniform( "inputPositions", m_particlePositionsTex->getUniform() );
 
 	m_particleShader->setUniform( "pos", m_perlinNoiseFBOOutput->getUniform() );
+	m_billboardShader->setUniform( "pos", m_perlinNoiseFBOOutput->getUniform() );
 
 
 	// color
@@ -87,6 +88,35 @@ Nebulae::Nebulae()
 	m_colorShader->setUniform( "inputPositions", m_perlinNoiseFBOOutput->getUniform() );
 
 	m_particleShader->setUniform( "col", m_colorFBOOutput->getUniform() );
+	m_billboardShader->setUniform( "col", m_colorFBOOutput->getUniform() );
+
+
+	// star flare billboards ======================================
+	m_billboardsFlares = BillboardsPtr( new Billboards() );
+	m_billboardFlareShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.billboardFlare.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.billboardFlare.ps.glsl" );
+	{
+		base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/flare2.png" );
+		m_flareTex = base::Texture2d::createRGBA8();
+		m_flareTex->upload( img );
+		m_billboardFlareShader->setUniform( "tex", m_flareTex->getUniform() );
+		m_billboardFlareShader->setUniform( "scale", 0.05f );
+		m_billboardFlareShader->setUniform( "alpha", 1.0f );
+	}
+
+	m_billboardsFlares->add( math::Vec3f(0.1f, 0.0f, 0.0f) );
+	// -------
+	m_billboardsGlow = BillboardsPtr( new Billboards() );
+	m_billboardGlowShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.billboardFlare.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.billboardFlare.ps.glsl" );
+	{
+		base::ImagePtr img = base::Image::load( base::Path( SRC_PATH ) + "data/glow1.png" );
+		m_glowTex = base::Texture2d::createRGBA8();
+		m_glowTex->upload( img );
+		m_billboardGlowShader->setUniform( "tex", m_glowTex->getUniform() );
+		m_billboardGlowShader->setUniform( "scale", 0.1f );
+		m_billboardGlowShader->setUniform( "alpha", 0.5f );
+	}
+
+	m_billboardsGlow->add( math::Vec3f(0.1f, 0.0f, 0.0f) );
 
 }
 

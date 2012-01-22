@@ -67,7 +67,9 @@ void onPlayButtonPressed( bool checked )
 
 
 
-
+base::FBOPtr                           colorFBO;
+base::ShaderPtr                     colorShader;
+base::Texture2dPtr               colorFBOOutput;
 
 
 
@@ -82,8 +84,33 @@ void render2( base::CameraPtr cam )
 
 	context->setCamera( cam );
 
-
+	/*
 	// render to screen
+	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	//glBlendFunc(GL_ONE, GL_ONE);
+	glEnable( GL_BLEND );
+	glDisable( GL_DEPTH_TEST );
+
+
+	glEnable( GL_VERTEX_PROGRAM_POINT_SIZE );
+	glTexEnvf( GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE );
+
+	glEnable( GL_POINT_SPRITE );
+
+	context->render( nebulae->m_particles, nebulae->m_particleShader );
+
+	glDisable( GL_POINT_SPRITE );
+
+	context->render( nebulae->m_billboards->geo, nebulae->m_billboardShader );
+
+	glDisable( GL_BLEND );
+	*/
+
+	// render to fbo
+	colorFBO->begin();
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -102,8 +129,18 @@ void render2( base::CameraPtr cam )
 	glDisable( GL_POINT_SPRITE );
 
 	context->render( nebulae->m_billboards->geo, nebulae->m_billboardShader );
+	context->render( nebulae->m_billboardsFlares->geo, nebulae->m_billboardFlareShader );
+	context->render( nebulae->m_billboardsGlow->geo, nebulae->m_billboardGlowShader );
 
 	glDisable( GL_BLEND );
+	colorFBO->end();
+
+
+	// render to screen
+	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	context->renderScreen( colorShader );
+
 
 }
 
@@ -126,6 +163,13 @@ void init()
 	// generate
 	nebulae->generate();
 
+
+	colorFBO = base::FBOPtr( new base::FBO( 800, 600) );
+	//colorFBOOutput = base::Texture2d::createRGBA8( 800, 600 );
+	colorFBOOutput = base::Texture2d::createRGBAFloat32( 800, 600 );
+	colorFBO->setOutputs( colorFBOOutput );
+	colorShader = base::Shader::load( base::Path( SRC_PATH ) + "src/base/gfx/glsl/screen_vs.glsl", base::Path( SRC_PATH ) + "src/base/gfx/glsl/screen_ps.glsl" );
+	colorShader->setUniform( "color", colorFBOOutput->getUniform() );
 
 
 
