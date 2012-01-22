@@ -35,12 +35,20 @@ DONE:-sound
 second stage (March): effects
 -----------------------------
 
+-particle nebulae
+--atmo particle shape varuiations
+--floating dust (moves with the camera)
+--starmap for environment
+--3dsmax/houdini io for camera and bok globule placement 
+-particle - clouds with fake translucency
+--do cloudscape setup in 3dsmax
+--combine with starmap and atmospheric scattering
+-atmospheric scattering
+--continue with building map
+-animated clouds surface shader
+--redo effect (do it properly)
 -demoOp: sequencer
 -postprocessing (ssao, dof, tonemapping, vignetting)
--particle nebulae
--animated clouds surface shader
--particle - clouds with fake translucency
--atmospheric scattering
 
 
 third stage (April): art direction
