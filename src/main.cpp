@@ -386,7 +386,7 @@ void render( base::CameraPtr cam )
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// render environment map
-	context->setView( cam->m_viewMatrix.getOrientation(), cam->m_transform.getOrientation(), cam->m_projectionMatrix );
+	context->setCamera( cam );
 	glDisable( GL_DEPTH_TEST );
 	glDepthMask(false);
 	context->render( sphere, envShader );
@@ -403,7 +403,7 @@ void render( base::CameraPtr cam )
 
 	//glEnable( GL_POINT_SPRITE );
 
-	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
+	context->setCamera( cam );
 	//context->render( particles, particleShader );
 	context->render( sphere, particleShader );
 
