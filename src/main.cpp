@@ -42,7 +42,7 @@ base::Texture2dPtr particleTex;
 base::Texture2dPtr envTex;
 base::TextureCubePtr envCubeMap;
 base::ImagePtr envImage;
-
+base::Texture2dPtr starsTex;
 
 
 base::GeometryPtr particles;
@@ -182,6 +182,10 @@ void init()
 	envCubeMap = base::TextureCube::createRGBA8();
 	envCubeMap->upload( envImage );
 
+	starsTex = base::Texture2d::load( base::Path( SRC_PATH ) + "data/stars1.jpg" );
+	//starsTex = base::Texture2d::load( base::Path( SRC_PATH ) + "data/stars2.jpg" ); // stars2: cassini?
+	//starsTex = base::Texture2d::load( base::Path( SRC_PATH ) + "data/cassini.jpg" );
+
 
 
 	envShader = base::Shader::load( base::Path( SRC_PATH ) + "src/env.vs.glsl", base::Path( SRC_PATH ) + "src/env.ps.glsl" );
@@ -190,6 +194,7 @@ void init()
 	sphereShader = base::Shader::load( base::Path( SRC_PATH ) + "src/sh.vs.glsl", base::Path( SRC_PATH ) + "src/sh.ps.glsl" );
 	sphereShader->setUniform( "envTex", envTex->getUniform() );
 	sphereShader->setUniform( "envTex2", envCubeMap->getUniform() );
+	sphereShader->setUniform( "starsTex", starsTex->getUniform() );
 
 
 	// sphere
