@@ -189,6 +189,7 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 	KFbxMesh *fbxTriMesh = geoConverter->TriangulateMesh( fbxMesh );
 	//geoConverter->EmulateNormalsByPolygonVertex( fbxTriMesh );
 
+
 	// triangulate mesh
 	base::GeometryPtr geo = base::Geometry::createTriangleGeometry();
 
@@ -259,6 +260,7 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 	// deindex ---
 	// get triangles
 	int numTris = fbxTriMesh->GetPolygonCount();
+
 	vertices.reserve( numTris * 3 );
 	int indexByPolygonVertex = 0;
 	for( int i = 0; i<numTris; ++i )
@@ -269,7 +271,9 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 			for( int j=0;j<3;++j )
 			{
 				FBXMeshVertex vertex;
+
 				KFbxVector4 p = fbxTriMesh->GetControlPointAt( fbxTriMesh->GetPolygonVertex(i, j) );
+
 				vertex.data.push_back(p[0]);
 				vertex.data.push_back(p[1]);
 				vertex.data.push_back(p[2]);
@@ -278,20 +282,20 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 				{
 					KFbxLayerElementNormal *n = *it;
 
-					/*
-			KFbxLayerElementNormal::EMappingMode mapping = n->GetMappingMode();
-			switch( mapping )
-			{
-				case KFbxLayerElementNormal::eBY_CONTROL_POINT:
-				{
-					std::cout << "point attribute\n";
-				}break;
-				case KFbxLayerElementNormal::eBY_POLYGON_VERTEX:
-				{
-					std::cout << "vertex attribute\n";
-				}break;
-			};
-					*/
+
+					//KFbxLayerElementNormal::EMappingMode mapping = n->GetMappingMode();
+					//switch( mapping )
+					//{
+					//	case KFbxLayerElementNormal::eBY_CONTROL_POINT:
+					//	{
+					//		std::cout << "point attribute\n";
+					//	}break;
+					//	case KFbxLayerElementNormal::eBY_POLYGON_VERTEX:
+					//	{
+					//		std::cout << "vertex attribute\n";
+					//	}break;
+					//};
+
 					vertex.data.push_back( 0.0f );
 					vertex.data.push_back( 0.0f );
 					vertex.data.push_back( 0.0f );
@@ -354,9 +358,9 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 								}break;
 							};
 							KFbxColor c = cd->GetDirectArray().GetAt(vertexColorIndex);
-							vertex.data.push_back( c[2] );
-							vertex.data.push_back( c[1] );
 							vertex.data.push_back( c[0] );
+							vertex.data.push_back( c[1] );
+							vertex.data.push_back( c[2] );
 						}break;
 					};
 
@@ -376,11 +380,16 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 	// fill attributes
 	for( std::vector<FBXMeshVertex>::iterator it = vertices.begin(); it != vertices.end(); ++it )
 	{
-		FBXMeshVertex &v = *it;
+		FBXMeshVertex &v = (*it);
 		int attributeIndex = 0;
 		int dataIndex = 0;
 
-		attributes[attributeIndex++]->appendElement<math::Vec3f>( math::Vec3f( v.data[dataIndex++], v.data[dataIndex++], v.data[dataIndex++] ) );
+		math::Vec3f p = math::Vec3f( v.data[dataIndex+0], v.data[dataIndex+1], v.data[dataIndex+2] );
+		dataIndex++;
+		dataIndex++;
+		dataIndex++;
+
+		attributes[attributeIndex++]->appendElement<math::Vec3f>( p );
 
 		for( std::vector<KFbxLayerElementNormal *>::iterator it = normalElements.begin(); it != normalElements.end(); ++it )
 		{
@@ -393,18 +402,21 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 		for( std::vector<KFbxLayerElementUV *>::iterator it = uvElements.begin(); it != uvElements.end(); ++it )
 		{
 			KFbxLayerElementUV *uv = *it;
-			attributes[attributeIndex++]->appendElement<math::Vec2f>( math::Vec2f( v.data[dataIndex++], v.data[dataIndex++] ) );
+			attributes[attributeIndex++]->appendElement<math::Vec2f>( math::Vec2f( v.data[dataIndex+0], v.data[dataIndex+1] ) );
+			dataIndex +=2;
 		}
 		for( std::vector<KFbxLayerElementVertexColor *>::iterator it = vertexColorElements.begin(); it != vertexColorElements.end(); ++it )
 		{
 			KFbxLayerElementVertexColor *cd = *it;
-			attributes[attributeIndex++]->appendElement<math::Vec3f>( math::Vec3f( v.data[dataIndex++], v.data[dataIndex++], v.data[dataIndex++] ) );
+			attributes[attributeIndex++]->appendElement<math::Vec3f>( math::Vec3f( v.data[dataIndex+0], v.data[dataIndex+1], v.data[dataIndex+2] ) );
+			dataIndex += 3;
 		} // for each vertexcolor layer
 	}
 
 	//tmp
 	base::AttributePtr pattr = geo->getAttr("P");
 	spriteGeo = geo;
+
 
 	// tris
 	int triVertexIndex = 0;
@@ -423,10 +435,12 @@ RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
 					  + pattr->get<math::Vec3f>(triVertexIndex + 4)
 					  + pattr->get<math::Vec3f>(triVertexIndex + 5))/6.0f;
 		sprites.push_back( tt );
-		//geo->addTriangle( fbxTriMesh->GetPolygonVertex(i, 0), fbxTriMesh->GetPolygonVertex(i, 1), fbxTriMesh->GetPolygonVertex(i, 2) );
-		geo->addTriangle( triVertexIndex++, triVertexIndex++, triVertexIndex++ );
-		geo->addTriangle( triVertexIndex++, triVertexIndex++, triVertexIndex++ );
+
+		geo->addTriangle( triVertexIndex+0, triVertexIndex+1, triVertexIndex+2 );
+		geo->addTriangle( triVertexIndex+3, triVertexIndex+4, triVertexIndex+5 );
+		triVertexIndex+=6;
 	}
+
 
 
 	// get points
@@ -597,7 +611,8 @@ base::ops::OpPtr buildFromFBX( std::string path )
 					FBXTransformOpPtr fbxTransform = FBXTransformOp::create( node );
 					TransformOpPtr transformOp = TransformOp::create();
 					fbxTransform->plug( transformOp, "transformMatrix" );
-					op->plug( transformOp );
+					if(op)
+						op->plug( transformOp );
 
 					//items.push_back(op);
 					items.push_back(transformOp);
@@ -677,11 +692,12 @@ void init()
 	//base::ops::SphereOpPtr s = base::ops::SphereOp::create(1.0f);
 	//base::MeshPtr m = s->getMesh(0);
 	//geo = m->getGeometry();
+	geo = base::geo_sphere(30,30,1.0);
 
 
 	// demo =============
-	demoOp = DemoOp::create( "/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg" );
-	//demoOp = DemoOp::create( "c:\\projects\\sandbox\\temp\\code\\sketch039.ogg" );
+	//demoOp = DemoOp::create( "/usr/people/david-k/dev/testprojects/sandbox/temp/sketch039.ogg" );
+	demoOp = DemoOp::create( "c:\\projects\\sandbox\\temp\\code\\sketch039.ogg" );
 	TimeOpPtr time = TimeOp::create();
 	CameraOpPtr cam = CameraOp::create();
 	base::ops::ClearOpPtr clear = base::ops::ClearOp::create();
@@ -699,7 +715,8 @@ void init()
 	//
 	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );
 	//baseGeo = base::importObj( base::Path( SRC_PATH ) + "/data/test.1.obj" );
-	baseGeo = base::geo_sphere( 30, 30, 1.0f );
+	//baseGeo = base::geo_sphere( 30, 30, 1.0f );
+	baseGeo = base::geo_grid( 30, 30 );
 	//base::apply_transform( baseGeo, math::Matrix44f::ScaleMatrix( 30000.0f ) );
 	base::apply_normals( baseGeo );
 
