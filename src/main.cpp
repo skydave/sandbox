@@ -53,14 +53,9 @@
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
 
-#include "OSCDispatcher.h"
-
-
 
 float g_testValue = 0.0f;
 
-
-OSCDispatcher oscDispatcher;
 
 composer::widgets::GLViewer *glviewer;
 
@@ -101,8 +96,16 @@ bool               g_doSort = true;
 
 void renderGeo()
 {
-	//context->render( geo, baseShader );
-	context->render( baseGeo, cloudSpriteShader );
+	glDisable( GL_DEPTH_TEST );
+	glDisable( GL_CULL_FACE );
+	glEnable( GL_BLEND );
+	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+	context->render( spriteGeo, cloudSpriteShader );
+
+
+	glDisable( GL_BLEND );
+	glEnable( GL_DEPTH_TEST );
 }
 
 void render( base::CameraPtr cam )
@@ -110,6 +113,9 @@ void render( base::CameraPtr cam )
 	glEnable( GL_DEPTH_TEST );
 	orbitTransform->m_variant = cam->m_transform;
 
+
+
+/*
 	if(g_doSort)
 	{
 		// compute distance to camera
@@ -140,7 +146,7 @@ void render( base::CameraPtr cam )
 
 		g_doSort = false;
 	}
-
+*/
 	opRoot->execute();
 }
 void mouseMove( base::MouseState ms )
@@ -170,495 +176,6 @@ KFbxAnimEvaluator *animEvaluator = NULL;
 
 
 
-
-struct FBXMeshVertex
-{
-	FBXMeshVertex()
-	{
-		//elementTypes = {0,0,0,0,0,0,0};
-	}
-
-	//char elementTypes[7]; // identifies the different layerelement types (unused, float, vec2, vec3, vec4) for up to 7 possible layerelements
-	std::vector<float> data;
-};
-
-// creates a rendergeometry op from given fbxmesh
-RenderGeoOpPtr buildFromFBX( KFbxMesh *fbxMesh )
-{
-	// create geometry from fbxMesh
-	KFbxMesh *fbxTriMesh = geoConverter->TriangulateMesh( fbxMesh );
-	//geoConverter->EmulateNormalsByPolygonVertex( fbxTriMesh );
-
-
-	// triangulate mesh
-	base::GeometryPtr geo = base::Geometry::createTriangleGeometry();
-
-
-	// what do we have?
-	std::vector<KFbxLayerElementNormal *> normalElements;
-	std::vector<KFbxLayerElementUV *> uvElements;
-	std::vector<KFbxLayerElementVertexColor *> vertexColorElements;
-	std::vector<base::AttributePtr> attributes;
-	std::vector<std::string> attributeNames;
-
-	attributes.push_back( geo->getAttr("P") );
-	attributeNames.push_back("P");
-
-	// get additional layers (normals, vertex colors)
-	int numLayers = fbxTriMesh->GetLayerCount();
-	for( int i=0;i<numLayers;++i )
-	{
-		KFbxLayer *layer = fbxTriMesh->GetLayer(0);
-
-		if( layer->GetNormals() != NULL )
-		{
-			std::cout << "got N!\n";
-			normalElements.push_back(layer->GetNormals());
-			attributes.push_back( base::Attribute::createVec3f() );
-			if( i==0 )
-				attributeNames.push_back("N");
-			else
-			{
-				std::stringstream ss;ss << "N" << i;
-				attributeNames.push_back(ss.str());
-			}
-			//geo->setAttr( attributeNames.back(), attributes.back()  );
-		}
-		if( layer->GetUVs() != NULL )
-		{
-			std::cout << "got UV!\n";
-			uvElements.push_back(layer->GetUVs());
-			attributes.push_back( base::Attribute::createVec2f() );
-			if( i==0 )
-				attributeNames.push_back("UV");
-			else
-			{
-				std::stringstream ss;ss << "UV" << i;
-				attributeNames.push_back(ss.str());
-			}
-			geo->setAttr( attributeNames.back(), attributes.back()  );
-		}
-		if( layer->GetVertexColors() != NULL )
-		{
-			std::cout << "got Cd!\n";
-			vertexColorElements.push_back(layer->GetVertexColors());
-			attributes.push_back( base::Attribute::createVec3f() );
-			if( i==0 )
-				attributeNames.push_back("Cd");
-			else
-			{
-				std::stringstream ss;ss << "Cd" << i;
-				attributeNames.push_back(ss.str());
-			}
-			geo->setAttr( attributeNames.back(), attributes.back()  );
-		}
-	}
-
-	// temp
-	std::vector<FBXMeshVertex> vertices;
-
-	// deindex ---
-	// get triangles
-	int numTris = fbxTriMesh->GetPolygonCount();
-
-	vertices.reserve( numTris * 3 );
-	int indexByPolygonVertex = 0;
-	for( int i = 0; i<numTris; ++i )
-	{
-		int numVertices = fbxTriMesh->GetPolygonSize(i);
-		if( numVertices == 3 )
-		{
-			for( int j=0;j<3;++j )
-			{
-				FBXMeshVertex vertex;
-
-				KFbxVector4 p = fbxTriMesh->GetControlPointAt( fbxTriMesh->GetPolygonVertex(i, j) );
-
-				vertex.data.push_back(p[0]);
-				vertex.data.push_back(p[1]);
-				vertex.data.push_back(p[2]);
-
-				for( std::vector<KFbxLayerElementNormal *>::iterator it = normalElements.begin(); it != normalElements.end(); ++it )
-				{
-					KFbxLayerElementNormal *n = *it;
-
-
-					//KFbxLayerElementNormal::EMappingMode mapping = n->GetMappingMode();
-					//switch( mapping )
-					//{
-					//	case KFbxLayerElementNormal::eBY_CONTROL_POINT:
-					//	{
-					//		std::cout << "point attribute\n";
-					//	}break;
-					//	case KFbxLayerElementNormal::eBY_POLYGON_VERTEX:
-					//	{
-					//		std::cout << "vertex attribute\n";
-					//	}break;
-					//};
-
-					vertex.data.push_back( 0.0f );
-					vertex.data.push_back( 0.0f );
-					vertex.data.push_back( 0.0f );
-				}
-				for( std::vector<KFbxLayerElementUV *>::iterator it = uvElements.begin(); it != uvElements.end(); ++it )
-				{
-					KFbxLayerElementUV *uv = *it;
-
-					switch( uv->GetMappingMode() )
-					{
-						case KFbxLayerElementVertexColor::eBY_CONTROL_POINT:
-						{
-							//TODO
-						}break;
-						case KFbxLayerElementVertexColor::eBY_POLYGON_VERTEX:
-						{
-							int uvIndex = 0;
-							switch(uv->GetReferenceMode())
-							{
-							case KFbxLayerElementVertexColor::eDIRECT:
-								{
-									uvIndex = indexByPolygonVertex;
-								}break;
-							case KFbxLayerElementVertexColor::eINDEX_TO_DIRECT:
-								{
-									uvIndex = uv->GetIndexArray().GetAt(indexByPolygonVertex);
-								}break;
-							};
-							KFbxVector2 uvCoord = uv->GetDirectArray().GetAt(uvIndex);
-							// convert uv coords (TODO: clarify)
-							vertex.data.push_back( uvCoord[0] );
-							vertex.data.push_back( uvCoord[1] );
-						}break;
-					};
-
-
-				}
-				for( std::vector<KFbxLayerElementVertexColor *>::iterator it = vertexColorElements.begin(); it != vertexColorElements.end(); ++it )
-				{
-					KFbxLayerElementVertexColor *cd = *it;
-
-					switch( cd->GetMappingMode() )
-					{
-						case KFbxLayerElementVertexColor::eBY_CONTROL_POINT:
-						{
-							//TODO
-						}break;
-						case KFbxLayerElementVertexColor::eBY_POLYGON_VERTEX:
-						{
-							int vertexColorIndex = 0;
-							switch(cd->GetReferenceMode())
-							{
-							case KFbxLayerElementVertexColor::eDIRECT:
-								{
-									vertexColorIndex = indexByPolygonVertex;
-								}break;
-							case KFbxLayerElementVertexColor::eINDEX_TO_DIRECT:
-								{
-									vertexColorIndex = cd->GetIndexArray().GetAt(indexByPolygonVertex);
-								}break;
-							};
-							KFbxColor c = cd->GetDirectArray().GetAt(vertexColorIndex);
-							vertex.data.push_back( c[0] );
-							vertex.data.push_back( c[1] );
-							vertex.data.push_back( c[2] );
-						}break;
-					};
-
-					
-				} // for each vertexcolor layer
-
-				vertices.push_back( vertex );
-
-				++indexByPolygonVertex;
-			} // for each vertex
-		} // if numvertices == 3
-	} // for each face
-
-	// TODO: reindex ---
-
-
-	// fill attributes
-	for( std::vector<FBXMeshVertex>::iterator it = vertices.begin(); it != vertices.end(); ++it )
-	{
-		FBXMeshVertex &v = (*it);
-		int attributeIndex = 0;
-		int dataIndex = 0;
-
-		math::Vec3f p = math::Vec3f( v.data[dataIndex+0], v.data[dataIndex+1], v.data[dataIndex+2] );
-		dataIndex++;
-		dataIndex++;
-		dataIndex++;
-
-		attributes[attributeIndex++]->appendElement<math::Vec3f>( p );
-
-		for( std::vector<KFbxLayerElementNormal *>::iterator it = normalElements.begin(); it != normalElements.end(); ++it )
-		{
-			KFbxLayerElementNormal *n = *it;
-			attributeIndex++;
-			dataIndex++;
-			dataIndex++;
-			dataIndex++;
-		}
-		for( std::vector<KFbxLayerElementUV *>::iterator it = uvElements.begin(); it != uvElements.end(); ++it )
-		{
-			KFbxLayerElementUV *uv = *it;
-			attributes[attributeIndex++]->appendElement<math::Vec2f>( math::Vec2f( v.data[dataIndex+0], v.data[dataIndex+1] ) );
-			dataIndex +=2;
-		}
-		for( std::vector<KFbxLayerElementVertexColor *>::iterator it = vertexColorElements.begin(); it != vertexColorElements.end(); ++it )
-		{
-			KFbxLayerElementVertexColor *cd = *it;
-			attributes[attributeIndex++]->appendElement<math::Vec3f>( math::Vec3f( v.data[dataIndex+0], v.data[dataIndex+1], v.data[dataIndex+2] ) );
-			dataIndex += 3;
-		} // for each vertexcolor layer
-	}
-
-	//tmp
-	base::AttributePtr pattr = geo->getAttr("P");
-	spriteGeo = geo;
-
-
-	// tris
-	int triVertexIndex = 0;
-	for( int i=0;i<numTris; i+=2 )
-	{
-		// temp
-		TempTest tt;
-		tt.indices[0] = triVertexIndex;
-		tt.indices[1] = triVertexIndex+1;
-		tt.indices[2] = triVertexIndex+2;
-		tt.indices2[0] = triVertexIndex+3;
-		tt.indices2[1] = triVertexIndex+4;
-		tt.indices2[2] = triVertexIndex+5;
-		tt.center = (pattr->get<math::Vec3f>(triVertexIndex + 0) + pattr->get<math::Vec3f>(triVertexIndex + 1) + pattr->get<math::Vec3f>(triVertexIndex + 2)
-					  + pattr->get<math::Vec3f>(triVertexIndex + 3)
-					  + pattr->get<math::Vec3f>(triVertexIndex + 4)
-					  + pattr->get<math::Vec3f>(triVertexIndex + 5))/6.0f;
-		sprites.push_back( tt );
-
-		geo->addTriangle( triVertexIndex+0, triVertexIndex+1, triVertexIndex+2 );
-		geo->addTriangle( triVertexIndex+3, triVertexIndex+4, triVertexIndex+5 );
-		triVertexIndex+=6;
-	}
-
-
-
-	// get points
-	/*
-	int numPoints = fbxTriMesh->GetControlPointsCount();
-	for( int i=0; i<numPoints; ++i )
-	{
-		KFbxVector4 p = fbxTriMesh->GetControlPointAt(i);
-		//pAttr->appendElement<math::Vec3f>( math::Vec3f( p[0], p[1], p[2] ) );
-		std::cout << "p: " << p[0] << " " << p[1] << " " << p[2] << std::endl;
-	}
-	*/
-
-
-
-
-
-
-	// create and setup renderop
-	RenderGeoOpPtr renderGeoOp = RenderGeoOp::create();
-	renderGeoOp->m_geo = geo;
-	//renderGeoOp->m_geo = base::geo_sphere(30, 30, 1.0f);
-	base::apply_normals( renderGeoOp->m_geo );
-	//renderGeoOp->m_shader = defaultGeometryShader;
-	renderGeoOp->m_shader = cloudSpriteShader;
-
-	return renderGeoOp;
-}
-
-
-// creates a camer op from given fbxcamera
-CameraOpPtr buildFromFBX( KFbxCamera *fbxCamera, KFbxNode *node )
-{
-	// we will need the transform
-	KTime myTime;
-	KFbxXMatrix& worldTransform = animEvaluator->GetNodeGlobalTransform(node, myTime);
-	double *values = worldTransform;
-
-
-	// create and setup cameraop
-	CameraOpPtr cameraOp = CameraOp::create();
-
-
-	//FBXTransformOpPtr fbxTransform = FBXTransformOp::create( node );
-	//fbxTransform->plug( cameraOp, "transformMatrix" );
-
-	orbitTransform->plug( cameraOp, "transformMatrix" );
-	cameraOp->m_camera->m_fov = math::degToRad(54.0f);
-	cameraOp->m_camera->m_znear = 0.1f;
-	cameraOp->m_camera->m_zfar = 100.0f;
-
-	return cameraOp;
-}
-
-base::ops::OpPtr buildFromFBX( std::string path )
-{
-	// Create an importer using our sdk manager.
-	KFbxImporter* lImporter = KFbxImporter::Create(lSdkManager,"");
-
-	// Use the first argument as the filename for the importer.
-	if(!lImporter->Initialize(path.c_str(), -1, lSdkManager->GetIOSettings()))
-	{
-		std::cout << "Call to KFbxImporter::Initialize() failed.\n";
-		std::cout << "Error returned: %s\n\n" << std::string(lImporter->GetLastErrorString());
-		exit(-1);
-	}
-
-
-
-
-	// Create a new scene so it can be populated by the imported file.
-	KFbxScene* lScene = KFbxScene::Create(lSdkManager,"myScene");
-
-	// Import the contents of the file into the scene.
-	std::cout << "importing " << path << std::endl;
-	lImporter->Import(lScene);
-
-	//KFbxAxisSystem max(KFbxAxisSystem::eOpenGL);
-	//max.ConvertScene(lScene);
-
-	int dir, dirSign, front, frontSign;
-	dir = lScene->GetGlobalSettings().GetAxisSystem().GetUpVector(dirSign);
-	front = lScene->GetGlobalSettings().GetAxisSystem().GetFrontVector(frontSign);
-	std::cout << "up axis :" << dir << " " << dirSign << std::endl;
-	std::cout << "front axis :" << front << " " << frontSign << std::endl;
-
-
-	// The file has been imported; we can get rid of the importer.
-	lImporter->Destroy();
-
-	// now we will build an operator graph which looks like this:
-	//setCamera (using world transform from fbx transform hierarchy)
-	//for each entity:
-	//	transform (worldTransform from fbx transform hierarchy)
-	//		renderEntity (e.g. renderMesh/Geometry)
-	// Print the nodes of the scene and their attributes recursively.
-	// Note that we are not printing the root node, because it should
-	// not contain any attributes.
-
-
-	// tmp
-	animEvaluator = lScene->GetEvaluator();
-
-	TimeOpPtr root = TimeOp::create();
-
-	// 100 frames == 4s
-	root->m_outTimeEnd = 4.0f;
-
-	CameraOpPtr cameraOp;
-	std::vector<base::ops::OpPtr> items;
-
-	// iterate over all nodes
-	int numNodes = lScene->GetNodeCount();
-	for( int i=0;i < numNodes; ++i )
-	{
-		KFbxNode *node = lScene->GetNode(i);
-
-		// disable pre/post rotation
-		node->SetRotationActive(false);
-
-		std::cout << node->GetName() << std::endl;
-
-		// items ===
-		int numAttrs = node->GetNodeAttributeCount();
-
-		for( int j=0;j<numAttrs;++j )
-		{
-			KFbxNodeAttribute const *attr = node->GetNodeAttributeByIndex(j);
-
-			switch( attr->GetAttributeType() )
-			{
-			/*
-				eNULL,
-				eMARKER,
-				eSKELETON,
-				eNURB,
-				ePATCH,
-				eCAMERA_STEREO,
-				eCAMERA_SWITCHER,
-				eLIGHT,
-				eOPTICAL_REFERENCE,
-				eOPTICAL_MARKER,
-				eNURBS_CURVE,
-				eTRIM_NURBS_SURFACE,
-				eBOUNDARY,
-				eNURBS_SURFACE,
-				eSHAPE,
-				eLODGROUP,
-				eSUBDIV,
-				eCACHED_EFFECT,
-				eLINE
-			*/
-				case KFbxNodeAttribute::eMESH:
-				{
-					std::cout << "has a mesh!\n";
-					for( int i=0;i<4;++i )
-					{
-						for( int j=0;j<4;++j )
-						{
-							std::cout << node->GetScene()->GetEvaluator()->GetNodeGlobalTransform(node, 0).Get(i, j) << " ";
-						}
-						std::cout << std::endl;
-					}
-
-
-					RenderGeoOpPtr op = buildFromFBX( (KFbxMesh *)attr  );
-
-					FBXTransformOpPtr fbxTransform = FBXTransformOp::create( node );
-					TransformOpPtr transformOp = TransformOp::create();
-					fbxTransform->plug( transformOp, "transformMatrix" );
-					if(op)
-						op->plug( transformOp );
-
-					//items.push_back(op);
-					items.push_back(transformOp);
-				}break;
-				case KFbxNodeAttribute::eCAMERA:
-				{
-					// TODO: handle multiple cameras
-					std::cout << "has a camera!\n";
-					cameraOp = buildFromFBX( (KFbxCamera *)attr, node );
-				}break;
-				case KFbxNodeAttribute::eUNIDENTIFIED:
-				default:
-				{
-					std::cout << "has a something unknown!\n";
-				}break;
-			};
-
-		} // for each node attribute
-	} // for each node
-
-
-	// if there is no camera
-	if( !cameraOp )
-	{
-		// create and setup cameraop
-		cameraOp = CameraOp::create();
-
-		orbitTransform->plug( cameraOp, "transformMatrix" );
-		cameraOp->m_camera->m_fov = math::degToRad(54.0f);
-		cameraOp->m_camera->m_znear = 0.1f;
-		cameraOp->m_camera->m_zfar = 1000.0f;
-	}
-
-	// plug camera into root
-	cameraOp->plug( root );
-
-	// now plug all items into camera
-	for( std::vector<base::ops::OpPtr>::iterator it = items.begin(); it != items.end(); ++it )
-		(*it)->plug( cameraOp );
-
-
-	return root;
-}
-
-
-
 void init()
 {
 	std::cout << "init!\n";
@@ -669,19 +186,6 @@ void init()
 	{
 		std::cout << "glew init failed\n";
 	}
-
-	//std::string fbxTest = std::string(SRC_PATH) + std::string("/data/plane01_max.fbx");
-	std::string fbxTest = std::string(SRC_PATH) + std::string("/data/cloudscape02_max.FBX");
-
-	// Initialize the sdk manager. This object handles all our memory management.
-	lSdkManager = KFbxSdkManager::Create();
-	// Create the io settings object.
-	ios = KFbxIOSettings::Create(lSdkManager, IOSROOT);
-	lSdkManager->SetIOSettings(ios);
-	geoConverter = new KFbxGeometryConverter(lSdkManager);
-	animEvaluator = KFbxAnimEvaluator::Create( lSdkManager, "" );
-
-
 
 
 	context = base::ContextPtr( new base::Context() );
@@ -729,18 +233,48 @@ void init()
 
 
 
-	// fbx import test =============
-	base::ops::OpPtr renderFBXSceneOp = buildFromFBX(fbxTest);
-
 	clear->plug( opRoot );
-	renderFBXSceneOp->plug( opRoot );
-
-	// alternate test
-	//cam->plug( opRoot );
-	//renderFunc->plug( cam );
-
+	cam->plug( opRoot );
+	renderFunc->plug( cam );
 
 	base::ops::Manager::context()->setTime( .5 );
+
+
+
+
+	// build sprite geo
+	spriteGeo = base::GeometryPtr(new base::Geometry(base::Geometry::QUAD));
+
+	base::AttributePtr positions = base::Attribute::createVec3f();
+	base::AttributePtr color = base::Attribute::createVec3f();
+	base::AttributePtr uvs = base::Attribute::createVec2f();
+
+	positions->appendElement( math::Vec3f(-1.0f,-1.0f,0.0f) );
+	color->appendElement( math::Vec3f(0.0f,0.0f,0.0f) );
+	uvs->appendElement( .0f, .0f );
+	positions->appendElement( math::Vec3f(-1.0f,1.0f,0.0f) );
+	color->appendElement( math::Vec3f(1.0f,0.0f,0.0f) );
+	uvs->appendElement( .0f, 1.0f );
+	positions->appendElement( math::Vec3f(1.0f,1.0f,0.0f) );
+	color->appendElement( math::Vec3f(1.0f,1.0f,0.0f) );
+	uvs->appendElement( 1.0f, 1.0f );
+	positions->appendElement( math::Vec3f(1.0f,-1.0f,0.0f) );
+	color->appendElement( math::Vec3f(0.0f,1.0f,0.0f) );
+	uvs->appendElement( 1.0f, .0f );
+
+	spriteGeo->setAttr( "P", positions);
+	spriteGeo->setAttr( "UV", uvs );
+	spriteGeo->setAttr( "Cd", color );
+
+	spriteGeo->addQuad( 3, 2, 1, 0 );
+
+	base::apply_normals( spriteGeo );
+
+
+
+
+
+
 
 	//demoOp->startAudio();
 }
@@ -770,10 +304,6 @@ int main(int argc, char ** argv)
 	glviewer->setKeyPressCallback( keyPress );
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
-
-
-
-	oscDispatcher.start();
 
 	return app.exec();
 }

@@ -35,7 +35,7 @@ void main()
 
 	// color from normals
 	//float alpha = clamp(dot( normalize(n), V ), 0.0, 1.0);
-	float t = clamp(dot( normalize(n), V ), 0.0, 1.0);
+	float t = abs(dot( normalize(n), V ));
 	float mi = 0.1;
 	float alpha = step( mi, t )*((t-mi)/(1.0-mi));
 	//gl_FragData[0] = vec4(alpha, alpha, alpha, 1.0);
