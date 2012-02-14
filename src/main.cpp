@@ -708,7 +708,7 @@ void init()
 
 	opRoot = demoOp;
 
-	cloudSpriteShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/glsl/cloud_sprites.vs.glsl", base::Path( SRC_PATH ) + "/src/glsl/cloud_sprites.ps.glsl" );
+	cloudSpriteShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/ParticleCloud.sprite.vs.glsl", base::Path( SRC_PATH ) + "/src/ParticleCloud.sprite.ps.glsl" );
 	cloudSprites = base::Texture2d::load( base::Path( SRC_PATH ) + "/data/puff_14.jpg" );
 	cloudSpriteShader->setUniform( "diffuseMap", cloudSprites->getUniform() );
 
@@ -722,7 +722,7 @@ void init()
 
 	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref2.png" );
 
-	defaultGeometryShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/glsl/defaultGeometry.vs.glsl", base::Path( SRC_PATH ) + "/src/glsl/defaultGeometry.ps.glsl" );
+	defaultGeometryShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/ParticleCloud.defaultgeometry.vs.glsl", base::Path( SRC_PATH ) + "/src/ParticleCloud.defaultgeometry.ps.glsl" );
 	defaultGeometryShader->setUniform( "diffuseMap", baseTexture->getUniform() );
 
 	baseShader->setUniform( "input", baseTexture->getUniform() );
