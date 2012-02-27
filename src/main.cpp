@@ -53,6 +53,9 @@
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
 
+#include "ParticleCloud.h"
+#include "ParticleCloud.ui.h"
+
 
 float g_testValue = 0.0f;
 
@@ -65,15 +68,17 @@ base::ContextPtr context;
 base::GeometryPtr geo;
 
 base::ShaderPtr baseShader;
-base::ShaderPtr cloudSpriteShader;
 base::ShaderPtr defaultGeometryShader;
 base::Texture2dPtr baseTexture;
-base::Texture2dPtr cloudSprites;
+
 base::GeometryPtr baseGeo;
 
 base::ops::OpPtr opRoot;
 DemoOpPtr demoOp;
 base::ops::ConstantOpPtr orbitTransform;
+
+
+ParticleCloudPtr particleCloud;
 
 struct TempTest
 {
@@ -90,7 +95,7 @@ struct TempTest
 };
 
 std::vector<TempTest> sprites;
-base::GeometryPtr spriteGeo;
+
 bool               g_doSort = true;
 
 
@@ -101,7 +106,7 @@ void renderGeo()
 	glEnable( GL_BLEND );
 	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
-	context->render( spriteGeo, cloudSpriteShader );
+	context->render( particleCloud->m_spriteGeo, particleCloud->m_cloudSpriteShader );
 
 
 	glDisable( GL_BLEND );
@@ -114,7 +119,10 @@ void render( base::CameraPtr cam )
 	orbitTransform->m_variant = cam->m_transform;
 
 
-
+	if(g_doSort)
+	{
+		particleCloud->sort(cam);
+	}
 /*
 	if(g_doSort)
 	{
@@ -212,9 +220,7 @@ void init()
 
 	opRoot = demoOp;
 
-	cloudSpriteShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/ParticleCloud.sprite.vs.glsl", base::Path( SRC_PATH ) + "/src/ParticleCloud.sprite.ps.glsl" );
-	cloudSprites = base::Texture2d::load( base::Path( SRC_PATH ) + "/data/puff_14.jpg" );
-	cloudSpriteShader->setUniform( "diffuseMap", cloudSprites->getUniform() );
+
 
 	//
 	baseShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_vs.glsl", base::Path( SRC_PATH ) + "/src/base/gfx/glsl/geometry_ps.glsl" );
@@ -240,41 +246,65 @@ void init()
 	base::ops::Manager::context()->setTime( .5 );
 
 
+	// get positions and normals
+	//positions.push_back( math::Vec3f(0.0f, 0.0f, 0.0f) );
+	//normals.push_back( math::Vec3f(0.0f, 1.0f, 0.0f) );
+	//positions.push_back( math::Vec3f(1.0f, 1.0f, 0.0f) );
+	//normals.push_back( math::Vec3f(1.0f, 1.0f, 0.1f).normalized() );
+
+	particleCloud = ParticleCloudPtr(new ParticleCloud());
 
 
-	// build sprite geo
-	spriteGeo = base::GeometryPtr(new base::Geometry(base::Geometry::QUAD));
+	{
+		base::Path path = base::Path( SRC_PATH ) + "/data/positions.bin";
+		if( !base::fs::exists( path ) )
+			std::cerr << "path doesnt exist\n";
+		base::fs::File *f = base::fs::open( path );
+		if(!f)
+			std::cerr << "failed to open file\n";
 
-	base::AttributePtr positions = base::Attribute::createVec3f();
-	base::AttributePtr color = base::Attribute::createVec3f();
-	base::AttributePtr uvs = base::Attribute::createVec2f();
+		int numPoints = 0;
 
-	positions->appendElement( math::Vec3f(-1.0f,-1.0f,0.0f) );
-	color->appendElement( math::Vec3f(0.0f,0.0f,0.0f) );
-	uvs->appendElement( .0f, .0f );
-	positions->appendElement( math::Vec3f(-1.0f,1.0f,0.0f) );
-	color->appendElement( math::Vec3f(1.0f,0.0f,0.0f) );
-	uvs->appendElement( .0f, 1.0f );
-	positions->appendElement( math::Vec3f(1.0f,1.0f,0.0f) );
-	color->appendElement( math::Vec3f(1.0f,1.0f,0.0f) );
-	uvs->appendElement( 1.0f, 1.0f );
-	positions->appendElement( math::Vec3f(1.0f,-1.0f,0.0f) );
-	color->appendElement( math::Vec3f(0.0f,1.0f,0.0f) );
-	uvs->appendElement( 1.0f, .0f );
+		base::fs::read( f, &numPoints, sizeof(int), 1 );
+		for( int i=0;i<numPoints;++i )
+		{
+			math::Vec3f p, n, tangentu;
+			base::fs::read( f, &p.x, sizeof(float), 1 );
+			base::fs::read( f, &p.y, sizeof(float), 1 );
+			base::fs::read( f, &p.z, sizeof(float), 1 );
+			base::fs::read( f, &n.x, sizeof(float), 1 );
+			base::fs::read( f, &n.y, sizeof(float), 1 );
+			base::fs::read( f, &n.z, sizeof(float), 1 );
+			//base::fs::read( f, &tangentu.x, sizeof(float), 1 );
+			//base::fs::read( f, &tangentu.y, sizeof(float), 1 );
+			//base::fs::read( f, &tangentu.z, sizeof(float), 1 );
 
-	spriteGeo->setAttr( "P", positions);
-	spriteGeo->setAttr( "UV", uvs );
-	spriteGeo->setAttr( "Cd", color );
+			// displace normal
+			n.x += math::g_randomNumber()*2.0f-1.0f;
+			n.y += math::g_randomNumber()*2.0f-1.0f;
+			n.z += math::g_randomNumber()*2.0f-1.0f;
+			n.normalize();
 
-	spriteGeo->addQuad( 3, 2, 1, 0 );
+			particleCloud->addParticle( p, n, tangentu, 10 );
+			//positions.push_back( p );
+			//normals.push_back( n );
+		}
 
-	base::apply_normals( spriteGeo );
+		close(f);
+	}
+
+	particleCloud->buildGeometry();
 
 
 
 
 
 
+
+	
+	ParticleCloudUI *widget = new ParticleCloudUI(particleCloud);
+	widget->show();
+	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
 
 	//demoOp->startAudio();
 }
@@ -299,7 +329,7 @@ int main(int argc, char ** argv)
 	glviewer = new composer::widgets::GLViewer(init, render, shutdown);
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
-	glviewer->setRenderInSeperateThread(true);
+	//glviewer->setRenderInSeperateThread(true);
 	glviewer->setMouseMoveCallback( mouseMove );
 	glviewer->setKeyPressCallback( keyPress );
 	mainWin.setCentralWidget( glviewer );
