@@ -10,6 +10,8 @@ uniform mat4 vminv;
 uniform mat4 mm;
 uniform mat4 vm;
 
+uniform float globalAlpha;
+
 vec3 getCameraPos()
 {
 	// vmatrix transforms from camera to world space
@@ -38,11 +40,14 @@ void main()
 	float t = abs(dot( normalize(n), V ));
 	float mi = 0.1;
 	float alpha = step( mi, t )*((t-mi)/(1.0-mi));
+
+	alpha *= globalAlpha;
+	//float alpha = 1.0;
 	//gl_FragData[0] = vec4(alpha, alpha, alpha, 1.0);
 
 	// lookup texture for alpha, color from vertex colors
 	//gl_FragData[0] = vec4(cd, tex.x*alpha);
-	gl_FragData[0] = vec4(cd, tex.x*alpha);
+	gl_FragData[0] = vec4(cd, tex.a*alpha);
 	//gl_FragData[0] = vec4(cd, 1.0*alpha);
 
 	//gl_FragData[0] = vec4(1.0,1.0,1.0, tex.x);
