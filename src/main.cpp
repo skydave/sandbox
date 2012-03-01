@@ -5,7 +5,7 @@
 //============================================================================
 
 
-#include <fbxsdk.h>
+//#include <fbxsdk.h>
 
 // need this to make fbxsdk happy
 #ifdef _WINDOWS
@@ -173,13 +173,13 @@ void keyPress( base::KeyboardState &ks )
 	}
 }
 
-
+/*
 // Initialize the sdk manager. This object handles all our memory management.
 KFbxSdkManager* lSdkManager = NULL;
 KFbxIOSettings *ios = NULL;
 KFbxGeometryConverter  *geoConverter = NULL;
 KFbxAnimEvaluator *animEvaluator = NULL;
-
+*/
 
 
 

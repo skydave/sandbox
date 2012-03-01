@@ -1,4 +1,5 @@
 
+/*
 #pragma once
 #include <fbxsdk.h>
 #include <ops/Op.h>
@@ -31,16 +32,16 @@ public:
 		for( int i=0;i<4;++i )
 			for( int j=0;j<4;++j )
 				m.m[i][j] = worldTransform.Get( i, j );
-		/*
-		for( int i=0;i<4;++i )
-		{
-			for( int j=0;j<4;++j )
-			{
-				std::cout << m.m[i][j] << " ";
-			}
-			std::cout << std::endl;
-		}std::cout << std::endl;
-		*/
+
+		//for( int i=0;i<4;++i )
+		//{
+		//	for( int j=0;j<4;++j )
+		//	{
+		//		std::cout << m.m[i][j] << " ";
+		//	}
+		//	std::cout << std::endl;
+		//}std::cout << std::endl;
+
 		base::dynamic_pointer_cast<base::Variant>(m_outputs[0])->m_variant = m;
 	}
 
@@ -56,3 +57,5 @@ public:
 
 
 };
+
+*/
