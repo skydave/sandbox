@@ -87,8 +87,9 @@ visualstudio2010
 ----------------
 -download/extract qt-everywhere-opensource
 -copy to final location
--setup path environment variable to point to directory containing qmake
+-setup path environment variable to point to directory containing the extracted files (configure.exe)
 -Open vs2010 cross tools command prompt. cd into the Qt directory where configure.exe lives
+NOTE:if you want to compile 64bit, use Win64 command prompt
 -nmake confclean (if rebuilding)
 -configure.exe -debug-and-release -opensource -shared -platform wi
 n32-msvc2010 -no-webkit -no-phonon -no-phonon-backend -no-script -no-scripttools
