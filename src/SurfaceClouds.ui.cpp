@@ -43,6 +43,7 @@ SurfaceCloudsUI::SurfaceCloudsUI( SurfaceCloudsPtr surfaceClouds, QWidget *paren
 
 void SurfaceCloudsUI::onSunDirChanged(float x, float y, float z)
 {
+	//std::cout << x << " " << y << " " << z << std::endl;
 	m_surfaceClouds->setSunDir( math::Vec3f(x, y, z) );
 	emit makeDirty();
 }

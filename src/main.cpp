@@ -93,6 +93,8 @@ void onPlayButtonPressed( bool checked )
 
 void render( base::CameraPtr cam )
 {
+	glEnable( GL_CULL_FACE );
+	glEnable( GL_DEPTH_TEST );
 	context->setCamera( cam );
 
 

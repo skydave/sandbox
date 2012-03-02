@@ -8,6 +8,9 @@ uniform vec3          sunDir;
 uniform mat4           vminv;
 
 
+float fbm2d( vec2 p, int octaves, float lacunarity, float gain );
+
+
 vec3 getCameraPos()
 {
 	// vmatrix transforms from camera to world space
@@ -58,8 +61,16 @@ void main()
 	vec3 N = n;
 
 
+	float fbm = fbm2d( uv*20.0, 8, 2.0, 0.5 );
+	float delta = 0.01;
+	float fbm_dx = (fbm - fbm2d( (uv+vec2(delta, 0.0))*20.0, 8, 2.0, 0.5 ))/delta;
+	float fbm_dy = (fbm - fbm2d( (uv+vec2(0.0, delta))*20.0, 8, 2.0, 0.5 ))/delta;
+	vec3 dfbm = vec3(fbm_dx, 0.0, fbm_dy);
+	N = normalize( n - dfbm );
+
 	// do some fake lighting to check
-	gl_FragData[0] = phong(N, E, L);
+	//gl_FragData[0] = phong(N, E, L);
+	gl_FragData[0] = lambert(N, E, L);
 
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 0.0);
 	//gl_FragData[0] = vec4(1.0, 1.0, 1.0, 1.0);
