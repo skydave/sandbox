@@ -30,6 +30,7 @@ namespace composer
 		protected:
 			void mouseMoveEvent( QMouseEvent * event );
 			void drawBackground( QPainter * painter, const QRectF & rect );
+			void resizeEvent ( QResizeEvent * event );
 
 		private:
 			typedef std::map<QGraphicsItem *, math::Vec3f> ItemMap;

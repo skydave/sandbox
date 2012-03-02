@@ -13,7 +13,8 @@ namespace composer
 		{
 			QGraphicsScene *scene = new QGraphicsScene(this);
 			scene->setItemIndexMethod(QGraphicsScene::NoIndex);
-			scene->setSceneRect(-200, -200, 400, 400);
+			//scene->setSceneRect(-200, -200, 400, 400);
+			//scene->setSceneRect(-350, -350, 400, 400);
 			//scene->setSceneRect(-1, -1, 2, 2);
 
 			setScene(scene);
@@ -27,18 +28,12 @@ namespace composer
 			//setAlignment( Qt::AlignJustify );
 
 
-			setMinimumSize(400, 400);
-			setWindowTitle(tr("Elastic Nodes"));
+			//setMinimumSize(400, 400);
+			setWindowTitle(tr("Trackball"));
 			setMouseTracking( true );
 
 			setHorizontalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
 			setVerticalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
-
-
-			//this->fitInView(-1,-1,2,2);
-			scale(50.0f, 50.0f);
-			centerOn(0.0f, 0.0f);
-
 			
 			m_projector = new ProjectorItem();
 			scene->addItem(m_projector);
@@ -93,7 +88,7 @@ namespace composer
 			QGraphicsTextItem *text = new QGraphicsTextItem();
 			QGraphicsRectItem *p1 = new QGraphicsRectItem(0,0,0.5f,0.5f);
 			QGraphicsRectItem *p2 = new QGraphicsRectItem(0,0,0.5f,0.5f);
-			text->setHtml("deine muddah");
+			text->setHtml("test");
 			//addItem( p1, math::Vec3f( 1.0f, 0.0f, 0.0f) );
 			//addItem( p2, math::Vec3f(-.2f, 0.0f, -1.0f) );
 		}
@@ -106,6 +101,15 @@ namespace composer
 		void Trackball::addItem( QGraphicsItem *item, const math::Vec3f &pos )
 		{
 			m_projector->addItem(item, pos);
+		}
+
+		void Trackball::resizeEvent ( QResizeEvent * event )
+		{
+			if( parentWidget() )
+			{
+				translate( parentWidget()->geometry().width()/2, parentWidget()->geometry().height()/2);
+				scale( parentWidget()->geometry().width()/3.5f, parentWidget()->geometry().height()/3.5f );
+			}
 		}
 
 		void Trackball::mouseMoveEvent( QMouseEvent * event )
