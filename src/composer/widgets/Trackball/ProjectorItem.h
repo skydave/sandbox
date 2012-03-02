@@ -25,6 +25,7 @@ namespace composer
 			void addItem( QGraphicsItem *item, const math::Vec3f &pos );
 			void set3dPos( QGraphicsItem *item, const math::Vec3f &pos );
 			math::Vec3f get3dPos( QGraphicsItem *item );
+			void clear();       // removes all added items
 
 		protected:
 			QRectF boundingRect() const;

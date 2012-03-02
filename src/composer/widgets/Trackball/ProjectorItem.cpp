@@ -25,6 +25,14 @@ namespace composer
 			item->setParentItem( this );
 		}
 
+		// removes all added items
+		void ProjectorItem::clear()
+		{
+			for( ItemMap::iterator it = m_items.begin(); it != m_items.end(); ++it )
+				delete it->first;
+			m_items.clear();
+		}
+
 		void ProjectorItem::set3dPos( QGraphicsItem *item, const math::Vec3f &pos )
 		{
 			m_items[item] = pos;

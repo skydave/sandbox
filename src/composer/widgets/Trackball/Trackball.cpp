@@ -37,10 +37,20 @@ namespace composer
 			
 			m_projector = new ProjectorItem();
 			scene->addItem(m_projector);
+			
 
+			setVector(0.0f, 1.0f, 0.0f);
+		}
 
+		void Trackball::setVector( const math::Vec3f v )
+		{
+			//clear all current items
+			m_projector->clear();
 
+			// construct rotationmatrix from given vector
+			math::Matrix44f rotation = math::Matrix44f::RotationMatrix( math::Vec3f(0.0f, 1.0f, 0.0f), v );
 
+			// add items
 			int uSubdivisions = 10;
 			int vSubdivisions = 10;
 			float radius = 1.0f;
@@ -64,11 +74,12 @@ namespace composer
 
 					p = radius*p + sphereCenter;
 
+					p = math::transform( p, rotation);
+
 					//positions->appendElement( p );
 					QGraphicsRectItem *p1 = new QGraphicsRectItem(0,0,0.15f,0.15f);
 					p1->setBrush( QBrush( Qt::black ) );
 					addItem( p1, p );
-
 					phi+=dPhi;
 				}
 			}
@@ -76,21 +87,17 @@ namespace composer
 			{
 				QGraphicsRectItem *p1 = new QGraphicsRectItem(0,0,0.15f,0.15f);
 				p1->setBrush( QBrush( Qt::red ) );
-				addItem( p1, math::Vec3f(0.0f, 1.0f, 0.0f)*radius + sphereCenter );
+				addItem( p1, math::transform( math::Vec3f(0.0f, 1.0f, 0.0f), rotation)*radius + sphereCenter );
 				m_vecItem = p1;
 				QGraphicsRectItem *p2 = new QGraphicsRectItem(0,0,0.15f,0.15f);
 				p2->setBrush( QBrush( Qt::black ) );
-				addItem( p2, math::Vec3f(0.0f, -1.0f, 0.0f)*radius + sphereCenter );
+				addItem( p2, math::transform( math::Vec3f(0.0f, -1.0f, 0.0f), rotation)*radius + sphereCenter );
 			}
-			//int pole1 = positions->appendElement( math::Vec3f(0.0f, 1.0f, 0.0f)*radius + center );
-			//int pole2 = positions->appendElement( math::Vec3f(0.0f, -1.0f, 0.0f)*radius + center );
+		}
 
-			QGraphicsTextItem *text = new QGraphicsTextItem();
-			QGraphicsRectItem *p1 = new QGraphicsRectItem(0,0,0.5f,0.5f);
-			QGraphicsRectItem *p2 = new QGraphicsRectItem(0,0,0.5f,0.5f);
-			text->setHtml("test");
-			//addItem( p1, math::Vec3f( 1.0f, 0.0f, 0.0f) );
-			//addItem( p2, math::Vec3f(-.2f, 0.0f, -1.0f) );
+		void Trackball::setVector( float x, float y, float z )
+		{
+			setVector( math::Vec3f(x, y, z) );
 		}
 
 		void Trackball::setCallback( ChangedCallback callback )
@@ -100,7 +107,9 @@ namespace composer
 
 		void Trackball::addItem( QGraphicsItem *item, const math::Vec3f &pos )
 		{
-			m_projector->addItem(item, pos);
+			math::Vec3f t = pos;
+			t.y=-t.y;
+			m_projector->addItem(item, t);
 		}
 
 		void Trackball::resizeEvent ( QResizeEvent * event )

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <map>
 
 #include <QtGui>
 #include <QGraphicsView>
@@ -21,6 +22,9 @@ namespace composer
 		public:
 			Trackball(QWidget *parent = 0);
 
+			void setVector( float x, float y, float z );
+			void setVector( const math::Vec3f v );
+
 			typedef void (*ChangedCallback)( const math::Vec3f &vector );
 			void setCallback( ChangedCallback callback );
 
@@ -39,10 +43,11 @@ namespace composer
 			void rotateItems( math::Vec3f origin, float azimuth, float elevation );
 
 			ChangedCallback m_callback;
-			QPoint m_lastMousePos;
-			QGraphicsItem *m_vecItem;
+			QPoint      m_lastMousePos;
 
-			ProjectorItem *m_projector;
+			QGraphicsItem                                    *m_vecItem; // this item identifies the vector we are tracking
+
+			ProjectorItem                                  *m_projector; // main item to which we will add all other items. projector will set the 2d position from 3d positions using a projection
 		};
 	}
 }

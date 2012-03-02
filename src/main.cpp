@@ -39,6 +39,7 @@
 #include "clouds.ui.h"
 
 #include "SurfaceClouds.h"
+#include "SurfaceClouds.ui.h"
 
 composer::widgets::CurveEditor *curveEditor;
 composer::widgets::GLViewer *glviewer;
@@ -573,6 +574,12 @@ void init()
 
 
 	surfaceClouds = SurfaceCloudsPtr( new SurfaceClouds() );
+	SurfaceCloudsUI *widget = new SurfaceCloudsUI(surfaceClouds);
+	//glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
+	widget->show();
+	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
+
+
 }
 
 
