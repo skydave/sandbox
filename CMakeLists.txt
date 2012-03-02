@@ -4,7 +4,11 @@ project("app")
 
 cmake_minimum_required(VERSION 2.8)
 
+# this changes per project ===========
+set( CMAKE_CURRENT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
+
 add_definitions(-DSRC_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}\")
+add_definitions(-DBASE_PATH=\"${CMAKE_CURRENT_BASE_DIR}\")
 
 
 #
@@ -26,43 +30,6 @@ MACRO (sourceGroups sources)
 
 	ENDFOREACH (src)
 ENDMACRO (sourceGroups)
-
-#
-# create custom build command for glsl files
-#
-MACRO (generateCppFromGLSL sources outputs)
-	FOREACH (src ${${sources}})
-	
-		# filter glsl files
-		if(${src} MATCHES "\\.glsl$")
-
-			# strip of path and just leave filename
-			string(REGEX REPLACE "(.)*[\\\\/]" "" filename ${src})
-
-			# assemble output filename
-			set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${filename}.cpp )
-
-			if( CMAKE_SYSTEM_NAME MATCHES Linux )
-				set( pythoncommand "python2.6" )
-			elseif( CMAKE_SYSTEM_NAME MATCHES Windows )
-				set( pythoncommand "python.exe" )
-			endif(CMAKE_SYSTEM_NAME MATCHES Linux)
-		
-			# add custom command
-			add_custom_command( OUTPUT ${outfile}
-								COMMAND ${pythoncommand} ${CMAKE_CURRENT_SOURCE_DIR}/src/base/buildtools/glsl2cpp.py ${src} > ${outfile}
-								DEPENDS ${src} )
-
-			# assign source group
-			source_group(generated FILES ${outfile})
-		
-			# store output
-			set( ${outputs} ${${outputs}} ${outfile} )
-		
-		endif(${src} MATCHES "\\.glsl$")
-
-	ENDFOREACH (src)
-ENDMACRO (generateCppFromGLSL)
 
 #
 # create moc files for each header which contains string "Q_OBJECT"
@@ -106,6 +73,25 @@ MACRO (generateQtOutputs sources moc_outputs ui_outputs)
 	source_group(generated FILES ${${ui_outputs}})
 ENDMACRO (generateQtOutputs)
 
+
+# on windows
+if( CMAKE_SYSTEM_NAME MATCHES Windows )
+	add_definitions(-DNOMINMAX) # windows defines min and max in winbase.h which clashes with stl
+	add_definitions(-DPA_USE_DS) # portaudio to use directx sound on windows
+
+	# static runtime (http://www.cmake.org/Wiki/CMake_FAQ#How_can_I_build_my_MSVC_application_with_a_static_runtime.3F)
+	foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+		if(${flag_var} MATCHES "/MD")
+			string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+		endif(${flag_var} MATCHES "/MD")
+	endforeach(flag_var)
+endif( CMAKE_SYSTEM_NAME MATCHES Windows )
+
+# on linux
+if( CMAKE_SYSTEM_NAME MATCHES Linux )
+	add_definitions(-DPA_USE_ALSA) # portaudio to use alsa on linux
+endif( CMAKE_SYSTEM_NAME MATCHES Linux )
+
 #
 # QT
 #
@@ -120,20 +106,20 @@ add_definitions(${QT_DEFINITIONS})
 #
 
 #specify app sources
-file(GLOB_RECURSE app_sources src/*.c src/*.cpp src/*.h src/*.glsl src/*.ui)
+file(GLOB_RECURSE app_sources src/*.c src/*.cpp src/*.h src/*.hpp src/*.glsl src/*.ui)
 sourceGroups( app_sources )
-
-#glsl build commands
-generateCppFromGLSL(app_sources glsl_outputs)
 
 #qt moc and ui
 generateQtOutputs( app_sources moc_outputs ui_outputs)
 
 # Create an executable
-add_executable(app ${app_sources} ${glsl_outputs} ${moc_outputs} ${ui_outputs})
+add_executable(app ${app_sources} ${moc_outputs} ${ui_outputs})
 
 # add base to include directories
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
+
+# we compile some third party code with base which we want to include conveniently
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src/base/3rdparty )
 
 # qt ui headers are generated in build dir
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
@@ -142,16 +128,25 @@ include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 # set link dependecies
 #
 
-# X11 on linux
+# on linux
 if( CMAKE_SYSTEM_NAME MATCHES Linux )
+	# X11
 	find_package(X11)
 
 	if(NOT X11_FOUND)
 		message(FATAL_ERROR "Failed to find X11 which is required to build under linux")
 	endif(NOT X11_FOUND)
 
-
 	target_link_libraries(app ${X11_LIBRARIES})
+
+	# alsa
+	find_package(ALSA)
+
+	if(NOT ALSA_FOUND)
+		message(FATAL_ERROR "Failed to find ALSA which is required to build under linux")
+	endif(NOT ALSA_FOUND)
+
+	target_link_libraries(app ${ALSA_LIBRARIES})
 
 endif( CMAKE_SYSTEM_NAME MATCHES Linux )
 
@@ -161,3 +156,6 @@ target_link_libraries(app ${OPENGL_gl_LIBRARY})
 
 # Qt
 target_link_libraries(app ${QT_LIBRARIES})
+
+# FBX
+target_link_libraries(app ${FBX_LIBRARIES})

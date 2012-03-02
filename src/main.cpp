@@ -27,7 +27,7 @@
 #include <gfx/Image.h>
 #include <gfx/Context.h>
 #include <gfx/FCurve.h>
-#include <gfx/glsl/common.h>
+#include <gfx/glsl/noise.h>
 #include <gfx/FBO.h>
 
 
@@ -37,6 +37,8 @@
 #include "composer/widgets/GLViewer/GLViewer.h"
 #include <ui_clouds.h>
 #include "clouds.ui.h"
+
+#include "SurfaceClouds.h"
 
 composer::widgets::CurveEditor *curveEditor;
 composer::widgets::GLViewer *glviewer;
@@ -65,6 +67,8 @@ float *clouds_parameters_tex;
 base::Texture2dPtr clouds_parmameters;
 
 
+SurfaceCloudsPtr surfaceClouds;
+
 extern char cloud_ps[];
 extern int cloud_ps_size;
 extern char cloud_vs[];
@@ -85,153 +89,42 @@ void onPlayButtonPressed( bool checked )
 	}
 }
 
+
 void render( base::CameraPtr cam )
 {
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	context->setCamera( cam );
+
+
+	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glMatrixMode( GL_PROJECTION );
-	glPushMatrix();
-	glLoadMatrixf( cam->m_projectionMatrix.ma );
-
-	glMatrixMode( GL_MODELVIEW );
-	glPushMatrix();
-	glLoadMatrixf( (GLfloat *)cam->m_viewMatrix.ma );
-
-	// draw scene
-	base::drawGrid(false);
-
-	/*
-	glPointSize(5.0f);
-
-	int numSamples = 20;
-
-	for(int i=0;i<numSamples;++i)
-	{
-		float x = i*1.0f/numSamples;
-		float y = curve1->eval( x );
-		glBegin( GL_POINTS );
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3f( x, y, 0.0f );
-		glEnd();
-	}
-	*/
-
-	math::Matrix44f T_f3d = math::Matrix44f::TranslationMatrix( -1,0,0 )*math::Matrix44f::ScaleMatrix(5);
-	math::Matrix44f T_f3d_invers = T_f3d;
-	T_f3d_invers.invert();
-	math::Matrix44f T = math::Matrix44f::TranslationMatrix( 1,0,0 ) * T_f3d;
-
-	math::Matrix44f delta = T*T_f3d_invers;
-	math::Matrix44f T_ = delta * T_f3d;
-
-	if( T == T_ )
-		std::cout << "ARE EQUAL\n";
-	else
-		std::cout << "ARE NOT EQUAL\n";
-
-	base::drawTransform( delta );
-
-	/*
-	glBegin( GL_POINTS );
-	glColor3f(1.0f, 0.0f, 0.0f);
-	for( std::vector<math::Vec3f>::iterator it = positions.begin(); it != positions.end(); ++it )
-	{
-		math::Vec3f &v=*it;
-		glVertex3f( v.x, v.y, v.z );
-	}
-	glEnd();
-	*/
-
-
-/*
-	//
-	base::AttributePtr a = geo->getAttr("P");
-
-	switch( geo->primitiveType() )
-	{
-		default:
-		case base::Geometry::POINT:
-		{
-			for( unsigned int i=0; i<geo->numPrimitives();++i )
-			{
-				glBegin( GL_POINTS );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v=a->get<math::Vec3f>(i);
-				glVertex3f( v.x, v.y, v.z );
-				glEnd();
-			}
-		}break;
-		case base::Geometry::TRIANGLE:
-		{
-			std::vector<unsigned int>::iterator it = geo->m_indexBuffer.begin();
-			std::vector<unsigned int>::iterator end = geo->m_indexBuffer.end();
-			while( it != end )
-			{
-				glBegin( GL_TRIANGLES );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v0=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v1=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v2=a->get<math::Vec3f>(*it++);
-				glVertex3f( v0.x, v0.y, v0.z );
-				glVertex3f( v1.x, v1.y, v1.z );
-				glVertex3f( v2.x, v2.y, v2.z );
-				glEnd();
-			}
-		}break;
-		case base::Geometry::QUAD:
-		{
-			std::vector<unsigned int>::iterator it = geo->m_indexBuffer.begin();
-			std::vector<unsigned int>::iterator end = geo->m_indexBuffer.end();
-			while( it != end )
-			{
-				glBegin( GL_QUADS );
-				glColor3f(1.0f, 0.0f, 0.0f);
-				math::Vec3f &v0=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v1=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v2=a->get<math::Vec3f>(*it++);
-				math::Vec3f &v3=a->get<math::Vec3f>(*it++);
-				glVertex3f( v0.x, v0.y, v0.z );
-				glVertex3f( v1.x, v1.y, v1.z );
-				glVertex3f( v2.x, v2.y, v2.z );
-				glVertex3f( v3.x, v3.y, v3.z );
-				glEnd();
-			}
-		}break;
-	};
-*/
-
-	glMatrixMode( GL_PROJECTION );
-	glPopMatrix();
-
-	glMatrixMode( GL_MODELVIEW );
-	glPopMatrix();
+	context->render( surfaceClouds->m_geo, surfaceClouds->m_shader );
 }
 
-void render2( base::CameraPtr cam )
+void render_old( base::CameraPtr cam )
 {
+	/*
+	// debug
 	//fbo->begin(false);
 	glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE);glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
 	glDisable( GL_CULL_FACE );
 	//glEnable( GL_CULL_FACE );
+	*/
 	glEnable( GL_DEPTH_TEST );
 
-	std::cout << "render2a " << cam->m_transform.getRight().x << " " << cam->m_transform.getRight().y << " " << cam->m_transform.getRight().z << std::endl;
-	std::cout << "render2b " << cam->m_transform.getUp().x << " " << cam->m_transform.getUp().y << " " << cam->m_transform.getUp().z << std::endl;
-	std::cout << "render2c " << cam->m_transform.getDir().x << " " << cam->m_transform.getDir().y << " " << cam->m_transform.getDir().z << std::endl;
+
+	//std::cout << "render2a " << cam->m_transform.getRight().x << " " << cam->m_transform.getRight().y << " " << cam->m_transform.getRight().z << std::endl;
+	//std::cout << "render2b " << cam->m_transform.getUp().x << " " << cam->m_transform.getUp().y << " " << cam->m_transform.getUp().z << std::endl;
+	//std::cout << "render2c " << cam->m_transform.getDir().x << " " << cam->m_transform.getDir().y << " " << cam->m_transform.getDir().z << std::endl;
 
 
-	context->setView( cam->m_viewMatrix, cam->m_transform, cam->m_projectionMatrix );
-
+	context->setCamera( cam );
 
 	// render to screen
 	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//context->renderScreen( shader_screen );
-	//glEnable( GL_BLEND );
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	context->render( geo, cloudShader );
-	//context->render( baseGeo, baseShader );
 
 	/*
 	// debug
@@ -464,7 +357,7 @@ void init()
 
 	//
 	//cloudShader = base::Shader::load(cloud_vs, cloud_vs_size, cloud_ps, cloud_ps_size).attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
-	cloudShader = base::Shader::load(base::Path( SRC_PATH ) + "/src/cloud_vs.glsl", base::Path( SRC_PATH ) + "/src/cloud_ps.glsl").attachPS( base::glsl::common() ).attachVS( base::glsl::common() );
+	cloudShader = base::Shader::load(base::Path( SRC_PATH ) + "/src/cloud_vs.glsl", base::Path( SRC_PATH ) + "/src/cloud_ps.glsl").attachPS( base::glsl::noiseSrc() ).attachVS( base::glsl::noiseSrc() );
 	cloudShader->setUniform( "input", texture2d->getUniform() );
 
 
@@ -660,13 +553,11 @@ void init()
 
 
 
-	CloudsUI *widget = new CloudsUI(P_theta);
-
+/*	CloudsUI *widget = new CloudsUI(P_theta);
 	glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
-
 	widget->show();
 	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
-
+*/
 
 
 
@@ -679,46 +570,14 @@ void init()
 	baseTexture = base::Texture2d::load( base::Path( SRC_PATH ) + "/src/base/data/uvref2.png" );
 	baseShader->setUniform( "input", baseTexture->getUniform() );
 */
+
+
+	surfaceClouds = SurfaceCloudsPtr( new SurfaceClouds() );
 }
 
 
 int main(int argc, char ** argv)
 {
-	//base::GLViewer window( 800, 600, "test", render2 );
-	//window.getCamera()->m_znear = 1.0f;
-	//window.getCamera()->m_zfar = 100000.0f;
-	//window.show();
-	//base::Application app;
-
-
-
-
-	//init();
-
-
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	//return app.exec();
-
-
 	//Q_INIT_RESOURCE(application);
 	QApplication app(argc, argv);
 	app.setOrganizationName("test");
@@ -726,13 +585,14 @@ int main(int argc, char ** argv)
 
 	QMainWindow mainWin;
 	mainWin.resize(800, 600);
-	glviewer = new composer::widgets::GLViewer(init, render2);
+	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
+	glviewer->getOrbitNavigator().m_distance = 10000.0f;
+	glviewer->getOrbitNavigator().m_elevation = 45.0f;
+	glviewer->getOrbitNavigator().update();
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
 
-
 	return app.exec();
-
 }

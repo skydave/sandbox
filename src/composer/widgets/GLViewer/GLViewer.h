@@ -24,6 +24,7 @@ namespace composer
 			virtual ~GLViewer();
 
 			base::CameraPtr getCamera();
+			base::OrbitNavigator &getOrbitNavigator();
 		public slots:
 			void setRenderInSeperateThread( bool state );
 		public:

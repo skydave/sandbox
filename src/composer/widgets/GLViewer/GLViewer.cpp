@@ -30,6 +30,11 @@ namespace composer
 			return m_orbitNavigator.m_camera;
 		}
 
+		base::OrbitNavigator &GLViewer::getOrbitNavigator()
+		{
+			return m_orbitNavigator;
+		}
+
 		void GLViewer::initializeGL()
 		{
 			if(m_init)
