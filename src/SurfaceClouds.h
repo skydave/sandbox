@@ -27,10 +27,11 @@ struct SurfaceClouds
 	void setSunDir( math::Vec3f sunDir );
 
 	// (cached) parameters
-	math::Vec3f           m_sunDir;
+	math::Vec3f                    m_sunDir;
 
-	base::GeometryPtr        m_geo;
-	base::ShaderPtr       m_shader;
+	base::GeometryPtr                 m_geo;
+	base::ShaderPtr                m_shader;
+	base::Texture2dPtr         m_parameters;
 
 
 
