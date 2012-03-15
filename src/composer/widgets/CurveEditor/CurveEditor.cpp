@@ -32,11 +32,11 @@ namespace composer
 
 
 
-			QGraphicsTextItem *text = scene->addText( "Deine Muddah" );
 			m_rootItem = new QGraphicsItemGroup();
 			m_rootItem->setHandlesChildEvents(false);
 			m_rootItem->addToGroup( new AxisItem() );
-			m_rootItem->addToGroup( text );
+			//QGraphicsTextItem *text = scene->addText( "Test Text" );
+			//m_rootItem->addToGroup( text );
 			scene->addItem(m_rootItem);
 
 			m_minScale = .01f;

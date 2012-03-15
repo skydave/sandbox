@@ -75,16 +75,33 @@ void main()
 {
 	vec3 L = normalize(sunDir);
 	vec3 E = normalize(getCameraPos() - pw.xyz);
+	//vec3 E = normalize(vec3(297.46, 12612.0, 17041.6) - pw.xyz);
+	//vec3 E = normalize(vec3(0.001, 13607.0, -18057.0) - pw.xyz);
 	vec3 N = normalize(n);
 
+	///*
+	float sign = 1.0;
 	float fbm = fbm2d( uv*20.0, 2, 2.0, 0.5 )*0.5+0.5;
 	float delta = 0.0075;
-	float fbm_du = (fbm - (fbm2d( (uv+vec2(delta, 0.0))*20.0, 2, 2.0, 0.5 )*0.5+0.5));
-	float fbm_dv = (fbm - (fbm2d( (uv+vec2(0.0, delta))*20.0, 2, 2.0, 0.5 )*0.5+0.5));
+	float fbm_du = (fbm - (fbm2d( (uv+sign*vec2(delta, 0.0))*20.0, 2, 2.0, 0.5 )*0.5+0.5));
+	float fbm_dv = (fbm - (fbm2d( (uv+sign*vec2(0.0, delta))*20.0, 2, 2.0, 0.5 )*0.5+0.5));
 
-	vec3 dx = vec3( 1.0, fbm_du, 0.0 );
-	vec3 dz = vec3( 0.0, fbm_dv, 1.0 );
+	vec3 dx = normalize(vec3( sign*1.0, fbm_du, 0.0 ));
+	vec3 dz = normalize(vec3( 0.0, fbm_dv, sign*1.0 ));
 	N = normalize( cross(dz, dx) );
+	//*/
+
+	/*
+	float fbm = fbm2d( uv*20.0, 2, 2.0, 0.5 )*0.5+0.5;
+	float delta = 0.0030;
+	float fbm_du = ((fbm2d( (uv+vec2(delta, 0.0))*20.0, 2, 2.0, 0.5 )*0.5+0.5) - (fbm2d( (uv-vec2(delta, 0.0))*20.0, 2, 2.0, 0.5 )*0.5+0.5));
+	float fbm_dv = ((fbm2d( (uv+vec2(0.0, delta))*20.0, 2, 2.0, 0.5 )*0.5+0.5) - (fbm2d( (uv-vec2(0.0, delta))*20.0, 2, 2.0, 0.5 )*0.5+0.5));
+
+	vec3 dx = normalize(vec3( 1.0, fbm_du, 0.0 ));
+	vec3 dz = normalize(vec3( 0.0, fbm_dv, 1.0 ));
+	N = normalize( cross(dz, dx) );
+	*/
+
 
 	// user input ---
 	float maxHeight = 500.0;
@@ -92,7 +109,7 @@ void main()
 	// compute some globals ======================================
 	//float H = fbm*maxHeight;
 	float H = 0.5*maxHeight;
-	float theta_el = acos(dot( E, L ));
+	float theta_el = acos(-dot( E, L ));
 	//float mu_l = max(dot( N, L ), 0.0);
 	//float mu_e = max(dot( N, E ), 0.0);
 	float mu_l = dot( N, L );
@@ -103,13 +120,21 @@ void main()
 
 	// single scattering contribution ============================
 	float Ir_1 = (1.0-P_f)*N0*PI*re*re*P(theta_el)*(mu_l/(mu_e+mu_l))*(1.0-exp( -(1.0-P_f)*N0*PI*re*re*(H_l+H_e) ));
+	//float Ir_1 = (1.0-P_f)*N0*PI*re*re*P(theta_el)*(mu_l/(mu_e+mu_l));
+	//float Ir_1 = (1.0/(4.0*PI))*(mu_l/(mu_e+mu_l));
+	//float Ir_1 = mu_l/10.0;
 
-
+	//N.x *= 100.0;
+	//N.z *= 100.0;
 	vec3 result = Ir_1*C_sun*10.0;
+	//vec3 result = N;
 
 	// do some fake lighting to check
+	//gl_FragData[0] = lambert(N, E, L);
 	//gl_FragData[0] = phong(N, E, L);
 	gl_FragData[0] = vec4(result, 1.0);
+
+
 	//gl_FragData[0] = lambert(N, E, L);
 
 	//gl_FragData[0] = vec4(uv.x, uv.y, 0.0, 0.0);

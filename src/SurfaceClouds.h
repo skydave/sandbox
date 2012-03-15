@@ -23,15 +23,20 @@ struct SurfaceClouds
 
 
 	SurfaceClouds();
+	~SurfaceClouds();
 
-	void setSunDir( math::Vec3f sunDir );
+	void                         setSunDir( math::Vec3f sunDir );
+	void             setMaxVertexHeight( float maxVertexHeight );
 
 	// (cached) parameters
 	math::Vec3f                    m_sunDir;
+	float                  m_maxVertexHeight;
 
 	base::GeometryPtr                 m_geo;
 	base::ShaderPtr                m_shader;
+	base::FCurve            m_phaseFunction; // P_theta
 	base::Texture2dPtr         m_parameters;
+	float                 *m_parameters_tex; // we keep it to allow updating of parameters
 
 
 

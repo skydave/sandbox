@@ -107,6 +107,9 @@ void render( base::CameraPtr cam )
 	context->setModelMatrix( math::Matrix44f::TranslationMatrix(surfaceClouds->m_sunDir*10000.0) );
 	context->render( sphere, baseShader );
 	context->setModelMatrix( math::Matrix44f::Identity() );
+
+	math::Vec3f pos = cam->m_transform.getTranslation();
+	std::cout << pos.x << " " << pos.y << " " << pos.z << std::endl;
 }
 
 void render_old( base::CameraPtr cam )

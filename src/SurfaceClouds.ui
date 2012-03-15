@@ -16,8 +16,8 @@
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>420</x>
-     <y>470</y>
+     <x>220</x>
+     <y>10</y>
      <width>211</width>
      <height>191</height>
     </rect>
@@ -138,8 +138,11 @@
       </item>
       <item row="1" column="1">
        <widget class="QSlider" name="maxVertexHeightSlider">
+        <property name="maximum">
+         <number>1000</number>
+        </property>
         <property name="value">
-         <number>50</number>
+         <number>500</number>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -252,6 +255,31 @@
      </item>
     </layout>
    </widget>
+  </widget>
+  <widget class="QGroupBox" name="phaseFunctionGroup">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>240</y>
+     <width>521</width>
+     <height>391</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>PhaseFunction</string>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_2">
+    <item>
+     <widget class="QFrame" name="phaseFunctionFrame">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+     </widget>
+    </item>
+   </layout>
   </widget>
  </widget>
  <resources/>

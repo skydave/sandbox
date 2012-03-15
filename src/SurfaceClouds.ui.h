@@ -4,7 +4,7 @@
 
 #include "SurfaceClouds.h"
 
-//#include "composer/widgets/CurveEditor/CurveEditor.h"
+#include "composer/widgets/CurveEditor/CurveEditor.h"
 #include "composer/widgets/Trackball/Trackball.h"
 
 class SurfaceCloudsUI : public QWidget
@@ -16,9 +16,11 @@ public:
 
 public slots:
 	void onSunDirChanged(float x, float y, float z);
+	void onPhiFunctionChanged(const QString &curveId);
+	void onMaxVertexHeightValueChanged(int value);
+	void onReloadShaderButtonPressed( bool checked );
 	/*
 	void onMaxHeightValueChanged(int value);
-	void onMaxVertexHeightValueChanged(int value);
 	void onSunValueChanged(int value);
 	void onSkyValueChanged(int value);
 	void onGroundValueChanged(int value);
@@ -27,15 +29,13 @@ public slots:
 	void onIr3ValueChanged(int value);
 	void onOctavesValueChanged(int value);
 	void onFrequencyValueChanged(int value);
-	void onPhiFunctionChanged(const QString &curveId);
-	void onReloadShaderButtonPressed( bool checked );
 	*/
 signals:
 	void makeDirty(void);
 
 private:
 	Ui_SurfaceCloudsForm ui;
-	//composer::widgets::CurveEditor *m_curveEditor;
+	composer::widgets::CurveEditor *m_curveEditor;
 	composer::widgets::Trackball *m_trackball;
 
 	SurfaceCloudsPtr m_surfaceClouds;

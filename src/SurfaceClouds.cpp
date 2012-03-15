@@ -9,12 +9,36 @@
 
 
 #include <util/StringManip.h>
+#include <math/PerlinNoise.h>
 
 
 SurfaceClouds::SurfaceClouds()
 {
 	m_geo = base::geo_grid( 250, 250 );
 	base::apply_transform( m_geo, math::Matrix44f::ScaleMatrix( 30000.0f ) );
+
+	/*
+	// temp
+	{
+		math::PerlinNoise pn;
+		pn.setDepth(2);
+		pn.setFrequency(20.0);
+		base::AttributePtr ps = m_geo->getAttr( "P" );
+		base::AttributePtr uvs = m_geo->getAttr( "UV" );
+
+		int numElements= uvs->numElements();
+		for( int i=0;i<numElements;++i )
+		{
+			math::Vec3f p = ps->get<math::Vec3f>(i);
+			math::Vec2f uv = uvs->get<math::Vec2f>(i);
+			float n = pn.perlinNoise_2D(uv.x, uv.y)*0.5*0.5;
+			p.y += n*6000.0;
+			ps->set(i, p );
+		}
+	}
+	*/
+
+
 	base::apply_normals( m_geo );
 
 	m_shader = base::Shader::load(base::Path( SRC_PATH ) + "/src/SurfaceClouds.vs.glsl", base::Path( SRC_PATH ) + "/src/SurfaceClouds.ps.glsl").attachPS( base::glsl::noiseSrc() ).attachVS( base::glsl::noiseSrc() );
@@ -112,11 +136,11 @@ SurfaceClouds::SurfaceClouds()
 	r->addCP(1.0f - cos(math::degToRad(70.0f)), 0.1700f);
 	r->addCP(1.0f - cos(math::degToRad(80.0f)), 0.3554f);
 	r->addCP(1.0f - cos(math::degToRad(90.0f)), 0.9500f);
-	base::FCurve P_theta(base::FCurve::LINEAR);
+	m_phaseFunction = base::FCurve(base::FCurve::LINEAR);
 	float theta = 0.0f;
 	for(int n=0; n<P_theta_samples.size();++n)
 	{
-		P_theta.addCP(theta/MATH_PIf, P_theta_samples[n]);
+		m_phaseFunction.addCP(theta/MATH_PIf, P_theta_samples[n]);
 		theta += (MATH_PIf/P_theta_samples.size());
 	}
 
@@ -131,7 +155,7 @@ SurfaceClouds::SurfaceClouds()
 		for(int n=0; n<numS;++n)
 		{
 			if( theta < theta_f )
-				A_slice += P_theta.eval((float)n/(float)numS)*sin(theta);
+				A_slice += m_phaseFunction.eval((float)n/(float)numS)*sin(theta);
 
 			theta += (MATH_PIf/numS);
 		}
@@ -148,25 +172,24 @@ SurfaceClouds::SurfaceClouds()
 
 	int numSamples = 512;
 	int numParameters = 2;
-	float *clouds_parameters_tex = (float *)malloc(numSamples*numParameters*4*sizeof(float));
+	m_parameters_tex = (float *)malloc(numSamples*numParameters*4*sizeof(float));
 	for(int i =0; i<numSamples; ++i)
 	{
 		int row = numSamples*4;
 		float one_minus_cos_theta = (float)i/(float)numSamples;
 		float cos_theta = 1.0f - one_minus_cos_theta;
-		clouds_parameters_tex[i*4] = b->eval(cos_theta);
-		clouds_parameters_tex[i*4+1] = c->eval(cos_theta);
-		clouds_parameters_tex[i*4+2] = kc->eval(cos_theta);
-		clouds_parameters_tex[i*4+3] = t->eval(cos_theta);
+		m_parameters_tex[i*4] = b->eval(cos_theta);
+		m_parameters_tex[i*4+1] = c->eval(cos_theta);
+		m_parameters_tex[i*4+2] = kc->eval(cos_theta);
+		m_parameters_tex[i*4+3] = t->eval(cos_theta);
 
-		clouds_parameters_tex[row+i*4] = r->eval(cos_theta);
-		clouds_parameters_tex[row+i*4+1] = P_theta.eval((float)i/(float)numSamples);
-		//clouds_parameters_tex[row+i*4+1] = 0.1f;
-		clouds_parameters_tex[row+i*4+2] = 0.0;
-		clouds_parameters_tex[row+i*4+3] = 0.0;
+		m_parameters_tex[row+i*4] = r->eval(cos_theta);
+		m_parameters_tex[row+i*4+1] = m_phaseFunction.eval((float)i/(float)numSamples);
+		//m_parameters_tex[row+i*4+1] = 0.1f;
+		m_parameters_tex[row+i*4+2] = 0.0;
+		m_parameters_tex[row+i*4+3] = 0.0;
 	}
-	m_parameters->uploadRGBAFloat32(numSamples, numParameters, clouds_parameters_tex);
-	free(clouds_parameters_tex);
+	m_parameters->uploadRGBAFloat32(numSamples, numParameters, m_parameters_tex);
 
 	m_shader->setUniform( "parameters", m_parameters->getUniform() );
 
@@ -179,13 +202,26 @@ SurfaceClouds::SurfaceClouds()
 
 
 	// initial setup
-	setSunDir( math::Vec3f( 1.0f, 1.0f, 1.0f ) );
+	//setSunDir( math::Vec3f( 1.0f, 1.0f, 1.0f ) );
+	setSunDir( math::Vec3f( 0.007838f, 0.224801f, -0.852747f ) );
+	setMaxVertexHeight( 500.0f );
 }
 
+
+SurfaceClouds::~SurfaceClouds()
+{
+	free(m_parameters_tex);
+}
 
 
 void SurfaceClouds::setSunDir( math::Vec3f sunDir )
 {
 	m_shader->setUniform( "sunDir", sunDir.normalized() );
 	m_sunDir = sunDir;
+}
+
+void SurfaceClouds::setMaxVertexHeight( float maxVertexHeight )
+{
+	m_shader->setUniform( "maxVertexHeight", maxVertexHeight );
+	m_maxVertexHeight = maxVertexHeight;
 }
