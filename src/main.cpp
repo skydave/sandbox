@@ -177,7 +177,7 @@ void init()
 
 
 
-	NebulaeUI *widget = new NebulaeUI();
+	NebulaeUI *widget = new NebulaeUI(nebulae);
 	widget->show();
 	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
 }

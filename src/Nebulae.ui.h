@@ -12,12 +12,13 @@ class NebulaeUI : public QWidget
 	Q_OBJECT
 
 public:
-	NebulaeUI( QWidget *parent = 0);
+	NebulaeUI( NebulaePtr nebulae, QWidget *parent = 0);
 
 
 	public slots:
 	void onParticleScaleValueChanged(int value);
 	void onParticleAlphaValueChanged(int value);
+	void onAttractorCoefficientChanged(double value);
 	void onAttractorAValueChanged(double value);
 	void onAttractorBValueChanged(double value);
 	void onAttractorCValueChanged(double value);
@@ -45,7 +46,7 @@ public:
 	void makeDirty(void);
 
 	private:
-	//NebulaePtr                 m_nebulae;
+	NebulaePtr                 m_nebulae;
 	public:
 	Ui_Form ui;
 };

@@ -35,7 +35,7 @@ Nebulae::Nebulae()
 	m_particleDataRes = 1024;
 	m_maxNumParticles = m_particleDataRes*m_particleDataRes;
 
-	m_particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/particles.vs.glsl", base::Path( SRC_PATH ) + "src/particles.ps.glsl" );
+	m_particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.particles.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.particles.ps.glsl" );
 	m_particleShader->setUniform( "scale", 10.0f );
 	m_particleShader->setUniform( "alpha", 0.1f );
 
@@ -80,7 +80,6 @@ Nebulae::Nebulae()
 
 	// color
 	m_colorFBO = base::FBOPtr( new base::FBO( m_particleDataRes, m_particleDataRes) );
-	//m_colorFBOOutput = base::Texture2d::createRGBA8( m_particleDataRes, m_particleDataRes );
 	m_colorFBOOutput = base::Texture2d::createRGBAFloat32( m_particleDataRes, m_particleDataRes );
 	m_colorFBO->setOutputs( m_colorFBOOutput );
 
@@ -154,14 +153,13 @@ Nebulae::Nebulae()
 		m_cloudsTex = base::Texture2d::createRGBA8();
 		m_cloudsTex->upload( img );
 		m_billboardBokGlobuleShader->setUniform( "tex", m_cloudsTex->getUniform() );
-		//m_billboardBokGlobuleShader->setUniform( "scale", 0.01f );
 		m_billboardBokGlobuleShader->setUniform( "alpha", 1.0f );
 	}
 
 	for( int i=0;i<10;++i )
 	{
-		float scale = math::g_randomNumber()*0.05;
-		int index = (int)(math::g_randomNumber()*16.0);
+		float scale = math::g_randomNumber()*0.05f;
+		int index = (int)(math::g_randomNumber()*16.0f);
 		math::Vec3f p;
 		p.x = math::g_randomNumber()*0.19f - 0.08f;
 		p.y = math::g_randomNumber()*0.19f - 0.08f;
@@ -181,11 +179,6 @@ void Nebulae::generate()
 	m_particles->clear();
 	base::AttributePtr positions = m_particles->getAttr("P");
 
-
-
-	math::PerlinNoise pn;
-	pn.setFrequency( .5f );
-	pn.setDepth(3);
 
 	float voxelSize = .005f;
 
@@ -223,27 +216,6 @@ void Nebulae::generate()
 
 
 
-	/*
-	// TODO: randomly remove buckets and spawn bigger billboard particles
-	float bratio = .0001f;// percent of particles which will be turned into billboards
-	int numBillboards =  (int)(bratio * (float)grid.size());
-	std::cout << "number of billboards " << numBillboards << std::endl;
-	std::cerr << "adding billboards\n";
-	for( int i=0; i<numBillboards; ++i )
-	{
-		// randomly select a particle
-		int index = (int)(math::g_randomNumber()*grid.size());
-		Grid::iterator it = grid.begin();
-		std::advance( it, index );
-		// create billboard
-		billboards->add( it->second );
-		// remove particle
-		grid.erase( it );
-	}
-	std::cerr << "done\n";
-	*/
-
-
 	// the grid now contains all particles which we want to render
 	// we transfer the particle positions into pos array and create the points geometry
 	int count = 0;
@@ -277,27 +249,6 @@ void Nebulae::generate()
 		}
 	}
 
-	/*
-	// run perlin noise as postprocess
-	for( int i=0;i<count;++i )
-	{
-		math::Vec3f p;
-		p.x = m_particlePositions[i*4 + 0];
-		p.y = m_particlePositions[i*4 + 1];
-		p.z = m_particlePositions[i*4 + 2];
-
-		// pn
-		float t1 = pn.perlinNoise_3D( p.x, p.y, p.z )*14.0f;
-		float t2 = pn.perlinNoise_3D( p.x+100.0f, p.y+100.0f, p.z+100.0f )*14.0f;
-		float t3 = pn.perlinNoise_3D( p.x+200.0f, p.y+200.0f, p.z+200.0f )*14.0f;
-		p += math::Vec3f(t1,t2,t3);
-
-		m_particlePositions[i*4 + 0] = p.x;
-		m_particlePositions[i*4 + 1] = p.y;
-		m_particlePositions[i*4 + 2] = p.z;
-	}
-	*/
-
 	// upload initial particle positions
 	m_particlePositionsTex->uploadRGBAFloat32( m_particleDataRes, m_particleDataRes, m_particlePositions );
 
@@ -305,12 +256,17 @@ void Nebulae::generate()
 	//
 	applyPerlinNoise();
 
-	//
-	applyColor();
-
-
-
 	generateBillboards();
+
+	// setup defaults
+	setParticleScale( 0.26f );
+	setParticleAlpha( 0.09f );
+	setBillboardScale( 0.2f );
+	setBillboardAlpha( 0.026f );
+	setFrequency( 1.0f );
+	setOctaves( 8 );
+	setLacunarity( 1.82f );
+	setGain( 0.482f );
 }
 
 void Nebulae::generateBillboards()
@@ -324,7 +280,6 @@ void Nebulae::generateBillboards()
 	{
 		// randomly select a particle
 		int index = (int)(math::g_randomNumber()*m_particles->numPrimitives());
-		//math::Vec3f p( m_particlePositions[index*4 + 0], m_particlePositions[index*4 + 1], m_particlePositions[index*4 + 2] );
 		math::Vec3f p = m_particles->getAttr("P")->get<math::Vec3f>(index);
 		// create billboard
 		m_billboards->add( p );
@@ -346,6 +301,110 @@ void Nebulae::applyColor()
 	m_colorFBO->begin();
 	base::Context::current()->renderScreen( m_colorShader );
 	m_colorFBO->end();
+}
+
+void Nebulae::setGenerator_kingsdream( float a, float b, float c, float d )
+{
+	m_attractor.a = a;
+	m_attractor.b = b;
+	m_attractor.c = c;
+	m_attractor.d = d;
+	generate();
+}
+
+void Nebulae::setFrequency( float frequency )
+{
+	m_frequency = frequency;
+	m_perlinNoiseShader->setUniform( "frequency", m_frequency );
+	applyPerlinNoise();
+}
+
+void Nebulae::setParticleScale( float scale )
+{
+	m_particleScale = scale;
+	m_particleShader->setUniform( "scale", scale );
+}
+
+
+void Nebulae::setParticleAlpha( float alpha )
+{
+	m_particleAlpha = alpha;
+	m_particleShader->setUniform( "alpha", alpha );
+}
+
+void Nebulae::setBillboardScale( float scale )
+{
+	m_billboardScale = scale;
+	m_billboardShader->setUniform( "scale", scale );
+}
+
+void Nebulae::setBillboardAlpha( float alpha )
+{
+	m_billboardAlpha = alpha;
+	m_billboardShader->setUniform( "alpha", alpha );
+}
+
+
+void Nebulae::setOctaves( int octaves )
+{
+	m_octaves = octaves;
+	m_perlinNoiseShader->setUniform( "octaves", octaves );
+	applyPerlinNoise();
+}
+
+void Nebulae::setLacunarity( float lacunarity )
+{
+	m_lacunarity = lacunarity;
+	m_perlinNoiseShader->setUniform( "lacunarity", lacunarity );
+	applyPerlinNoise();
+}
+
+void Nebulae::setGain( float gain )
+{
+	m_gain = gain;
+	m_perlinNoiseShader->setUniform( "gain", gain );
+	applyPerlinNoise();
+}
+
+
+float Nebulae::getParticleScale()
+{
+	return m_particleScale;
+}
+
+float Nebulae::getParticleAlpha()
+{
+	return m_particleAlpha;
+}
+
+float Nebulae::getBillboardScale()
+{
+	return m_billboardScale;
+}
+
+float Nebulae::getBillboardAlpha()
+{
+	return m_billboardAlpha;
+}
+
+float Nebulae::getFrequency()
+{
+	return m_frequency;
+}
+
+int Nebulae::getOctaves()
+{
+	return m_octaves;
+}
+
+float Nebulae::getLacunarity()
+{
+	return m_lacunarity;
+}
+
+float Nebulae::getGain()
+{
+	return m_gain;
 }
 
 

@@ -169,50 +169,80 @@ struct Nebulae
 	Nebulae();
 
 
-	void                      generate();
-	void            generateBillboards();
-	void              applyPerlinNoise();
-	void                    applyColor();
+	void                                                          generate();
+	void                                                generateBillboards();
+	void                                                  applyPerlinNoise();
+	void                                                        applyColor();
 
-	static NebulaePtr create();
+	static NebulaePtr                                               create();
+
+	void       setGenerator_kingsdream( float a, float b, float c, float d );
+	void                                     setParticleScale( float scale );
+	void                                     setParticleAlpha( float alpha );
+	void                                    setBillboardScale( float scale );
+	void                                    setBillboardAlpha( float alpha );
+	void                                     setFrequency( float frequency );
+	void                                           setOctaves( int octaves );
+	void                                   setLacunarity( float lacunarity );
+	void                                               setGain( float gain );
+
+	float                                                 getParticleScale();
+	float                                                 getParticleAlpha();
+	float                                                getBillboardScale();
+	float                                                getBillboardAlpha();
+	float                                                     getFrequency();
+	int                                                         getOctaves();
+	float                                                    getLacunarity();
+	float                                                          getGain();
 
 
 
 
 
-	base::GeometryPtr                     m_particles;
-	base::ShaderPtr                  m_particleShader;
-	base::Texture2dPtr                  m_particleTex;
 
-	BillboardsPtr                        m_billboards;
-	base::ShaderPtr                 m_billboardShader;
-	base::Texture2dPtr                 m_billboardTex;
 
-	int                             m_particleDataRes;
-	int                             m_maxNumParticles;
-	float                        *m_particlePositions;
-	base::Texture2dPtr         m_particlePositionsTex;
+	base::GeometryPtr                                            m_particles;
+	base::ShaderPtr                                         m_particleShader;
+	base::Texture2dPtr                                         m_particleTex;
 
-	StrangeAttractor                      m_attractor;
+	BillboardsPtr                                               m_billboards;
+	base::ShaderPtr                                        m_billboardShader;
+	base::Texture2dPtr                                        m_billboardTex;
 
-	base::FBOPtr                     m_perlinNoiseFBO;
-	base::ShaderPtr               m_perlinNoiseShader;
-	base::Texture2dPtr         m_perlinNoiseFBOOutput;
+	int                                                    m_particleDataRes;
+	int                                                    m_maxNumParticles;
+	float                                               *m_particlePositions;
+	base::Texture2dPtr                                m_particlePositionsTex;
 
-	base::FBOPtr                           m_colorFBO;
-	base::ShaderPtr                     m_colorShader;
-	base::Texture2dPtr               m_colorFBOOutput;
+	StrangeAttractor                                             m_attractor;
 
-	BillboardsPtr                  m_billboardsFlares;
-	base::ShaderPtr		       m_billboardFlareShader;
-	base::Texture2dPtr                     m_flareTex;
-	BillboardsPtr                    m_billboardsGlow;
-	base::ShaderPtr		        m_billboardGlowShader;
-	base::Texture2dPtr                      m_glowTex;
+	base::FBOPtr                                            m_perlinNoiseFBO;
+	base::ShaderPtr                                      m_perlinNoiseShader;
+	base::Texture2dPtr                                m_perlinNoiseFBOOutput;
 
-	BillboardsPtr             m_billboardsBokGlobules;
-	base::ShaderPtr		  m_billboardBokGlobuleShader;
-	base::Texture2dPtr                    m_cloudsTex;
+	base::FBOPtr                                                  m_colorFBO;
+	base::ShaderPtr                                            m_colorShader;
+	base::Texture2dPtr                                      m_colorFBOOutput;
 
-	std::vector<Light>                       m_lights;
+	BillboardsPtr                                         m_billboardsFlares;
+	base::ShaderPtr		                              m_billboardFlareShader;
+	base::Texture2dPtr                                            m_flareTex;
+	BillboardsPtr                                           m_billboardsGlow;
+	base::ShaderPtr		                               m_billboardGlowShader;
+	base::Texture2dPtr                                             m_glowTex;
+
+	BillboardsPtr                                    m_billboardsBokGlobules;
+	base::ShaderPtr		                         m_billboardBokGlobuleShader;
+	base::Texture2dPtr                                           m_cloudsTex;
+
+	std::vector<Light>                                              m_lights;
+
+	float                                                    m_particleScale;
+	float                                                    m_particleAlpha;
+	float                                                   m_billboardScale;
+	float                                                   m_billboardAlpha;
+	float                                                        m_frequency;
+	int                                                            m_octaves;
+	float                                                       m_lacunarity;
+	float                                                             m_gain;
 };
