@@ -3,10 +3,6 @@
 #include "Nebulae.ui.h"
 
 
-#include <gfx/Shader.h>
-#include <gfx/Texture.h>
-
-
 NebulaeUI::NebulaeUI( NebulaePtr nebulae, QWidget *parent) : QWidget(parent), m_nebulae(nebulae)
 {
 
