@@ -42,7 +42,6 @@ NebulaeUI::NebulaeUI( NebulaePtr nebulae, QWidget *parent) : QWidget(parent), m_
 void NebulaeUI::onParticleScaleValueChanged(int value)
 {
 	float t = (value/1000.0f)*20.0f;
-	std::cout << "onParticleScaleValueChanged " << t << std::endl;
 	m_nebulae->setParticleScale(t);
 	emit makeDirty();
 }
@@ -50,7 +49,6 @@ void NebulaeUI::onParticleScaleValueChanged(int value)
 void NebulaeUI::onParticleAlphaValueChanged(int value)
 {
 	float t = (value/1000.0f)*2.0;
-	std::cout << "onParticleAlphaValueChanged " << t << std::endl;
 	m_nebulae->setParticleAlpha(t);
 	emit makeDirty();
 }
@@ -66,38 +64,9 @@ void NebulaeUI::onAttractorCoefficientChanged(double value)
 	emit makeDirty();
 }
 
-void NebulaeUI::onAttractorAValueChanged(double value)
-{
-	m_nebulae->m_attractor.a = value;
-	m_nebulae->generate();
-	emit makeDirty();
-}
-
-void NebulaeUI::onAttractorBValueChanged(double value)
-{
-	m_nebulae->m_attractor.b = value;
-	m_nebulae->generate();
-	emit makeDirty();
-}
-
-void NebulaeUI::onAttractorCValueChanged(double value)
-{
-	m_nebulae->m_attractor.c = value;
-	m_nebulae->generate();
-	emit makeDirty();
-}
-
-void NebulaeUI::onAttractorDValueChanged(double value)
-{
-	m_nebulae->m_attractor.d = value;
-	m_nebulae->generate();
-	emit makeDirty();
-}
-
 void NebulaeUI::onBillboardScaleValueChanged(int value)
 {
 	float t = (value/1000.0f)*1.0f;
-	std::cout << "onBillboardScaleValueChanged " << t << std::endl;
 	m_nebulae->setBillboardScale(t);
 	emit makeDirty();
 }
@@ -105,7 +74,6 @@ void NebulaeUI::onBillboardScaleValueChanged(int value)
 void NebulaeUI::onBillboardAlphaValueChanged(int value)
 {
 	float t = (value/1000.0f)*2.0;
-	std::cout << "onBillboardAlphaValueChanged " << t << std::endl;
 	m_nebulae->setBillboardAlpha(t);
 	emit makeDirty();
 }
@@ -113,7 +81,6 @@ void NebulaeUI::onBillboardAlphaValueChanged(int value)
 void NebulaeUI::onFrequencyValueChanged(int value)
 {
 	float t = (value/1000.0f)*10.0f;
-	std::cout << "frequency " << t << std::endl;
 	m_nebulae->setFrequency(t);
 	emit makeDirty();
 }
@@ -127,7 +94,6 @@ void NebulaeUI::onOctavesValueChanged(int value)
 void NebulaeUI::onLacunarityValueChanged(int value)
 {
 	float t = (value/1000.0f)*4.0;
-	std::cout << "lacunarity " << t << std::endl;
 	m_nebulae->setLacunarity(t);
 	emit makeDirty();
 }
@@ -135,7 +101,6 @@ void NebulaeUI::onLacunarityValueChanged(int value)
 void NebulaeUI::onGainValueChanged(int value)
 {
 	float t = (value/1000.0f)*1.0;
-	std::cout << "gain " << t << std::endl;
 	m_nebulae->setGain(t);
 	emit makeDirty();
 }
