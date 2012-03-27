@@ -38,6 +38,7 @@
 #include "ops/DemoOp.h"
 #include "ops/TransformOp.h"
 
+#include <3rdparty\ip\NetworkingUtils.h>
 
 base::GLViewer *glviewer;
 base::ContextPtr context;
@@ -79,6 +80,8 @@ void shutdown()
 
 int main(int argc, char ** argv)
 {
+	NetworkInitializer network;
+
 	base::Application app;
 	glviewer = new base::GLViewer( 800, 600, "demo" );
 	glviewer->show();
