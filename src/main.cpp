@@ -120,7 +120,7 @@ int main(int argc, char ** argv)
 	glviewer->setSize( 800, 600 );
 	glviewer->setCaption( "app" );
 	glviewer->setInitCallback( init );
-	glviewer->setRenderCallback( render );
+	//glviewer->setRenderCallback( render );
 	glviewer->setSampleBuffers( true );
 	glviewer->setSamples( 4 );
 	glviewer->show();
