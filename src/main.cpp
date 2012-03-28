@@ -84,7 +84,7 @@ void shutdown()
 int main(int argc, char ** argv)
 {
 	base::Application app;
-	glviewer = new base::GLViewer( 800, 600, "app" );
+	glviewer = new base::GLViewer( 800, 600, "app", init, render );
 	glviewer->show();
 	return app.exec();
 }
