@@ -47,7 +47,7 @@ void render( base::CameraPtr cam )
 
 	context->setCamera( cam );
 
-
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 }
 
 
@@ -70,6 +70,38 @@ void init()
 	base::Context::setCurrentContext(context);
 
 	// put your initialization stuff here
+	int width = 512;
+	int height = 512;
+
+	// how much samples are supported?
+	int maxSamples;
+	int samples;
+	int numSamples = 4;
+	glGetIntegerv(GL_MAX_SAMPLES_EXT, &maxSamples);
+	std::cout << "maxsamples: " << maxSamples << std::endl;
+
+	glEnable( GL_MULTISAMPLE );
+	glGetIntegerv(GL_SAMPLES, &samples);
+	std::cout << "samples " << samples << std::endl;
+
+
+	// multisampletexture
+	unsigned int tex;
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, tex);
+	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA32F, width, height, true);
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, tex, 0);
+
+
+	float sampleLoc[2];
+	std::cout << "sample locations:" << std::endl;
+	for( int i=0;i<maxSamples;++i )
+	{
+		glGetMultisamplefv( GL_SAMPLE_POSITION, i, sampleLoc );
+		std::cout << i << sampleLoc[0] << " " << sampleLoc[1] << std::endl;
+	}
+
+
 }
 
 void shutdown()
@@ -84,7 +116,13 @@ void shutdown()
 int main(int argc, char ** argv)
 {
 	base::Application app;
-	glviewer = new base::GLViewer( 800, 600, "app", init, render );
+	glviewer = new base::GLViewer();
+	glviewer->setSize( 800, 600 );
+	glviewer->setCaption( "app" );
+	glviewer->setInitCallback( init );
+	glviewer->setRenderCallback( render );
+	glviewer->setSampleBuffers( true );
+	glviewer->setSamples( 4 );
 	glviewer->show();
 	return app.exec();
 }
