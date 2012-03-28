@@ -1,7 +1,7 @@
 //============================================================================
 //
 //
-//
+// TODO: update to gl4.2 render grid/transform
 //============================================================================
 
 
@@ -16,10 +16,13 @@
 #include <algorithm>
 
 #include <ui/GLViewer.h>
+
 #include <gltools/gl.h>
 #include <gltools/misc.h>
+
 #include <util/StringManip.h>
 #include <util/Path.h>
+
 #include <gfx/Geometry.h>
 #include <gfx/ObjIO.h>
 #include <gfx/Shader.h>
@@ -30,25 +33,21 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
-#include <ops/ops.h>
-
-#include "ops/TimeOp.h"
-#include "ops/CameraOp.h"
-#include "ops/RenderGeoOp.h"
-#include "ops/DemoOp.h"
-#include "ops/TransformOp.h"
-
-#include <3rdparty\ip\NetworkingUtils.h>
-
 base::GLViewer *glviewer;
 base::ContextPtr context;
 
 
 
 
-
 void render( base::CameraPtr cam )
 {
+	// put rendering code here
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	context->setCamera( cam );
+
+
 }
 
 
@@ -67,11 +66,15 @@ void init()
 		std::cout << "glew init failed\n";
 	}
 
-	// connect to composer and retrieve scene
+	context = base::ContextPtr( new base::Context() );
+	base::Context::setCurrentContext(context);
+
+	// put your initialization stuff here
 }
 
 void shutdown()
 {
+	// put your deinitialization stuff here
 }
 
 
@@ -80,10 +83,8 @@ void shutdown()
 
 int main(int argc, char ** argv)
 {
-	NetworkInitializer network;
-
 	base::Application app;
-	glviewer = new base::GLViewer( 800, 600, "demo" );
+	glviewer = new base::GLViewer( 800, 600, "app" );
 	glviewer->show();
 	return app.exec();
 }
