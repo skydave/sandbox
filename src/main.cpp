@@ -38,7 +38,7 @@
 #include "ops/DemoOp.h"
 #include "ops/TransformOp.h"
 
-#include <3rdparty\ip\NetworkingUtils.h>
+#include <3rdparty\ip\TcpSocket.h>
 
 base::GLViewer *glviewer;
 base::ContextPtr context;
@@ -80,7 +80,8 @@ void shutdown()
 
 int main(int argc, char ** argv)
 {
-	NetworkInitializer network;
+	TcpSocket s;
+	s.Connect( IpEndpointName("127.0.0.1", 12345) );
 
 	base::Application app;
 	glviewer = new base::GLViewer( 800, 600, "demo" );
