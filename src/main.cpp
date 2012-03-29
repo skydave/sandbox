@@ -33,8 +33,10 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
-base::GLViewer *glviewer;
-base::ContextPtr context;
+base::GLViewer       *glviewer;
+base::ContextPtr       context;
+base::GeometryPtr     geometry;
+base::ShaderPtr       shader;
 
 
 
@@ -48,6 +50,13 @@ void render( base::CameraPtr cam )
 	context->setCamera( cam );
 
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+	context->render( geometry, shader );
+
+	glEnable(GL_MULTISAMPLE_ARB);
+ 	context->render( geometry, shader );
+ 	glDisable(GL_MULTISAMPLE_ARB);
+
 }
 
 
@@ -102,6 +111,11 @@ void init()
 	}
 
 
+	// geo
+	geometry = base::geo_cube();
+	shader = base::Shader::createSimpleTextureShader();
+
+
 }
 
 void shutdown()
@@ -120,9 +134,9 @@ int main(int argc, char ** argv)
 	glviewer->setSize( 800, 600 );
 	glviewer->setCaption( "app" );
 	glviewer->setInitCallback( init );
-	//glviewer->setRenderCallback( render );
+	glviewer->setRenderCallback( render );
 	glviewer->setSampleBuffers( true );
-	glviewer->setSamples( 4 );
+	glviewer->setSamples( 16 );
 	glviewer->show();
 	return app.exec();
 }
