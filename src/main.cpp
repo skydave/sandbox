@@ -3,7 +3,7 @@
 // This example demonstrates stencil routed k-buffers. a textured cube is
 // rendered into a multisampled fbo. the multiple samples are used to store
 // the different fragments per pixel. the stencil buffer is used to route
-// the fragments to their final pixel location.
+// the fragments to their final sample.
 // 
 //============================================================================
 
@@ -161,9 +161,6 @@ int main(int argc, char ** argv)
 	glviewer->setCaption( "app" );
 	glviewer->setInitCallback( init );
 	glviewer->setRenderCallback( render );
-	glviewer->setStencilBuffer( true );
-	glviewer->setSampleBuffers( true );
-	glviewer->setSamples( 8 );
 	glviewer->show();
 	return app.exec();
 }
