@@ -44,12 +44,116 @@
 base::GLViewer *glviewer;
 base::ContextPtr context;
 
+base::ops::OpPtr m_opRoot;
+
+
+
+struct Application
+{
+	// global application scope operator graph ptr etc.
+	// render function will access this
+
+	void loadOperatorGraph( /*TODOBSONPtr operatorGraph*/ )
+	{
+		std::vector<base::ops::OpPtr> rootOps;
+
+		// TODO::iterate operatorGraph bson object
+
+		// if there is only one root op, then we take this as root
+		if( rootOps.size() == 1 )
+		{
+			m_opRoot = rootOps[0];
+		}else
+		// else we put them into a sequence op
+		{
+			base::ops::SequenceOpPtr seq = base::ops::SequenceOp::create();
+			for(std::vector<base::ops::OpPtr>::iterator it = rootOps.begin(); it != rootOps.end();++it )
+				seq->plugLast( *it );
+			m_opRoot = seq;
+		}
+	}
+
+	void play()
+	{
+	}
+
+	void stop()
+	{
+	}
+	void setTime()
+	{
+	}
+};
+Application application;
+
+
+
+struct TcpIpDriver
+{
+	tthread::thread *m_clientThread;
+	TcpIpDriver()
+	{
+		// start client thread
+		m_clientThread = new tthread::thread(client, this);
+	}
+
+	~TcpIpDriver()
+	{
+		delete m_clientThread;
+	}
+
+	static void client(void *arg)
+	{
+		TcpIpDriver *_this = (TcpIpDriver *)arg;
+		char buffer[1000]; // 10mb
+		std::cout << "connecting to server...";
+		TcpSocket s;
+
+		try
+		{
+			s.Connect( IpEndpointName("127.0.0.1", 12345) );
+		}
+		catch (...)
+		{
+			std::cout << "failed" << std::endl;
+			return;
+		}
+		std::cout << "success" << std::endl;
+	
+		// wait for instructions
+		int numBytesReceived = 0;
+		numBytesReceived = s.Receive( buffer, 1000 );
+		//while( (numBytesReceived = s.Receive( buffer, 1000 )) != SOCKET_ERROR )
+		{
+			std::cout << "received data... " << numBytesReceived << std::endl;
+			//TODO: buffer now contains a bison object
+			//base::BSONPtr data = BSON::unpack( buffer );
+			//std::string command = data["command"];
+			//if( command == "loadOperatorGraph" )
+			//{
+			//	application.loadOperatorGraph( data["operatorGraph"] );
+			//}
+
+			// examine bson
+
+			// respond
+			//std::string test = "deine mudda";
+			//std::cout << "sending response..." << std::endl;
+			//s.Send( test.c_str(), test.size() );
+		};
+
+	}
+};
+
+
+TcpIpDriver *appDriver;
 
 
 
 
 void render( base::CameraPtr cam )
 {
+	m_opRoot->execute();
 }
 
 
@@ -69,47 +173,29 @@ void init()
 	}
 
 	// connect to composer and retrieve scene
+	appDriver = new TcpIpDriver();
+
+	m_opRoot = base::ops::NOP::create();
 }
 
 void shutdown()
 {
+	delete appDriver;
 }
 
-void client(void * arg)
-{
-	char buffer[1000]; // 10mb
-	std::cout << "connecting to server..." << std::endl;
-	TcpSocket s;
-	s.Connect( IpEndpointName("127.0.0.1", 12345) );
-	
-	// wait for instructions
-	int numBytesReceived = 0;
-	numBytesReceived = s.Receive( buffer, 1000 );
-	//while( (numBytesReceived = s.Receive( buffer, 1000 )) != SOCKET_ERROR )
-	{
-		std::cout << "received data... " << numBytesReceived << std::endl;
-		// buffer now contains a bison object
-		//BISONPtr b = BISON::unpack( buffer );
 
-		// examine bson
 
-		// respond
-		//std::string test = "deine mudda";
-		//std::cout << "sending response..." << std::endl;
-		//s.Send( test.c_str(), test.size() );
-	};
 
-}
+
+
+
 
 
 
 int main(int argc, char ** argv)
 {
-	// start client thread
-	tthread::thread t(client, 0);
-
 	base::Application app;
-	glviewer = new base::GLViewer( 800, 600, "demo" );
+	glviewer = new base::GLViewer( 800, 600, "demo", init, render );
 	glviewer->show();
 	return app.exec();
 }
