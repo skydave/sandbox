@@ -59,7 +59,8 @@ void render( base::CameraPtr cam )
 
 	// initialize stencil buffer ---
 	glEnable(GL_STENCIL_TEST);
-
+	glEnable( GL_MULTISAMPLE );
+	glColorMask( GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE );
 	glEnable(GL_SAMPLE_MASK);
 	for(int i = 0; i < 4; ++i)
 	{
@@ -70,6 +71,8 @@ void render( base::CameraPtr cam )
 	}
 	glSampleMaski(0, 0xFFFFFF);
 	glDisable(GL_SAMPLE_MASK);
+	glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
+	glDisable( GL_MULTISAMPLE );
 
 
 	// now render geometry using stencil routing ---
