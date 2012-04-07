@@ -97,8 +97,8 @@ int main(int argc, char ** argv)
 	mainWin.resize(800, 600);
 	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
-	glviewer->getCamera()->m_zfar = 100000.0f;
-	glviewer->getOrbitNavigator().m_distance = 10000.0f;
+	glviewer->getCamera()->m_zfar = 1000.0f;
+	glviewer->getOrbitNavigator().m_distance = 1.0f;
 	glviewer->getOrbitNavigator().m_elevation = 45.0f;
 	glviewer->getOrbitNavigator().update();
 	mainWin.setCentralWidget( glviewer );
