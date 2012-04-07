@@ -1,0 +1,210 @@
+#include "Trackball.h"
+
+
+#include <math/Math.h>
+
+
+
+namespace composer
+{
+	namespace widgets
+	{
+		Trackball::Trackball(QWidget *parent) : QGraphicsView(parent), m_callback(0)
+		{
+			QGraphicsScene *scene = new QGraphicsScene(this);
+			scene->setItemIndexMethod(QGraphicsScene::NoIndex);
+			//scene->setSceneRect(-200, -200, 400, 400);
+			//scene->setSceneRect(-350, -350, 400, 400);
+			//scene->setSceneRect(-1, -1, 2, 2);
+
+			setScene(scene);
+
+
+			setCacheMode(CacheBackground);
+			//setViewportUpdateMode(BoundingRectViewportUpdate);
+			setViewportUpdateMode(FullViewportUpdate);
+			//setRenderHint(QPainter::Antialiasing);
+			setTransformationAnchor(NoAnchor);
+			//setAlignment( Qt::AlignJustify );
+
+
+			//setMinimumSize(400, 400);
+			setWindowTitle(tr("Trackball"));
+			setMouseTracking( true );
+
+			setHorizontalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
+			setVerticalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
+			
+			m_projector = new ProjectorItem();
+			scene->addItem(m_projector);
+			
+
+			setVector(0.0f, 1.0f, 0.0f);
+		}
+
+		void Trackball::setVector( const math::Vec3f v )
+		{
+			//clear all current items
+			m_projector->clear();
+
+			// construct rotationmatrix from given vector
+			math::Matrix44f rotation = math::Matrix44f::RotationMatrix( math::Vec3f(0.0f, 1.0f, 0.0f), v );
+
+			// add items
+			int uSubdivisions = 10;
+			int vSubdivisions = 10;
+			float radius = 1.0f;
+			float dPhi = MATH_2PIf/uSubdivisions;
+			float dTheta = MATH_PIf/vSubdivisions;
+			float theta, phi;
+			math::Vec3f sphereCenter(0.0f, 0.0f, 0.0f);
+
+			// y
+			for (theta=MATH_PIf/2.0f+dTheta;theta<=(3.0f*MATH_PIf)/2.0f-dTheta;theta+=dTheta)
+			{
+				math::Vec3f p;
+				float y = sin(theta);
+				// x-z
+				phi = 0.0f;
+				for( int j = 0; j<uSubdivisions; ++j  )
+				{
+					p.x = cos(theta) * cos(phi);
+					p.y = y;
+					p.z = cos(theta) * sin(phi);
+
+					p = radius*p + sphereCenter;
+
+					p = math::transform( p, rotation);
+
+					//positions->appendElement( p );
+					QGraphicsRectItem *p1 = new QGraphicsRectItem(0,0,0.15f,0.15f);
+					p1->setBrush( QBrush( Qt::black ) );
+					addItem( p1, p );
+					phi+=dPhi;
+				}
+			}
+			// poles
+			{
+				QGraphicsRectItem *p1 = new QGraphicsRectItem(0,0,0.15f,0.15f);
+				p1->setBrush( QBrush( Qt::red ) );
+				addItem( p1, math::transform( math::Vec3f(0.0f, 1.0f, 0.0f), rotation)*radius + sphereCenter );
+				m_vecItem = p1;
+				QGraphicsRectItem *p2 = new QGraphicsRectItem(0,0,0.15f,0.15f);
+				p2->setBrush( QBrush( Qt::black ) );
+				addItem( p2, math::transform( math::Vec3f(0.0f, -1.0f, 0.0f), rotation)*radius + sphereCenter );
+			}
+		}
+
+		void Trackball::setVector( float x, float y, float z )
+		{
+			setVector( math::Vec3f(x, y, z) );
+		}
+
+		void Trackball::setCallback( ChangedCallback callback )
+		{
+			m_callback = callback;
+		}
+
+		void Trackball::addItem( QGraphicsItem *item, const math::Vec3f &pos )
+		{
+			math::Vec3f t = pos;
+			t.y=-t.y;
+			m_projector->addItem(item, t);
+		}
+
+		void Trackball::resizeEvent ( QResizeEvent * event )
+		{
+			if( parentWidget() )
+			{
+				translate( parentWidget()->geometry().width()/2, parentWidget()->geometry().height()/2);
+				scale( parentWidget()->geometry().width()/3.5f, parentWidget()->geometry().height()/3.5f );
+			}
+		}
+
+		void Trackball::mouseMoveEvent( QMouseEvent * event )
+		{
+			Qt::MouseButtons buttons = event->buttons();
+
+			// widget coordinates
+			QPoint pos_widget = event->pos();
+			QPoint dpos_widget = pos_widget - m_lastMousePos;
+
+			// scene coordinates
+			QPointF pos_scene = mapToScene(pos_widget);
+			QPointF dpos_scene = pos_scene - mapToScene(m_lastMousePos);
+
+			m_lastMousePos = pos_widget;
+
+			
+			// if a mousebutton had been pressed
+			if( buttons != Qt::NoButton )
+			{
+				if( buttons & Qt::MidButton )
+				{
+					float azimuth = dpos_scene.x()*0.1f;
+					float elevation = dpos_scene.y()*0.1f;
+					moveItems( -dpos_scene.x()*0.1f, -dpos_scene.y()*0.1f, 0.0f );
+					event->accept();
+				}
+				if( buttons & Qt::RightButton )
+				{
+					float azimuth = dpos_scene.x()*0.1f;
+					float elevation = dpos_scene.y()*0.1f;
+					moveItems(0.0f, 0.0f, dpos_scene.x()*0.1f);
+					event->accept();
+				}
+				if( buttons & Qt::LeftButton )
+				{
+					float azimuth = -dpos_scene.x()*20.0f;
+					float elevation = dpos_scene.y()*20.0f;
+					rotateItems( math::Vec3f( 0.0f, 0.0f, 0.0f ), azimuth, elevation );
+					event->accept();
+
+					math::Vec3f v = m_projector->get3dPos(m_vecItem);
+					emit vectorChanged( v.x, -v.y, v.z );
+				}
+
+			}
+		}
+
+
+		void Trackball::drawBackground ( QPainter * painter, const QRectF & rect )
+		{
+			// gray
+			painter->fillRect( rect, Qt::darkGray );
+		}
+
+		void Trackball::moveItems( float x, float y, float z )
+		{
+			for(ProjectorItem::ItemMap::iterator it = m_projector->m_items.begin(); it != m_projector->m_items.end(); ++it)
+			{
+				QGraphicsItem *item = it->first;
+				math::Vec3f pos = it->second;
+				pos.x += x;
+				pos.y += y;
+				pos.z += z;
+				m_projector->set3dPos( item, pos );
+			}
+		}
+
+		void Trackball::rotateItems( math::Vec3f origin, float azimuth, float elevation )
+		{
+			math::Matrix44f m = math::Matrix44f::Identity();
+
+			m.translate( -origin );
+			m.rotateX(math::degToRad(elevation));
+			m.rotateY(math::degToRad(azimuth));
+			m.translate( origin );
+
+			for(ProjectorItem::ItemMap::iterator it = m_projector->m_items.begin(); it != m_projector->m_items.end(); ++it)
+			{
+				QGraphicsItem *item = it->first;
+				math::Vec3f pos = it->second;
+
+				pos = math::transform( pos, m );
+
+				m_projector->set3dPos( item, pos );
+			}
+		}
+	}
+}

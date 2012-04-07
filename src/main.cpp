@@ -34,7 +34,11 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
-base::GLViewer *glviewer;
+#include "composer/widgets/CurveEditor/CurveEditor.h"
+#include "composer/widgets/Trackball/Trackball.h"
+#include "composer/widgets/GLViewer/GLViewer.h"
+
+composer::widgets::GLViewer *glviewer;
 base::ContextPtr context;
 
 
@@ -84,18 +88,19 @@ void shutdown()
 
 int main(int argc, char ** argv)
 {
+	//Q_INIT_RESOURCE(application);
 	QApplication app(argc, argv);
-	app.setOrganizationName("test");
-	app.setApplicationName("test");
+	app.setOrganizationName("app");
+	app.setApplicationName("app");
 
 	QMainWindow mainWin;
 	mainWin.resize(800, 600);
-	glviewer = new composer::widgets::GLViewer(init, render, shutdown);
+	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
-	//glviewer->setRenderInSeperateThread(true);
-	glviewer->setMouseMoveCallback( mouseMove );
-	glviewer->setKeyPressCallback( keyPress );
+	glviewer->getOrbitNavigator().m_distance = 10000.0f;
+	glviewer->getOrbitNavigator().m_elevation = 45.0f;
+	glviewer->getOrbitNavigator().update();
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
 
