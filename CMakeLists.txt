@@ -32,47 +32,47 @@ MACRO (sourceGroups sources)
 ENDMACRO (sourceGroups)
 
 
-##
-## create moc files for each header which contains string "Q_OBJECT"
-## and ui header files for each .ui file in sources
-##
-#MACRO (generateQtOutputs sources moc_outputs ui_outputs)
-#	#
-#	# moc output
-#	#
-#	set( moc_headers )
-#	#for each source
-#	FOREACH (src ${${sources}})
-#		# filter header files
-#		if(${src} MATCHES "\\.h$")
-#			# read header file
-#			file(READ ${src} tmp)
-#			# check if it contains the string "Q_OBJECT"
-#			string(REGEX MATCH ".*Q_OBJECT.*" contains_q_object_string "${tmp}")
-#			if( contains_q_object_string )
-#				set( moc_headers ${moc_headers} ${src} )
-#			endif( contains_q_object_string )
-#		endif(${src} MATCHES "\\.h$")
-#	ENDFOREACH (src)
 #
-#	QT4_WRAP_CPP( ${moc_outputs} ${moc_headers})
-#	source_group(generated FILES ${${moc_outputs}})
+# create moc files for each header which contains string "Q_OBJECT"
+# and ui header files for each .ui file in sources
 #
-#	#
-#	# ui output
-#	#
-#	set( ui_files )
-#	#for each source
-#	FOREACH (src ${${sources}})
-#		# filter ui files
-#		if(${src} MATCHES "\\.ui$")
-#			set( ui_files ${ui_files} ${src} )
-#		endif(${src} MATCHES "\\.ui$")
-#	ENDFOREACH (src)
-#
-#	QT4_WRAP_UI( ${ui_outputs} ${ui_files})
-#	source_group(generated FILES ${${ui_outputs}})
-#ENDMACRO (generateQtOutputs)
+MACRO (generateQtOutputs sources moc_outputs ui_outputs)
+	#
+	# moc output
+	#
+	set( moc_headers )
+	#for each source
+	FOREACH (src ${${sources}})
+		# filter header files
+		if(${src} MATCHES "\\.h$")
+			# read header file
+			file(READ ${src} tmp)
+			# check if it contains the string "Q_OBJECT"
+			string(REGEX MATCH ".*Q_OBJECT.*" contains_q_object_string "${tmp}")
+			if( contains_q_object_string )
+				set( moc_headers ${moc_headers} ${src} )
+			endif( contains_q_object_string )
+		endif(${src} MATCHES "\\.h$")
+	ENDFOREACH (src)
+
+	QT4_WRAP_CPP( ${moc_outputs} ${moc_headers})
+	source_group(generated FILES ${${moc_outputs}})
+
+	#
+	# ui output
+	#
+	set( ui_files )
+	#for each source
+	FOREACH (src ${${sources}})
+		# filter ui files
+		if(${src} MATCHES "\\.ui$")
+			set( ui_files ${ui_files} ${src} )
+		endif(${src} MATCHES "\\.ui$")
+	ENDFOREACH (src)
+
+	QT4_WRAP_UI( ${ui_outputs} ${ui_files})
+	source_group(generated FILES ${${ui_outputs}})
+ENDMACRO (generateQtOutputs)
 
 
 
@@ -104,9 +104,9 @@ endif( CMAKE_SYSTEM_NAME MATCHES Linux )
 #
 # QT
 #
-#find_package(Qt4 COMPONENTS QtCore QtGui QtOpenGL REQUIRED)
-#include(${QT_USE_FILE})
-#add_definitions(${QT_DEFINITIONS})
+find_package(Qt4 COMPONENTS QtCore QtGui QtOpenGL REQUIRED)
+include(${QT_USE_FILE})
+add_definitions(${QT_DEFINITIONS})
 
 
 ## findFBX =========
@@ -135,7 +135,7 @@ sourceGroups( app_sources )
 
 
 #qt moc and ui
-#generateQtOutputs( app_sources moc_outputs ui_outputs)
+generateQtOutputs( app_sources moc_outputs ui_outputs)
 
 # Create an executable
 add_executable(app ${app_sources} ${moc_outputs} ${ui_outputs})

@@ -4,7 +4,8 @@
 // TODO: update to gl4.2 render grid/transform
 //============================================================================
 
-
+#include <QtGui>
+#include <QApplication>
 
 #include <stdio.h>
 #include <cstdlib>
@@ -83,8 +84,20 @@ void shutdown()
 
 int main(int argc, char ** argv)
 {
-	base::Application app;
-	glviewer = new base::GLViewer( 800, 600, "app", init, render );
-	glviewer->show();
+	QApplication app(argc, argv);
+	app.setOrganizationName("test");
+	app.setApplicationName("test");
+
+	QMainWindow mainWin;
+	mainWin.resize(800, 600);
+	glviewer = new composer::widgets::GLViewer(init, render, shutdown);
+	glviewer->getCamera()->m_znear = .1f;
+	glviewer->getCamera()->m_zfar = 100000.0f;
+	//glviewer->setRenderInSeperateThread(true);
+	glviewer->setMouseMoveCallback( mouseMove );
+	glviewer->setKeyPressCallback( keyPress );
+	mainWin.setCentralWidget( glviewer );
+	mainWin.show();
+
 	return app.exec();
 }
