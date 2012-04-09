@@ -18,8 +18,8 @@ uniform mat4   viewToLight0;
 uniform vec3      lightPos0; // light position in view space (of the camera)
 
 vec3 ambient = vec3( 0.05, 0.05, 0.05 );
-float ka = 2.0;
-vec3 diffuse = vec3( 0.5, 0.5, 0.5 );
+float ka = 1.0;
+vec3 diffuse = vec3( 0.3, 0.3, 0.3 );
 float kd = 1.0;
 vec3 specular = vec3( 1.0, 1.0, 1.0 );
 float ks = 1.0;
@@ -28,12 +28,19 @@ vec4 phong(in vec3 n,in vec3 v,in vec3 l)
 {
 	float     exponent; // exponent value
 
+
+
+	//ks = 0.0;
 	exponent = 10.1;
-	vec3 a = ka*ambient;
+
+
+	if( dot(n,v) > 0.0 )
+		return vec4(0.0, 0.0, 0.0, 1.0);
+
 	vec3 d = kd*max(dot(n,l),0.0)*diffuse;
 	vec3 s = exponent==0.0 ? vec3(0.0) : ks*pow(max(dot(reflect(l,n),v),0.0),exponent)*specular;
 
-	return vec4(a+d+s,1.0);
+	return vec4((d+s),1.0);
 }
 
 void main()
@@ -89,8 +96,27 @@ void main()
 
 	//diffuse = texture2D( texture, uv ).xyz;
 	//visibility = 1.0;
-	result = visibility*phong(N, V, L);
+
+	// phong ==============
+	//vec3 p = phong(N, V, L).xyz;
+	vec3 a = ka*ambient;
+	float     exponent; // exponent value
+
+	exponent = 10.1;
+	vec3 d = kd*max(dot(N,L),0.0)*diffuse;
+
+	vec3 s = exponent==0.0 ? vec3(0.0) : ks*pow(max(dot(reflect(L,N),V),0.0),exponent)*specular;
+
+	vec3 p = visibility*s + d;
+
+	if( dot(N,V) > 0.0 )
+		result = vec4(a, 1.0);
+	else
+	{
+		result = vec4(a,1.0) + vec4(visibility*p + (1.0-visibility)*p*0.3, 1.0);
+	}
 
 	//result = phong(N, V, L);
+	//result = vec4(N,1.0);
 	gl_FragData[0] = result;
 }

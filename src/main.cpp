@@ -156,7 +156,7 @@ void render( base::CameraPtr cam )
 	//context->setModelMatrix( math::Matrix44f::Identity() );
 	context->render( plane, colorGrading->shader );
 
-	context->render( axes, context->m_constantShader );
+	//context->render( axes, context->m_constantShader );
 
 	context->setModelMatrix( math::Matrix44f::TranslationMatrix( light0->m_cam->m_transform.getTranslation() ) );
 	context->m_constantShader->setUniform( "color", math::Vec3f(0.0f,0.0f,1.0f) );
@@ -193,7 +193,7 @@ void init()
 
 	// setup light
 	light0 = PointLightPtr( new PointLight() );
-	light0->setPos(math::Vec3f( 0.0f, 1.0f, 3.5f ));
+	light0->setPos(math::Vec3f( 0.0f, 6.0f, 3.0f ));
 	//light0->setPos(math::Vec3f( 4.0f, 2.0f, 0.0f ));
 	light0->setLookAt(math::Vec3f( 0.0f, 0.0f, 0.0f ));
 	light0->update();
@@ -204,13 +204,12 @@ void init()
 	plane = base::geo_grid(30,30);
 	//base::apply_transform( plane, math::Matrix44f::ScaleMatrix(10.0f) * math::Matrix44f::TranslationMatrix(0.0f, -1.0f, 0.0f) );
 	base::apply_transform( plane, math::Matrix44f::ScaleMatrix(10.0f) );
-	base::apply_transform( plane, math::Matrix44f::TranslationMatrix(0.0f, -1.0f, 0.0f) );
+	//base::apply_transform( plane, math::Matrix44f::TranslationMatrix(0.0f, -1.0f, 0.0f) );
 	base::apply_normals(plane);
-	//geometry = base::Geometry::createReferenceMesh();
-
-	geometry = base::geo_sphere(30,30, 1.0f);
+	geometry = base::Geometry::createReferenceMesh();
+	//geometry = base::geo_sphere(30,30, 1.0f);
 	//base::apply_transform(geometry, math::Matrix44f::TranslationMatrix(  0.0f, 2.0f, 0.0f));
-	base::apply_normals(geometry);
+	//base::apply_normals(geometry);
 
 	colorGrading = ColorGradingPtr(new ColorGrading());
 	colorGrading->lightMapShader = depthMapShader;
