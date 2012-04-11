@@ -11,7 +11,5 @@ void main()
 {
 	pw = P;
 	depth = (mvm * vec4(P,1.0)).z;
-	//depth = P.z;
 	gl_Position = mvpm * vec4(P,1.0);
-
 }
