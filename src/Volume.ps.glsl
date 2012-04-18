@@ -55,8 +55,8 @@ vec3 Lri( vec4 wsSample )
 	// spot light
 	float x = distance( wsSample.xyz, wsLightPos.xyz );
 
-	float minDepth = a1.z;
-	float maxDepth = a1.w;
+	float minDepth = a0.x;
+	float maxDepth = a0.y;
 
 	//if ( ndcGeomDistance < ndcDistFromLight  )
 	//{
@@ -94,13 +94,13 @@ vec3 Lri( vec4 wsSample )
 	float T5  = cosTheta2 * T4 - T3;
 
 
-	float transmittance = (1.0 / sqrt(2.0)) * a0.x * T0; // start with first coeff
+	float transmittance = (1.0 / sqrt(2.0)) * a0.z * T0; // start with first coeff
 
-	transmittance += a0.y*T1;
-	transmittance += a0.z*T2;
-	transmittance += a0.w*T3;
-	transmittance += a1.x*T4;
-	transmittance += a1.y*T5;
+	transmittance += a0.w*T1;
+	transmittance += a1.x*T2;
+	transmittance += a1.y*T3;
+	transmittance += a1.z*T4;
+	transmittance += a1.w*T5;
 
 	transmittance *=  sqrt( 2.0f/float(numLightSamples) );
 

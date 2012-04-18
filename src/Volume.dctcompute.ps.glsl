@@ -80,13 +80,13 @@ bool traversal( in vec4 wsIsectIn, in vec4 wsIsectOut,
 		float T4  = cosTheta2 * T3 - T2;
 		float T5  = cosTheta2 * T4 - T3;
 
-		a0.x += transmittance * T0;
-		a0.y += transmittance * T1;
-		a0.z += transmittance * T2;
-		a0.w += transmittance * T3;
+		a0.z += transmittance * T0;
+		a0.w += transmittance * T1;
+		a1.x += transmittance * T2;
+		a1.y += transmittance * T3;
 
-		a1.x += transmittance * T4;
-		a1.y += transmittance * T5;
+		a1.z += transmittance * T4;
+		a1.w += transmittance * T5;
 
 		// the last 2 components are the t0, t1 distances of the lightray/box intersetcion
 		//a1.z += transmittance * cos( factor * 14.0 );
@@ -96,7 +96,7 @@ bool traversal( in vec4 wsIsectIn, in vec4 wsIsectOut,
 		vsCurrentPos += vsDeltaRayDir;
 	}
 
-	a0.x *= 1.0 / sqrt(2.0);
+	a0.z *= 1.0 / sqrt(2.0);
 	float coeff = sqrt(2.0/float(numSteps));
 	a0 *= coeff;
 	a1 *= coeff;
@@ -165,12 +165,9 @@ void main()
 
 		vec4 wsRayOrigin = voxelToWorld * vec4(vsRayOrigin, 1.0);
 
-		// the last 2 components are the t0, t1 distances of the lightray/box intersetcion
-		float wsT0 = distance( wsIsectIn.xyz, wsRayOrigin.xyz ) * sign(t0); // t0 in world space
-		float wsT1 = distance( wsIsectOut.xyz, wsRayOrigin.xyz ) * sign(t1); // t1 in world space
-
-		a1.z = wsT0;
-		a1.w = wsT1;
+		// the first 2 components are the min and max depth distances of the lightray/box intersetcion
+		a0.x = distance( wsIsectIn.xyz, wsRayOrigin.xyz ) * sign(t0); // t0 in world space
+		a0.y = distance( wsIsectOut.xyz, wsRayOrigin.xyz ) * sign(t1); // t1 in world space
 
 		gl_FragData[0] = a0;
 		gl_FragData[1] = a1;
