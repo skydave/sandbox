@@ -46,9 +46,6 @@ vec3 Lri( vec4 wsSample )
 		return vec3(0.0);
 
 
-
-	//float ndcGeomDistance = texture2D( shadowTex, shadowCoord.st ).z; // ndc coordinates mapped to [0,1] range
-	//float ndcDistFromLight = (( -shadowCoord.z ) + 1.0 ) * 0.5;
 	vec4 a0 = texture2DArray( coeffTex, vec3(shadowCoord.xy, 0.0f) );
 	vec4 a1 = texture2DArray( coeffTex, vec3(shadowCoord.xy, 1.0f) );
 
@@ -57,12 +54,6 @@ vec3 Lri( vec4 wsSample )
 
 	float minDepth = a0.x;
 	float maxDepth = a0.y;
-
-	//if ( ndcGeomDistance < ndcDistFromLight  )
-	//{
-	//	// in shadow
-	//	return vec3(0.0f);
-	//}
 
 	// this controls the amount of fallof on the light
 	float ttt = 2.05;// for lightfallofversion
