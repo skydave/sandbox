@@ -29,13 +29,11 @@ vec3 emissionCrossSection = vec3( 0.0, 0.0, 0.0 );
 float queryDensity( vec3 vsPos );
 
 
-vec3 Lri( vec4 wsSample )
+float visibility( vec4 wsSample )
 {
     vec4 shadowCoord = worldToLightProj * wsSample;
     shadowCoord.xyz /= shadowCoord.w;
     shadowCoord.xy = ( shadowCoord.xy + vec2(1.0) ) * 0.5; // [-1,1] to [0,1]
-
-
 
 	// TODO: CHECK OPTIMIZED by using clamp to border
 	if ( shadowCoord.x < 0.0 ||
@@ -43,7 +41,7 @@ vec3 Lri( vec4 wsSample )
 		 shadowCoord.x > 1.0 ||
 		 shadowCoord.y > 1.0 )
 		 // out of bound of shadowmap
-		return vec3(0.0);
+		return 0.0;
 
 
 	vec4 a0 = texture2DArray( coeffTex, vec3(shadowCoord.xy, 0.0f) );
@@ -55,13 +53,8 @@ vec3 Lri( vec4 wsSample )
 	float minDepth = a0.x;
 	float maxDepth = a0.y;
 
-	// this controls the amount of fallof on the light
-	float ttt = 2.05;// for lightfallofversion
-
-	// TODO: CHECK OPTIMIZATION 
-	if ( x < minDepth ) return lightColor;
-	//if ( x < xStart ) return lightColor* (1 - (x/ttt)); // lightfallofversion
-	if ( x > maxDepth ) return vec3(0.0);
+	if ( x < minDepth ) return 1.0;
+	if ( x > maxDepth ) return 0.0;
 
 
 	float wsDistanceToTravel = maxDepth - minDepth;
@@ -96,10 +89,7 @@ vec3 Lri( vec4 wsSample )
 	transmittance *=  sqrt( 2.0f/float(numLightSamples) );
 
 
-	return lightColor * clamp(transmittance, 0.0, 1.0);
-
-	// this has a light fallof on top (lightfallofversion)
-	//return lightColor * (1 - (x/ttt)) * transmittance;
+	return clamp(transmittance, 0.0, 1.0);
 }
 
 
@@ -176,11 +166,12 @@ void main()
 		vec4 wsCurrent = voxelToWorld * vec4( vsCurrent, 1.0);
         vec3 wsFromLight = normalize( wsCurrent.xyz - wsLightPos.xyz );
         vec3 wsToEye = -wsRayDir;
-        //float phaseValue = phaseFunction( wsFromLight, wsToEye, phaseAnisotropy );
-		float phaseValue = 1.0;
+		float phaseCoeff = 1.0;
 
-		vec3 lri = Lri( wsCurrent ) * phaseValue ;
-		//vec3 lri = vec3( 0.3 ) * phaseValue ;
+		// for lightfallofversion
+		//float ttt = 2.05;
+		//lightColor * (1 - (x/ttt))
+		vec3 lri =  lightColor*visibility( wsCurrent )*phaseCoeff;
 		vec3 li = lri * scatteringCrossSection;
 
 		// emission

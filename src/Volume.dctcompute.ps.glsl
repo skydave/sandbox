@@ -22,7 +22,7 @@ float fastexp( in float x )
 	return 1;
 }
 
-bool traversal( in vec4 wsIsectIn, in vec4 wsIsectOut,
+bool computeDCT( in vec4 wsIsectIn, in vec4 wsIsectOut,
 				in vec3 vsIsectIn, in vec3 vsRayDir,
 				in float vsStep, in int numSteps,
 				in bool earlyOut,
@@ -132,14 +132,14 @@ void main()
 		vec4 a0, a1;
 		int stepsPerformed, firstNonEmptyStep;
 
-		bool fullTraversal = traversal( wsIsectIn, wsIsectOut,
+		bool marchedFullDistance = computeDCT( wsIsectIn, wsIsectOut,
 					vsIsectIn, vsRayDir,
 					vsStep, lightSamples,
 					true,
 					firstNonEmptyStep,
 					stepsPerformed, a0, a1 );
 /*
-		if(!fullTraversal)
+		if(!marchedFullDistance)
 		{
 			vsIsectIn = vsRayOrigin + (t0 + float(firstNonEmptyStep - 1) * vsStep ) * vsRayDir;
 			wsIsectIn = voxelToWorld * vec4(vsIsectIn, 1.0);
@@ -148,7 +148,7 @@ void main()
 			wsIsectOut = voxelToWorld * vec4(vsIsectOut, 1.0);
 
 			vsStep = distance( vsIsectIn, vsIsectOut ) / float(lightSamples - 1);
-			traversal( wsIsectIn, wsIsectOut,
+			computeDCT( wsIsectIn, wsIsectOut,
 					   vsIsectIn, vsRayDir,
 					   vsStep, lightSamples,
 					   false,
@@ -166,8 +166,8 @@ void main()
 		vec4 wsRayOrigin = voxelToWorld * vec4(vsRayOrigin, 1.0);
 
 		// the first 2 components are the min and max depth distances of the lightray/box intersetcion
-		a0.x = distance( wsIsectIn.xyz, wsRayOrigin.xyz ) * sign(t0); // t0 in world space
-		a0.y = distance( wsIsectOut.xyz, wsRayOrigin.xyz ) * sign(t1); // t1 in world space
+		a0.x = distance( wsIsectIn.xyz, wsRayOrigin.xyz ) * sign(t0); // minDepth in world space
+		a0.y = distance( wsIsectOut.xyz, wsRayOrigin.xyz ) * sign(t1); // maxDepth in world space
 
 		gl_FragData[0] = a0;
 		gl_FragData[1] = a1;
