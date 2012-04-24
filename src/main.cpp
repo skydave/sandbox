@@ -14,16 +14,18 @@
 
 #include "composer/widgets/GLViewer/GLViewer.h"
 
-#include "TestEffect.h"
-#include "TestEffect.ui.h"
+#include "ColorGrading.h"
+#include "ColorGrading.ui.h"
 
 
 composer::widgets::GLViewer *glviewer; // derived from qglwidget
 base::ContextPtr              context; // this mainly contains transform matrices and convinience functions
 
-TestEffectPtr                  effect; // our test effect...
+ColorGradingPtr          colorgrading; // color grading
 
-
+base::FBOPtr                      fbo;
+base::Texture2dPtr          fboOutput;
+base::Texture2dPtr         refTexture;
 
 
 
@@ -31,7 +33,18 @@ TestEffectPtr                  effect; // our test effect...
 // render function (called by glviewer)
 void render( base::CameraPtr cam )
 {
-	effect->render(cam);
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// render scene to texture
+	fbo->begin();
+	context->renderScreen( refTexture );
+	fbo->end();
+
+	// apply color grading to texture
+	colorgrading->render(cam);
+
+
 }
 
 
@@ -50,15 +63,48 @@ void init()
 	base::Context::setCurrentContext(context);
 
 	// initialize everything ==============
-	effect = TestEffectPtr( new TestEffect() );
-	effect->init();
+	colorgrading = ColorGradingPtr( new ColorGrading() );
+	colorgrading->init();
 
+	refTexture = base::Texture2d::createUVRefTexture();
+	fboOutput = base::Texture2d::createRGBA8();
+	fbo = base::FBO::create().width(512).height(512).attach(fboOutput);
 
-	// bring up testeffect editor ==================
-	TestEffectUI *widget = new TestEffectUI(effect);
+	colorgrading->setInput(fboOutput);
+
+	// bring up colorgrading editor ==================
+	ColorGradingUI *widget = new ColorGradingUI(colorgrading);
 	widget->move( glviewer->mapToGlobal( QPoint( glviewer->width()+10, -30 ) ) );
 	widget->show();
 	glviewer->connect( widget, SIGNAL(makeDirty(void)), SLOT(update(void)) );
+
+
+
+	// setup operator graph:
+	// clear
+	// fbobegin
+	// renderscreen ref texture
+	// fboend
+	// colograding
+	// renderscreen colograding output
+
+	// fbo output0 connected to colograding
+
+	/*
+	opgraphbuilder o;
+
+	o.op( "clear" );
+	o.op( "renderfbo" ).edit();
+		o.op( "clear" );
+		o.op( "renderScreen" ).plug( texture );
+		o.done();
+	o.op( "colorgrading" ).plug(  )
+	o.done();
+
+
+	*/
+
+
 
 }
 
