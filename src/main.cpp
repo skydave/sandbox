@@ -20,6 +20,7 @@
 #include <gltools/misc.h>
 #include <util/StringManip.h>
 #include <util/Path.h>
+#include <util/bson.h>
 #include <gfx/Geometry.h>
 #include <gfx/ObjIO.h>
 #include <gfx/Shader.h>
@@ -53,11 +54,30 @@ struct Application
 	// global application scope operator graph ptr etc.
 	// render function will access this
 
-	void loadOperatorGraph( /*TODOBSONPtr operatorGraph*/ )
+	void loadOperatorGraph( base::bson::BSONPtr operatorGraph )
 	{
+		base::bson::Helper og(operatorGraph);
+		base::bson::Helper ops(og["ops"]);
 		std::vector<base::ops::OpPtr> rootOps;
 
-		// TODO::iterate operatorGraph bson object
+
+		// iterate operatorGraph bson object
+		int numOps = 0;
+		while( ops.contains(numOps) )
+		{
+			base::bson::Helper op = ops[numOps];
+
+			std::string type = op["type"].asString();
+
+			if( type == "ClearOp" )
+			{
+				math::Vec3f clearColor = op["data"]["clearColor"];
+
+				std::cout << "ClearOp " << clearColor.x << " " << clearColor.y << " " << clearColor.z << std::endl;
+			}
+
+			++numOps;
+		}
 
 		// if there is only one root op, then we take this as root
 		if( rootOps.size() == 1 )
@@ -126,6 +146,15 @@ struct TcpIpDriver
 		//while( (numBytesReceived = s.Receive( buffer, 1000 )) != SOCKET_ERROR )
 		{
 			std::cout << "received data... " << numBytesReceived << std::endl;
+			base::bson::Helper cmdObj = base::bson::unpack(buffer, numBytesReceived);
+
+			std::string cmd = cmdObj["command"].asString();
+
+			if( cmd == "loadOperatorGraph" )
+			{
+				application.loadOperatorGraph( cmdObj["operatorGraph"] );
+			}
+
 			//TODO: buffer now contains a bison object
 			//base::BSONPtr data = BSON::unpack( buffer );
 			//std::string command = data["command"];
