@@ -151,7 +151,7 @@ file(GLOB_RECURSE app_sources src/*.c src/*.cpp src/*.h src/*.glsl src/*.ui)
 sourceGroups( app_sources )
 
 #glsl build commands
-generateCppFromGLSL(app_sources glsl_outputs)
+#generateCppFromGLSL(app_sources glsl_outputs)
 
 #qt moc and ui
 generateQtOutputs( app_sources moc_outputs ui_outputs)
