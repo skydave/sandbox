@@ -23,6 +23,8 @@ public:
 	void onOctavesValueChanged(int value);
 	void onLacunarityValueChanged(int value);
 	void onGainValueChanged(int value);
+	void onExportParticlesButtonReleased(void);
+
 
 	signals:
 	void makeDirty(void);

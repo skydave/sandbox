@@ -1,4 +1,5 @@
 #include <QtGui>
+#include <QFileDialog>
 
 #include "Nebulae.ui.h"
 
@@ -31,6 +32,8 @@ NebulaeUI::NebulaeUI( NebulaePtr nebulae, QWidget *parent) : QWidget(parent), m_
 	connect( ui.octaves, SIGNAL(valueChanged(int)), this, SLOT(onOctavesValueChanged(int)) );
 	connect( ui.lacunarity, SIGNAL(valueChanged(int)), this, SLOT(onLacunarityValueChanged(int)) );
 	connect( ui.gain, SIGNAL(valueChanged(int)), this, SLOT(onGainValueChanged(int)) );
+	connect( ui.exportParticlesButton, SIGNAL(released(void)), this, SLOT(onExportParticlesButtonReleased(void)) );
+
 
 }
 
@@ -99,4 +102,16 @@ void NebulaeUI::onGainValueChanged(int value)
 	float t = (value/1000.0f)*1.0;
 	m_nebulae->setGain(t);
 	emit makeDirty();
+}
+
+
+void NebulaeUI::onExportParticlesButtonReleased(void)
+{
+	// file dialog
+	QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"), "untitled.prt", tr("krakatoa particle format (*.prt)"));
+
+	std::string path = fileName.toAscii().constData();
+
+	// export particles
+	m_nebulae->writeParticles( path );
 }
