@@ -35,12 +35,15 @@
 #include "Nebulae.h"
 #include "Nebulae.ui.h"
 
+#include "Sky.h"
+
 composer::widgets::GLViewer *glviewer;
 
 base::ContextPtr context;
 
 
 NebulaePtr nebulae;
+SkyPtr         sky;
 
 
 void onPlayButtonPressed( bool checked )
@@ -84,36 +87,18 @@ void render2( base::CameraPtr cam )
 
 	context->setCamera( cam );
 
-	/*
-	// render to screen
-	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-	//glBlendFunc(GL_ONE, GL_ONE);
-	glEnable( GL_BLEND );
-	glDisable( GL_DEPTH_TEST );
 
 
-	glEnable( GL_VERTEX_PROGRAM_POINT_SIZE );
-	glTexEnvf( GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE );
-
-	glEnable( GL_POINT_SPRITE );
-
-	context->render( nebulae->m_particles, nebulae->m_particleShader );
-
-	glDisable( GL_POINT_SPRITE );
-
-	context->render( nebulae->m_billboards->geo, nebulae->m_billboardShader );
-
-	glDisable( GL_BLEND );
-	*/
 
 	// render to fbo
 	colorFBO->begin();
-	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+	//glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	// render sky backgdrop
+	sky->render( cam );
+
+	// render particles
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	glEnable( GL_BLEND );
 	glDisable( GL_DEPTH_TEST );
@@ -162,6 +147,7 @@ void init()
 	context = base::ContextPtr( new base::Context() );
 	base::Context::setCurrentContext(context);
 
+	sky = Sky::create();
 	nebulae = Nebulae::create();
 
 	// generate
