@@ -33,9 +33,11 @@
 #include <gfx/glsl/common.h>
 #include <gfx/FBO.h>
 
-base::GLViewer *glviewer;
-base::ContextPtr context;
+base::GLViewer    *glviewer;
+base::ContextPtr    context;
 
+base::GeometryPtr      grid;
+base::ShaderPtr  greyShader;
 
 
 
@@ -47,7 +49,7 @@ void render( base::CameraPtr cam )
 
 	context->setCamera( cam );
 
-
+	context->render( grid, greyShader );
 }
 
 
@@ -70,6 +72,8 @@ void init()
 	base::Context::setCurrentContext(context);
 
 	// put your initialization stuff here
+	grid = base::geo_grid( 5, 5, base::Geometry::LINE );
+	greyShader = base::Shader::createSimpleConstantShader( 0.6f, 0.6f, 0.6f );
 }
 
 void shutdown()
