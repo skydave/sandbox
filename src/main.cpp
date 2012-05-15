@@ -144,6 +144,26 @@ void init()
 		std::cout << "glew init failed\n";
 	}
 
+    int dedicatedVidMem = -1;
+	glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, &dedicatedVidMem);
+	int totalAvailableMem = -1; 
+	glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, &totalAvailableMem);
+	int currentAvailableVidMem = -1;
+	glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, &currentAvailableVidMem);
+	int evictionCount = -1;
+	glGetIntegerv(GL_GPU_MEMORY_INFO_EVICTION_COUNT_NVX, &evictionCount);
+	int evictedMemory = -1;
+	glGetIntegerv(GL_GPU_MEMORY_INFO_EVICTED_MEMORY_NVX, &evictedMemory);
+	int maxTextureSize;
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+
+	std::cout << "dedicated video memory (in kb)   : " << dedicatedVidMem << "\n";
+	std::cout << "total available memory (in kb)   : " << totalAvailableMem << "\n";
+	std::cout << "current available memory (in kb) : " << currentAvailableVidMem << "\n";
+	std::cout << "eviction count                   : " << evictionCount << "\n";
+	std::cout << "evicted memory (in kb)           : " << evictedMemory << "\n";
+	std::cout << "maximum texture dimension        : " << maxTextureSize << "\n";
+ 
 	context = base::ContextPtr( new base::Context() );
 	base::Context::setCurrentContext(context);
 
