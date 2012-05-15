@@ -42,7 +42,15 @@ NebulaePtr Nebulae::create()
 
 Nebulae::Nebulae()
 {
+	// pickover_1
 	m_particleDataRes = 1024;
+	m_voxelSize = .005f;
+
+	// pickover_2
+	//m_particleDataRes = 5096;
+	//m_voxelSize = .001f;
+
+
 	m_maxNumParticles = m_particleDataRes*m_particleDataRes;
 
 	m_particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/Nebulae.particles.vs.glsl", base::Path( SRC_PATH ) + "src/Nebulae.particles.ps.glsl" );
@@ -193,7 +201,6 @@ void Nebulae::generate()
 	base::AttributePtr positions = m_particles->getAttr("P");
 
 
-	float voxelSize = .005f;
 
 
 	// go through the equations many times, drawing a point for each iteration
@@ -201,15 +208,15 @@ void Nebulae::generate()
 
 	Grid grid;
 
-
+	std::cout << "generating particles...\n";
 	while( grid.size() < m_maxNumParticles )
 	{
 		math::Vec3f p = m_attractor.next();
 
 		V3i key;
-		key.i = (int)std::floor(p.x / voxelSize);
-		key.j = (int)std::floor(p.y / voxelSize);
-		key.k = (int)std::floor(p.z / voxelSize);
+		key.i = (int)std::floor(p.x / m_voxelSize);
+		key.j = (int)std::floor(p.y / m_voxelSize);
+		key.k = (int)std::floor(p.z / m_voxelSize);
 		// if particle falls into already existing bucket
 		if( grid.find( key ) != grid.end() )
 		{

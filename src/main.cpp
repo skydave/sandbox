@@ -170,6 +170,9 @@ void init()
 	sky = Sky::create();
 	nebulae = Nebulae::create();
 
+	glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, &currentAvailableVidMem);
+	std::cout << "current available memory (in kb) : " << currentAvailableVidMem << "\n";
+
 	// generate
 	nebulae->generate();
 

@@ -244,8 +244,11 @@ struct Nebulae
 	float                                                                                          m_particleAlpha;
 	float                                                                                         m_billboardScale;
 	float                                                                                         m_billboardAlpha;
+
 	float                                                                                              m_frequency;
 	int                                                                                                  m_octaves;
 	float                                                                                             m_lacunarity;
 	float                                                                                                   m_gain;
+
+	float                                                                                              m_voxelSize; // drives voxelgrid for pruning
 };
