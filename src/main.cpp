@@ -1,7 +1,6 @@
 //============================================================================
 //
 //
-// TODO: update to gl4.2 render grid/transform
 //============================================================================
 
 #include <QtGui>
@@ -41,6 +40,9 @@
 composer::widgets::GLViewer *glviewer;
 base::ContextPtr context;
 
+base::GeometryPtr                grid;
+base::ShaderPtr            greyShader;
+
 
 
 
@@ -52,7 +54,7 @@ void render( base::CameraPtr cam )
 
 	context->setCamera( cam );
 
-
+	context->render( grid, greyShader );
 }
 
 
@@ -75,6 +77,8 @@ void init()
 	base::Context::setCurrentContext(context);
 
 	// put your initialization stuff here
+	grid = base::geo_grid( 5, 5, base::Geometry::LINE );
+	greyShader = base::Shader::createSimpleConstantShader( 0.6f, 0.6f, 0.6f );
 }
 
 void shutdown()
