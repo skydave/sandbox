@@ -37,13 +37,15 @@
 #include "composer/widgets/Trackball/Trackball.h"
 #include "composer/widgets/GLViewer/GLViewer.h"
 
+#include "BtgBackground.h"
+
 composer::widgets::GLViewer *glviewer;
 base::ContextPtr context;
 
 base::GeometryPtr                grid;
 base::ShaderPtr            greyShader;
 
-
+BtgBackgroundPtr                  btg;
 
 
 void render( base::CameraPtr cam )
@@ -54,7 +56,10 @@ void render( base::CameraPtr cam )
 
 	context->setCamera( cam );
 
+	btg->render( cam );
+
 	context->render( grid, greyShader );
+
 }
 
 
@@ -79,6 +84,8 @@ void init()
 	// put your initialization stuff here
 	grid = base::geo_grid( 5, 5, base::Geometry::LINE );
 	greyShader = base::Shader::createSimpleConstantShader( 0.6f, 0.6f, 0.6f );
+
+	btg = BtgBackground::create();
 }
 
 void shutdown()
