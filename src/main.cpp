@@ -43,6 +43,7 @@ base::ShaderPtr  greyShader;
 
 
 
+
 // SPH stuff ======================
 
 struct Particle
@@ -128,6 +129,118 @@ struct HalfPlaneCollider
 	}
 };
 
+struct HeightMapCollider
+{
+	base::ImagePtr              m_heightMap;
+
+	float                         m_extendX; // spatial extend in m
+	float                  m_verticalOffset;
+	float                         m_offsetX;
+	float                   m_verticalScale;
+
+	bool                           m_make2d;
+
+	float                           m_delta; // used for numerical computation of the gradient
+
+	// used for preview
+	base::GeometryPtr     m_previewGeometry;
+	base::ShaderPtr                m_shader;
+
+	HeightMapCollider()
+	{
+		m_make2d = true;
+
+		m_delta = 0.05f;
+
+		m_offsetX = -2.0f;
+		//m_extendX = 8000.0f;
+		m_extendX = 6.0f;
+		m_verticalOffset = -3.0f;
+		m_verticalScale = 4.0f;
+		m_heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1.tga" );
+
+		// setup preview rendering stuff
+		m_shader = base::Shader::createSimpleConstantShader( 1.0f, 1.0f, 1.0f );
+		m_previewGeometry = base::Geometry::createLineGeometry();
+		base::AttributePtr pAttr = m_previewGeometry->getAttr("P");
+		int numSegments = 100;
+		for( int i=0;i<numSegments;++i )
+		{
+			float u = (float)i/(float)numSegments;
+			math::Color c = m_heightMap->lookup(u, 0.5f);
+			float height = c.r*m_verticalScale + m_verticalOffset;
+
+			math::Vec3f p = math::Vec3f(u*m_extendX+m_offsetX, height, 0.0f);
+			pAttr->appendElement(p);
+
+			if( i > 0 )
+				m_previewGeometry->addLine( i-1, i );
+		}
+
+		//add normals
+		for( int i=0;i<numSegments;++i )
+		{
+			float u = (float)i/(float)numSegments;
+			math::Vec3f n = getNormal( u, 0.5f );
+			math::Vec3f p = pAttr->get<math::Vec3f>(i);
+
+			int n0 = pAttr->appendElement(p);
+			int n1 = pAttr->appendElement(p+n);
+
+			m_previewGeometry->addLine( n0, n1 );
+		}
+	}
+
+	float getHeight( float u, float v )
+	{
+		math::Color c = m_heightMap->lookup(u, v);
+		float height = c.r*m_verticalScale + m_verticalOffset;
+		return height;
+	}
+
+	math::Vec3f getNormal( float u, float v )
+	{
+		float h2 = getHeight(u + m_delta , v);
+		float h1 = getHeight(u - m_delta , v);
+		float tmp = (h2-h1)/(2.0f*m_delta);
+		tmp = 1.0f/tmp;
+		math::Vec3f tangent = math::Vec3f( 1.0f, tmp, 0.0f ).normalized();
+		math::Vec3f tmpv = math::crossProduct( tangent, math::Vec3f( 0.0f, 1.0f, 0.0f ) );
+		math::Vec3f normal = math::crossProduct( tmpv, tangent );
+		return normal;
+	}
+
+
+	void operator()( ParticleContainer &container )
+	{
+		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
+		{
+			Particle &p = *it;
+
+			if( (p.position.x > m_offsetX)&&(p.position.x+m_offsetX < m_extendX) ) 
+			{
+				// query heightmap
+				float height = getHeight((p.position.x-m_offsetX) / m_extendX , 0.5f);
+	
+				// compute gradient
+				math::Vec3f n = getNormal((p.position.x-m_offsetX) / m_extendX, 0.5f );
+
+
+				
+				if( p.position.y < height )
+				{
+					float d = height -p.position.y;
+					p.position = math::Vec3f( p.position.x, height, 0.0f );
+					p.position += math::dotProduct(n, math::Vec3f(1.0f, 0.0f, 0.0f))*0.001f*math::Vec3f(1.0f, 0.0f, 0.0f);
+					p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, n) )*n;
+				}
+			}
+		}
+	}
+};
+
+HeightMapCollider *heightMap;
+
 HalfPlaneCollider bottom, bottom2;
 
 void timeIntegration()
@@ -157,9 +270,12 @@ void timeIntegration()
 
 
 	}
-	// handle collisions =====================
 
-	//  halfplane
+}
+
+void handleCollisions()
+{
+	/*
 	bottom.m_normal = math::Vec3f( -1.0f, 1.0f, 0.0f ).normalized();
 	bottom.m_distance = 2.0f;
 	bottom( m_particles );
@@ -167,6 +283,8 @@ void timeIntegration()
 
 	bottom2.m_normal = math::Vec3f( 1.0f, 1.0f, 0.0f ).normalized();
 	bottom2( m_particles );
+	*/
+	(*heightMap)( m_particles );
 }
 
 void advance()
@@ -237,7 +355,6 @@ void advance()
 
 		//gravity
 		math::Vec3f f_gravity( 0.0f, 0.0f, 0.0f );
-		//f_gravity = -(p.position-math::Vec3f( 3.0f, 3.0f, 0.0f )).normalized()*0.98f;
 		f_gravity = -math::Vec3f( 0.0f, 1.0f, 0.0f )*0.98f;
 
 
@@ -251,6 +368,8 @@ void advance()
 
 	// 
 	timeIntegration();
+
+	handleCollisions();
 
 
 	// update renderparticles
@@ -345,6 +464,9 @@ void render( base::CameraPtr cam )
 
 	context->render( grid, greyShader );
 
+	//context->renderScreen( heightMap->m_heightMap );
+	context->render( heightMap->m_previewGeometry, heightMap->m_shader );
+
 	// advance sph system
 	advance();
 
@@ -383,6 +505,9 @@ void init()
 
 	// initialize sph system
 	initialize();
+
+
+	heightMap = new HeightMapCollider();
 }
 
 void shutdown()
