@@ -36,14 +36,16 @@
 #include "Nebulae.ui.h"
 
 #include "Sky.h"
+#include "BtgBackground.h"
 
 composer::widgets::GLViewer *glviewer;
 
 base::ContextPtr context;
 
 
-NebulaePtr nebulae;
-SkyPtr         sky;
+NebulaePtr           nebulae;
+SkyPtr                   sky;
+BtgBackgroundPtr         btg;
 
 
 void onPlayButtonPressed( bool checked )
@@ -96,7 +98,8 @@ void render2( base::CameraPtr cam )
 	//glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// render sky backgdrop
-	sky->render( cam );
+	//sky->render( cam );
+	btg->render( cam );
 
 	// render particles
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
@@ -168,6 +171,7 @@ void init()
 	base::Context::setCurrentContext(context);
 
 	sky = Sky::create();
+	btg = BtgBackground::create();
 	nebulae = Nebulae::create();
 
 	glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, &currentAvailableVidMem);
@@ -202,7 +206,7 @@ int main(int argc, char ** argv)
 	QMainWindow mainWin;
 	mainWin.resize(800, 600);
 	glviewer = new composer::widgets::GLViewer(init, render2);
-	glviewer->getCamera()->m_znear = 0.1f;
+	glviewer->getCamera()->m_znear = 0.01f;
 	glviewer->getCamera()->m_zfar = 100000.0f;
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
