@@ -131,20 +131,24 @@ struct HalfPlaneCollider
 
 struct HeightMapCollider
 {
-	base::ImagePtr              m_heightMap;
+	std::vector<float>                m_heightMap;
+	std::vector<math::Vec3f>   m_heightMapNormals;
+	int                          m_heightMapWidth;
+	int                         m_heightMapHeight;
 
-	float                         m_extendX; // spatial extend in m
-	float                  m_verticalOffset;
-	float                         m_offsetX;
-	float                   m_verticalScale;
+	float                               m_extendX; // spatial extend in m
+	math::Vec3f                          m_offset;
+	float                         m_verticalScale;
 
-	bool                           m_make2d;
+	bool                                 m_make2d;
 
-	float                           m_delta; // used for numerical computation of the gradient
+	float                                 m_delta; // used for numerical computation of the gradient
 
 	// used for preview
-	base::GeometryPtr     m_previewGeometry;
-	base::ShaderPtr                m_shader;
+	base::GeometryPtr           m_previewGeometry;
+	base::ShaderPtr                      m_shader;
+	base::GeometryPtr                   m_terrain;
+	base::ShaderPtr              m_geometryShader;
 
 	HeightMapCollider()
 	{
@@ -152,12 +156,48 @@ struct HeightMapCollider
 
 		m_delta = 0.05f;
 
-		m_offsetX = -2.0f;
-		//m_extendX = 8000.0f;
-		m_extendX = 6.0f;
-		m_verticalOffset = -3.0f;
-		m_verticalScale = 4.0f;
-		m_heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1.tga" );
+		m_extendX = 1.0f;
+		m_offset.x = -0.5f;
+		m_offset.y = .0f;
+		m_offset.z = -0.5f;
+		m_verticalScale = .6f;
+
+		//m_geometryShader = base::Shader::load( base::Path( SRC_PATH ) + "src/SPH.geometry" );
+		m_geometryShader = base::Shader::createSimpleLambertShader();
+
+
+		// get height data from image
+		{
+			base::ImagePtr heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1.tga" );
+			m_heightMapWidth = heightMap->m_width;
+			m_heightMapHeight = heightMap->m_height;
+			m_heightMap.resize( heightMap->m_width*heightMap->m_height, 0.0f );
+			for( int j=0;j<heightMap->m_height;++j )
+				for( int i=0;i<heightMap->m_width;++i )
+				{
+					m_heightMap[ j*heightMap->m_width  + i ] = heightMap->lookup(i, j).r;
+				}
+
+			m_heightMapNormals.resize( heightMap->m_width*heightMap->m_height, 0.0f );
+			for( int j=0;j<heightMap->m_height;++j )
+				for( int i=0;i<heightMap->m_width;++i )
+				{
+					int x = i;
+					int y = j;
+
+					float a11 = getHeight( x, y );
+					float a01 = getHeight( x-1, y );
+					float a21 = getHeight( x+1, y );
+					float a10 = getHeight( x, y-1 );
+					float a12 = getHeight( x, y+1 );
+
+					math::Vec3f right = math::Vec3f( 1.0f/(float)m_heightMapWidth, (a21-a01)/2.0f, 0.0f ).normalized();
+					math::Vec3f forward = math::Vec3f( 0.0f, (a12-a10)/2.0f, 1.0f/(float)m_heightMapHeight ).normalized();
+					math::Vec3f n = math::crossProduct( forward, right ).normalized();
+					n.y *= m_verticalScale;
+					m_heightMapNormals[ y*heightMap->m_width  + x ] = n;
+				}
+		}
 
 		// setup preview rendering stuff
 		m_shader = base::Shader::createSimpleConstantShader( 1.0f, 1.0f, 1.0f );
@@ -167,47 +207,113 @@ struct HeightMapCollider
 		for( int i=0;i<numSegments;++i )
 		{
 			float u = (float)i/(float)numSegments;
-			math::Color c = m_heightMap->lookup(u, 0.5f);
-			float height = c.r*m_verticalScale + m_verticalOffset;
+			float height = getHeight( u, 0.5f );
 
-			math::Vec3f p = math::Vec3f(u*m_extendX+m_offsetX, height, 0.0f);
+			math::Vec3f p = math::Vec3f(u*m_extendX+m_offset.x, height, 0.0f);
 			pAttr->appendElement(p);
 
 			if( i > 0 )
 				m_previewGeometry->addLine( i-1, i );
 		}
 
-		//add normals
-		for( int i=0;i<numSegments;++i )
 		{
-			float u = (float)i/(float)numSegments;
-			math::Vec3f n = getNormal( u, 0.5f );
-			math::Vec3f p = pAttr->get<math::Vec3f>(i);
-
-			int n0 = pAttr->appendElement(p);
-			int n1 = pAttr->appendElement(p+n);
-
-			m_previewGeometry->addLine( n0, n1 );
+			for( int j=0;j<m_heightMapHeight;++j )
+				for( int i=0;i<m_heightMapWidth;++i )
+				{
+					math::Vec3f p = math::Vec3f( (float)i/(float)m_heightMapWidth+m_offset.x, getHeight( i, j ), (float)j/(float)m_heightMapHeight+m_offset.z );
+					math::Vec3f n = getNormal( i, j );
+					int i0 = pAttr->appendElement(p);
+					int i1 = pAttr->appendElement(p+n*0.005f);
+					//m_previewGeometry->addLine( i0, i1 );
+				}
 		}
+
+		{
+			// get a grid...
+			m_terrain = base::geo_grid( 130, 130 );
+			// move it into right postion
+			base::apply_transform( m_terrain, math::Matrix44f::TranslationMatrix( 0.5f+m_offset.x, 0.0f, 0.5f+m_offset.z ) );
+			// get points
+			base::AttributePtr pAttr = m_terrain->getAttr( "P" );
+			int numElements = pAttr->numElements();
+			// update points heights from heightmap
+			for( int i=0;i<numElements;++i )
+				{
+					math::Vec3f p = pAttr->get<math::Vec3f>(i);
+
+					float h = this->getHeight_interp( p.x-m_offset.x, p.z-m_offset.z );
+					p.y = h;
+
+					pAttr->set<math::Vec3f>(i, p);
+
+				}
+			base::apply_normals( m_terrain );
+		}
+
+
+	}
+
+
+
+	float getHeight( int x, int y )
+	{
+		if( x < 0 )
+			x = 0;
+		if( x >= m_heightMapWidth )
+			x = m_heightMapWidth-1;
+		if( y < 0 )
+			y = 0;
+		if( y >= m_heightMapHeight )
+			y = m_heightMapHeight-1;
+
+		float height = m_heightMap[y*m_heightMapWidth + x];
+
+		return height*m_verticalScale + m_offset.y;
+	}
+
+
+	math::Vec3f getNormal( int x, int y )
+	{
+		if( x < 0 )
+			return math::Vec3f( 0.0f, 1.0f, 0.0f );
+		if( x >= m_heightMapWidth )
+			return math::Vec3f( 0.0f, 1.0f, 0.0f );
+		if( y < 0 )
+			return math::Vec3f( 0.0f, 1.0f, 0.0f );
+		if( y >= m_heightMapHeight )
+			return math::Vec3f( 0.0f, 1.0f, 0.0f );
+
+		return m_heightMapNormals[ y*this->m_heightMapWidth  + x ];
 	}
 
 	float getHeight( float u, float v )
 	{
-		math::Color c = m_heightMap->lookup(u, v);
-		float height = c.r*m_verticalScale + m_verticalOffset;
-		return height;
+		// nearest neighbour
+		int x = int(u*m_heightMapWidth);
+		int y = int(v*m_heightMapHeight);
+		return getHeight( x, y );
 	}
 
-	math::Vec3f getNormal( float u, float v )
+	float getHeight_interp( float u, float v )
 	{
-		float h2 = getHeight(u + m_delta , v);
-		float h1 = getHeight(u - m_delta , v);
-		float tmp = (h2-h1)/(2.0f*m_delta);
-		tmp = 1.0f/tmp;
-		math::Vec3f tangent = math::Vec3f( 1.0f, tmp, 0.0f ).normalized();
-		math::Vec3f tmpv = math::crossProduct( tangent, math::Vec3f( 0.0f, 1.0f, 0.0f ) );
-		math::Vec3f normal = math::crossProduct( tmpv, tangent );
-		return normal;
+		// bilinear interpolation
+		float _x = u*m_heightMapWidth - 0.5f;
+		float _y = v*m_heightMapHeight - 0.5f;
+
+		float tx = _x - floor(_x);
+		float ty = _y - floor(_y);
+		int x = (int)floor(_x);
+		int y = (int)floor(_y);
+
+		float a, b, c, d;
+		a = getHeight( x, y );
+		b = getHeight( x+1, y );
+		c = getHeight( x, y+1 );
+		d = getHeight( x+1, y+1 );
+
+		float height = math::lerp( math::lerp( a, b, tx ), math::lerp( b, c, tx ), ty );
+
+		return height;
 	}
 
 
@@ -217,13 +323,13 @@ struct HeightMapCollider
 		{
 			Particle &p = *it;
 
-			if( (p.position.x > m_offsetX)&&(p.position.x+m_offsetX < m_extendX) ) 
+			if( (p.position.x > m_offset.x)&&(p.position.x+m_offset.x < m_extendX) ) 
 			{
 				// query heightmap
-				float height = getHeight((p.position.x-m_offsetX) / m_extendX , 0.5f);
+				float height = getHeight((p.position.x-m_offset.x) / m_extendX , 0.5f);
 	
 				// compute gradient
-				math::Vec3f n = getNormal((p.position.x-m_offsetX) / m_extendX, 0.5f );
+				//math::Vec3f n = getNormal((p.position.x-m_offsetX) / m_extendX, 0.5f );
 
 
 				
@@ -231,8 +337,8 @@ struct HeightMapCollider
 				{
 					float d = height -p.position.y;
 					p.position = math::Vec3f( p.position.x, height, 0.0f );
-					p.position += math::dotProduct(n, math::Vec3f(1.0f, 0.0f, 0.0f))*0.001f*math::Vec3f(1.0f, 0.0f, 0.0f);
-					p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, n) )*n;
+					//p.position += math::dotProduct(n, math::Vec3f(1.0f, 0.0f, 0.0f))*0.001f*math::Vec3f(1.0f, 0.0f, 0.0f);
+					//p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, n) )*n;
 				}
 			}
 		}
@@ -355,7 +461,7 @@ void advance()
 
 		//gravity
 		math::Vec3f f_gravity( 0.0f, 0.0f, 0.0f );
-		f_gravity = -math::Vec3f( 0.0f, 1.0f, 0.0f )*0.98f;
+		f_gravity = -math::Vec3f( 0.05f, 1.0f, 0.0f ).normalized()*0.98f;
 
 
 		// compute acceleration
@@ -462,10 +568,14 @@ void render( base::CameraPtr cam )
 
 	context->setCamera( cam );
 
+	glEnable( GL_DEPTH_TEST );
 	context->render( grid, greyShader );
 
 	//context->renderScreen( heightMap->m_heightMap );
 	context->render( heightMap->m_previewGeometry, heightMap->m_shader );
+
+	context->render( heightMap->m_terrain, heightMap->m_geometryShader );
+	glDisable( GL_DEPTH_TEST );
 
 	// advance sph system
 	advance();
