@@ -35,6 +35,8 @@
 
 #include "SPH.h"
 #include "SDF.h"
+#include "Terrain.h"
+
 
 base::GLViewer    *glviewer;
 base::ContextPtr    context;
@@ -133,7 +135,7 @@ struct HalfPlaneCollider
 		}
 	}
 };
-
+/*
 struct HeightMapCollider
 {
 	std::vector<float>                m_heightMap;
@@ -224,7 +226,6 @@ struct HeightMapCollider
 
 		{
 			math::Vec3f s = math::slerp( math::Vec3f(-1.0, 1.0, 0.0f).normalized(), math::Vec3f(1.0f, 1.0f, 0.0f).normalized(), 0.5f );
-			std::cout << "tsst\n";
 		}
 
 		// preview normals...
@@ -292,91 +293,6 @@ struct HeightMapCollider
 
 
 
-	float getHeight( int x, int y )
-	{
-		if( x < 0 )
-			x = 0;
-		if( x >= m_heightMapWidth )
-			x = m_heightMapWidth-1;
-		if( y < 0 )
-			y = 0;
-		if( y >= m_heightMapHeight )
-			y = m_heightMapHeight-1;
-
-		float height = m_heightMap[y*m_heightMapWidth + x];
-
-		return height*m_verticalScale + m_offset.y;
-	}
-
-
-	math::Vec3f getNormal( int x, int y )
-	{
-		if( x < 0 )
-			return math::Vec3f( 0.0f, 1.0f, 0.0f );
-		if( x >= m_heightMapWidth )
-			return math::Vec3f( 0.0f, 1.0f, 0.0f );
-		if( y < 0 )
-			return math::Vec3f( 0.0f, 1.0f, 0.0f );
-		if( y >= m_heightMapHeight )
-			return math::Vec3f( 0.0f, 1.0f, 0.0f );
-
-		math::Vec3f n = m_heightMapNormals[ y*this->m_heightMapWidth  + x ];
-
-		return n;
-	}
-
-	math::Vec3f getNormal_interp( float u, float v )
-	{
-		// 
-		float _x = (u-m_offset.x)*m_heightMapWidth - 0.5f;
-		float _y = (v-m_offset.z)*m_heightMapHeight - 0.5f;
-
-		float tx = _x - floor(_x);
-		float ty = _y - floor(_y);
-		int x = (int)floor(_x);
-		int y = (int)floor(_y);
-
-		math::Vec3f a, b, c, d;
-		a = getNormal( x, y );
-		b = getNormal( x+1, y );
-		c = getNormal( x, y+1 );
-		d = getNormal( x+1, y+1 );
-
-		math::Vec3f n = math::slerp( math::slerp( a, b, tx ), math::slerp( b, c, tx ), ty );
-
-		return a;
-	}
-
-	float getHeight( float u, float v )
-	{
-		// nearest neighbour
-		int x = int((u-m_offset.x)*m_heightMapWidth);
-		int y = int((v-m_offset.z)*m_heightMapHeight);
-		return getHeight( x, y );
-	}
-
-	float getHeight_interp( float u, float v )
-	{
-		// bilinear interpolation
-		float _x = (u-m_offset.x)*m_heightMapWidth - 0.5f;
-		float _y = (v-m_offset.z)*m_heightMapHeight - 0.5f;
-
-		float tx = _x - floor(_x);
-		float ty = _y - floor(_y);
-		int x = (int)floor(_x);
-		int y = (int)floor(_y);
-
-		float a, b, c, d;
-		a = getHeight( x, y );
-		b = getHeight( x+1, y );
-		c = getHeight( x, y+1 );
-		d = getHeight( x+1, y+1 );
-
-		float height = math::lerp( math::lerp( a, b, tx ), math::lerp( c, d, tx ), ty );
-
-		return height;
-	}
-
 
 	void operator()( ParticleContainer &container )
 	{
@@ -411,7 +327,7 @@ struct HeightMapCollider
 	}
 };
 
-
+*/
 
 
 
@@ -422,17 +338,18 @@ struct HeightMapCollider
 
 struct TerrainSDF
 {
-
+	TerrainPtr m_terrain;
 	TerrainSDF()
 	{
-		//base::ImagePtr heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1.tga" );
-		base::ImagePtr heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1_perlinnoise.tga" );
+		m_terrain = Terrain::create( base::Path( SRC_PATH ) + "data/terrain_1_perlinnoise.tga" );
 	}
 
 	float operator()( const math::Vec3f &p )
 	{
 		math::Vec3f _p = p;
 
+		/*
+		// bottom hole ==============================
 		// sphere
 		math::Vec3f center( 0.5f, 0.5f, 0.0f );
 		float r = 0.3f;
@@ -447,9 +364,53 @@ struct TerrainSDF
 
 		// mix
 		float sd3 = std::max( -sd, sd2 );
-		return sd3;
+		//return sd3;
+		*/
 
-		//return p.x;
+		// height map ==============================
+		{
+			float d = FLT_MAX;
+			int tileResX = 20;
+			int tileResY = 20;
+			// iterate over all tiles and compute distance by approximating each tile with triangles
+			// and using triangle distances
+			float uInc = 1.0f/(float)tileResX;
+			float vInc = 1.0f/(float)tileResY;
+			for( int j=0;j<tileResY;++j )
+				for( int i=0;i<tileResX;++i )
+				{
+					float u = (float)i/(float)tileResX;
+					float v = (float)j/(float)tileResY;
+
+					// get current triangles
+					math::Vec3f p0, p1, p2, p3;
+					p0 = math::Vec3f( u, m_terrain->getHeight( u, v ), v );
+					p1 = math::Vec3f( u+uInc, m_terrain->getHeight( u+uInc, v ), v );
+					p2 = math::Vec3f( u+uInc, m_terrain->getHeight( u+uInc, v+vInc ), v+vInc );
+					p3 = math::Vec3f( u, m_terrain->getHeight( u, v+vInc ), v+vInc );
+					d = std::min( d, math::distancePointTriangle( p, p0, p1, p2 ) );
+					d = std::min( d, math::distancePointTriangle( p, p0, p2, p3 ) );
+				}
+
+			// determine sign by looking at the height of p
+			float sign = 1.0f;
+			if( p.y < m_terrain->getHeight( p.x, p.z ) )
+				sign = -1.0f;
+
+			//return d<0.01?1.0:0.0f;
+			return sign*d;
+		}
+
+
+		/*
+		math::Vec3f p0, p1, p2;
+		p0 = math::Vec3f( 0.5f, 0.7f, 0.3f );
+		p1 = math::Vec3f( 0.5f, 0.7f, -0.1f );
+		p2 = math::Vec3f( 0.5f, 0.3f, -0.1f );
+		return 
+		*/
+
+		//return sd2;
 	}
 };
 
@@ -461,8 +422,7 @@ struct SDFCollider
 
 	std::vector<float>     m_sdfGrid;
 	Domain               m_sdfWindow; // defines the window in sdf's local space which we are sampling
-	math::BoundingBox3d      m_bound; // defines the scale and offset of the sdf in worldspace
-	math::Vec3f          m_boundSize; // defines the scale and offset of the sdf in worldspace
+	math::Matrix44f   m_worldToLocal; // defines how the sdf is transformed in space
 
 	SDFCollider()
 	{
@@ -471,11 +431,28 @@ struct SDFCollider
 		m_sdfWindow.width = 30;
 		m_sdfWindow.height = 30;
 		m_sdfWindow.depth = 30;
+		// distance values will now be in sdf local space
 		distanceTransform( m_sdfWindow, m_sdfGrid, terrainSDF );
 
 		// define the region which is covered by the sdf grid (this allows to move the sdf independent from where it was sampled)
-		m_bound = math::BoundingBox3d( math::Vec3f(-2.0f, -2.0f, -2.0f),  math::Vec3f(2.0f, 2.0f, 2.0f) );
-		m_boundSize = m_bound.size();
+		//float uniformScale = 4.0f;
+		float uniformScale = 1.0f;
+		math::Matrix44f localToWorld = math::Matrix44f::Identity();
+
+		//localToWorld.scale( uniformScale );
+		//localToWorld.translate( -math::Vec3f(2.0f, 2.0f, 0.0f) ); // TODO: 3d
+		localToWorld.translate( -math::Vec3f(.5f, 0.0f, 0.5f) ); // TODO: 3d
+
+		m_worldToLocal = localToWorld.inverted();
+
+
+		// this requires rescaling of the sdf so that distances are in worldspace units
+		for( std::vector<float>::iterator it = m_sdfGrid.begin(); it != m_sdfGrid.end(); ++it )
+		{
+			float &sd = *it;
+			sd = sd*uniformScale;
+		}
+
 	}
 
 	// returns sdf from voxelcoords
@@ -508,10 +485,7 @@ struct SDFCollider
 
 		// convert from world to localspace
 		math::Vec3f _p;
-		_p.x = (p.x-m_bound.minPoint.x)/m_boundSize.x;
-		_p.y = (p.y-m_bound.minPoint.y)/m_boundSize.y;
-		_p.z = 0.0f;
-		//_p.z = (p.position.z-m_bound.minPoint.z)/s.z; // TODO: 3d
+		_p = math::transform( p, m_worldToLocal );
 
 		// convert from local to voxelspace
 		vs.x = _p.x * m_sdfWindow.width;
@@ -543,7 +517,7 @@ struct SDFCollider
 
 	math::Vec3f gradient( const math::Vec3f &p )
 	{
-		float d = m_boundSize.x / m_sdfWindow.width;
+		float d = 1.0f / m_sdfWindow.width;
 
 		float s011 = signedDistance( p+math::Vec3f(-d, 0.0f, 0.0f) );
 		float s211 = signedDistance( p+math::Vec3f(d, 0.0f, 0.0f) );
@@ -563,7 +537,6 @@ struct SDFCollider
 
 	void operator()( ParticleContainer &container )
 	{
-		math::Vec3f s = m_bound.size();
 		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 		{
 			Particle &p = *it;
@@ -571,6 +544,10 @@ struct SDFCollider
 			math::Vec3f _p = p.position;
 
 			float sd = signedDistance( _p );
+
+			if( p.id == 0 )
+				std::cout << "distance: " << sd << std::endl;
+
 
 			float proximityThreshold = 0.001f;
 
@@ -583,7 +560,7 @@ struct SDFCollider
 				_p -= grad*(sd-proximityThreshold);
 
 				p.position = _p;
-				p.position.z = 0.0f; // TODO: 3d
+				//p.position.z = 0.0f; // TODO: 3d
 
 				// adjust velocity
 				p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, grad) )*grad;
@@ -593,7 +570,7 @@ struct SDFCollider
 
 
 	// samples slice along z=0 plane in localspace
-	base::Texture2dPtr createSlice( const math::Vec2f &min, const math::Vec2f &max, int width, int height )
+	base::Texture2dPtr createSlice( const math::Vec2f &min, const math::Vec2f &max, float z, int width, int height )
 	{
 		math::Vec2f size = max - min;
 		float *data = (float*)malloc( width*height*sizeof(float) );
@@ -607,10 +584,11 @@ struct SDFCollider
 				math::Vec3f p;
 				p.x = u*size.x + min.x; 
 				p.y = v*size.y + min.y;
-				p.z = 0.0f; // TODO: 3d
+				p.z = z; // TODO: 3d
 
 				float sdf = signedDistance(p); // worldspace
 
+				//data[ (height-j-1)*width + i ] = fabs(sdf);
 				data[ j*width + i ] = fabs(sdf);
 			}
 
@@ -630,10 +608,16 @@ struct SDFCollider
 
 
 
-HeightMapCollider *heightMap;
+//HeightMapCollider *heightMap;
 
 HalfPlaneCollider bottom, bottom2;
 SDFCollider                  sdf1;
+
+TerrainPtr                terrain;
+
+base::GeometryPtr      terrainGeo;
+base::ShaderPtr     terrainShader;
+
 
 void timeIntegration()
 {
@@ -777,8 +761,8 @@ void advance()
 	}
 
 	// print some debug info
-	std::cout << "max abs pressure: " << m_maxPressure << std::endl;
-	std::cout << "max abs mass density: " << m_maxMassDensity << std::endl;
+	//std::cout << "max abs pressure: " << m_maxPressure << std::endl;
+	//std::cout << "max abs mass density: " << m_maxMassDensity << std::endl;
 }
 
 
@@ -816,7 +800,7 @@ void initialize()
 			{
 				Particle p;
 				p.id = m_numParticles;
-				p.position = math::Vec3f( -1.5f + i * spacing, 0.8f + j * spacing, 0.0f );
+				p.position = math::Vec3f( -1.5f + i * spacing, 1.0f + j * spacing, 0.0f );
 				p.positionPrev = p.position;
 				p.color = math::Vec3f( 0.54f, 0.85f, 1.0f );
 				//p.mass = 0.02f; // water
@@ -863,9 +847,10 @@ void render( base::CameraPtr cam )
 
 	//context->renderScreen( heightMap->m_heightMap );
 	//context->render( heightMap->m_previewGeometry, heightMap->m_shader );
-	//context->render( heightMap->m_terrain, heightMap->m_geometryShader );
+	context->render( terrainGeo, terrainShader );
 	context->render( sdfGeo, sdfShader );
 	glDisable( GL_DEPTH_TEST );
+
 
 
 
@@ -878,6 +863,7 @@ void render( base::CameraPtr cam )
 	glEnable( GL_POINT_SPRITE );
 	context->render( m_renderParticles, m_particleShader );
 	glDisable( GL_POINT_SPRITE );
+
 
 
 }
@@ -916,13 +902,39 @@ void init()
 	initialize();
 
 
-	heightMap = new HeightMapCollider();
+	//heightMap = new HeightMapCollider();
+	//terrain = Terrain::create( (base::Path( SRC_PATH ) + "data/terrain_1_perlinnoise.tga").str() );
+	terrainGeo = Terrain::createGeometry( (base::Path( SRC_PATH ) + "data/terrain_1_perlinnoise.tga").str(), 30, 30 );
+	//base::apply_transform( terrainGeo, math::Matrix44f::TranslationMatrix(0.5f, 0.0f, 0.5f) );
+	terrainShader = base::Shader::createSimpleLambertShader();
+
 
 	// sdf test
 	sdfGeo = base::geo_quad();
-	base::apply_transform( sdfGeo, math::Matrix44f::ScaleMatrix(2.0f)*math::Matrix44f::TranslationMatrix(0.0f, 0.0f, 0.0f) );
-	slice = sdf1.createSlice( math::Vec2f(-2.0f, -2.0f), math::Vec2f(2.0f, 2.0f), 512, 512 );
+	//base::apply_transform( sdfGeo, math::Matrix44f::ScaleMatrix(2.0f)*math::Matrix44f::TranslationMatrix(0.0f, 0.0f, 0.0f) );
+	//slice = sdf1.createSlice( math::Vec2f(-2.0f, -2.0f), math::Vec2f(2.0f, 2.0f), 512, 512 );
+	base::apply_transform( sdfGeo, math::Matrix44f::ScaleMatrix(0.5f)*math::Matrix44f::TranslationMatrix(0.0f, 0.5f, 0.0f) );
+	slice = sdf1.createSlice( math::Vec2f(-0.5f, 0.0f), math::Vec2f(.5f, 1.0f), 0.5f, 512, 512 );
 	sdfShader = base::Shader::createSimpleTextureShader(slice);
+
+	{
+		base::AttributePtr attr = terrainGeo->getAttr("P");
+
+		for( int i=0;i<attr->numElements();++i )
+		{
+			math::Vec3f p = attr->get<math::Vec3f>(i);
+			float h = sdf1.terrainSDF.m_terrain->getHeight( p.x, p.z );
+			if( fabs(h-p.y) > 0.001f )
+			{
+				//std::cout <<"asfasf\n";
+			}
+			float d = sdf1.signedDistance(p+math::Vec3f(0.0f, 0.01f, 0.0f));
+			if( fabs(d) > 0.03f )
+			{
+				//std::cout <<"asfasf22222222 " << i << "\n";
+			}
+		}
+	}
 
 }
 

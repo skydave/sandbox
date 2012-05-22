@@ -45,3 +45,7 @@ void distanceTransform( const Domain &domain, std::vector<float> &outGrid, T sdf
 				outGrid[ k*domain.width*domain.height + j*domain.width + i ] = sdf( p );
 			}
 }
+
+
+// distance ============================================================
+
