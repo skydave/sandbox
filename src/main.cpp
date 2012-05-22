@@ -457,22 +457,25 @@ struct TerrainSDF
 
 struct SDFCollider
 {
-	TerrainSDF        terrainSDF;
+	TerrainSDF            terrainSDF;
 
-	std::vector<float> m_sdfGrid;
-	Domain           m_sdfWindow; // defines the window in sdf's local space which we are sampling
-	math::BoundingBox3d  m_bound; // defines the scale and offset of the sdf in worldspace
+	std::vector<float>     m_sdfGrid;
+	Domain               m_sdfWindow; // defines the window in sdf's local space which we are sampling
+	math::BoundingBox3d      m_bound; // defines the scale and offset of the sdf in worldspace
+	math::Vec3f          m_boundSize; // defines the scale and offset of the sdf in worldspace
 
 	SDFCollider()
 	{
 		// define region in sdf local space and sampling rate
-		m_sdfWindow.bound = math::BoundingBox3d( math::Vec3f( 0.5f, 0.0f, 0.0f ), math::Vec3f( 1.5f, 1.0f, 1.0f ) );
+		m_sdfWindow.bound = math::BoundingBox3d( math::Vec3f( 0.0f, 0.0f, 0.0f ), math::Vec3f( 1.0f, 1.0f, 1.0f ) );
 		m_sdfWindow.width = 30;
 		m_sdfWindow.height = 30;
 		m_sdfWindow.depth = 30;
 		distanceTransform( m_sdfWindow, m_sdfGrid, terrainSDF );
 
+		// define the region which is covered by the sdf grid (this allows to move the sdf independent from where it was sampled)
 		m_bound = math::BoundingBox3d( math::Vec3f(-2.0f, -2.0f, -2.0f),  math::Vec3f(2.0f, 2.0f, 2.0f) );
+		m_boundSize = m_bound.size();
 	}
 
 	// returns sdf from voxelcoords
@@ -498,17 +501,22 @@ struct SDFCollider
 		return m_sdfGrid[ _z*m_sdfWindow.width*m_sdfWindow.height + _y*m_sdfWindow.width + _x ];
 	}
 
-	// evaluates sdf using baked grid; p is in localspace
+	// evaluates sdf using baked grid; p is in worldspace
 	float signedDistance( const math::Vec3f &p )
 	{
 		math::Vec3f vs;
 
-
+		// convert from world to localspace
+		math::Vec3f _p;
+		_p.x = (p.x-m_bound.minPoint.x)/m_boundSize.x;
+		_p.y = (p.y-m_bound.minPoint.y)/m_boundSize.y;
+		_p.z = 0.0f;
+		//_p.z = (p.position.z-m_bound.minPoint.z)/s.z; // TODO: 3d
 
 		// convert from local to voxelspace
-		vs.x = p.x * m_sdfWindow.width;
-		vs.y = p.y * m_sdfWindow.height;
-		vs.z = p.z * m_sdfWindow.depth;
+		vs.x = _p.x * m_sdfWindow.width;
+		vs.y = _p.y * m_sdfWindow.height;
+		vs.z = _p.z * m_sdfWindow.depth;
 
 		float tx = vs.x - floor(vs.x);
 		float ty = vs.y - floor(vs.y);
@@ -532,17 +540,27 @@ struct SDFCollider
 
 		return math::lerp( sdf0, sdf1, tz );
 	}
-/*
+
 	math::Vec3f gradient( const math::Vec3f &p )
 	{
-		math::Vec3f grad;
+		float d = m_boundSize.x / m_sdfWindow.width;
 
-		// plane
-		grad = math::Vec3f(0.0f, 1.0f, 0.0f);
+		float s011 = signedDistance( p+math::Vec3f(-d, 0.0f, 0.0f) );
+		float s211 = signedDistance( p+math::Vec3f(d, 0.0f, 0.0f) );
+		float s101 = signedDistance( p+math::Vec3f(0.0f, -d, 0.0f) );
+		float s121 = signedDistance( p+math::Vec3f(0.0f, d, 0.0f) );
+		float s110 = signedDistance( p+math::Vec3f(0.0f, 0.0, -d) );
+		float s112 = signedDistance( p+math::Vec3f(0.0f, 0.0, d) );
 
-		return grad;
+		// 2d // TODO: 3d
+		math::Vec3f g;
+		g.x = (s211 - s011)/(2.0f*d);
+		g.y = (s121 - s101)/(2.0f*d);
+		g.z = 0.0f;
+
+		return g.normalized();
 	}
-	*/
+
 	void operator()( ParticleContainer &container )
 	{
 		math::Vec3f s = m_bound.size();
@@ -550,12 +568,7 @@ struct SDFCollider
 		{
 			Particle &p = *it;
 
-			// convert from world into local space
-			math::Vec3f _p;
-			_p.x = (p.position.x-m_bound.minPoint.x)/s.x;
-			_p.y = (p.position.y-m_bound.minPoint.y)/s.y;
-			//_p.z = (p.position.z-m_bound.minPoint.z)/s.z;
-			_p.z = 0.0f;
+			math::Vec3f _p = p.position;
 
 			float sd = signedDistance( _p );
 
@@ -565,15 +578,12 @@ struct SDFCollider
 			if( sd-proximityThreshold < 0.0f )
 			{
 				// move to surface
-				//math::Vec3f grad = gradient(p.position);
-				math::Vec3f grad = math::Vec3f(0.0f, 1.0f, 0.0f);
+				math::Vec3f grad = gradient(p.position);
+				//math::Vec3f grad = math::Vec3f(0.0f, 1.0f, 0.0f);
 				_p -= grad*(sd-proximityThreshold);
 
-				// transform from local to world space
-				p.position.x = _p.x*s.x+m_bound.minPoint.x;
-				p.position.y = _p.y*s.y+m_bound.minPoint.y;
-				//p.position.z = _p.z*s.z+m_bound.minPoint.z;
-				p.position.z = 0.0f;
+				p.position = _p;
+				p.position.z = 0.0f; // TODO: 3d
 
 				// adjust velocity
 				p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, grad) )*grad;
@@ -583,15 +593,24 @@ struct SDFCollider
 
 
 	// samples slice along z=0 plane in localspace
-	base::Texture2dPtr createSlice(int width, int height )
+	base::Texture2dPtr createSlice( const math::Vec2f &min, const math::Vec2f &max, int width, int height )
 	{
+		math::Vec2f size = max - min;
 		float *data = (float*)malloc( width*height*sizeof(float) );
 		for( int j=0;j<height;++j )
 			for( int i=0;i<width;++i )
 			{
 				float u=(float)i/(float)width;
 				float v=(float)j/(float)height;
-				float sdf = signedDistance(math::Vec3f(u, v, 0.0f));
+
+				// convert to worldspace
+				math::Vec3f p;
+				p.x = u*size.x + min.x; 
+				p.y = v*size.y + min.y;
+				p.z = 0.0f; // TODO: 3d
+
+				float sdf = signedDistance(p); // worldspace
+
 				data[ j*width + i ] = fabs(sdf);
 			}
 
@@ -902,7 +921,7 @@ void init()
 	// sdf test
 	sdfGeo = base::geo_quad();
 	base::apply_transform( sdfGeo, math::Matrix44f::ScaleMatrix(2.0f)*math::Matrix44f::TranslationMatrix(0.0f, 0.0f, 0.0f) );
-	slice = sdf1.createSlice( 512, 512 );
+	slice = sdf1.createSlice( math::Vec2f(-2.0f, -2.0f), math::Vec2f(2.0f, 2.0f), 512, 512 );
 	sdfShader = base::Shader::createSimpleTextureShader(slice);
 
 }
