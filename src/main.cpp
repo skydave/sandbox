@@ -34,6 +34,7 @@
 #include <gfx/FBO.h>
 
 #include "SPH.h"
+#include "SDF.h"
 
 base::GLViewer    *glviewer;
 base::ContextPtr    context;
@@ -99,6 +100,10 @@ float                    m_supportRadiusSquared;
 // debug
 float                             m_maxPressure;
 float                          m_maxMassDensity;
+base::GeometryPtr                        sdfGeo;
+base::Texture2dPtr                        slice;
+base::ShaderPtr                       sdfShader;
+
 
 
 struct HalfPlaneCollider
@@ -168,7 +173,8 @@ struct HeightMapCollider
 
 		// get height data from image
 		{
-			base::ImagePtr heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1.tga" );
+			//base::ImagePtr heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1.tga" );
+			base::ImagePtr heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1_perlinnoise.tga" );
 			m_heightMapWidth = heightMap->m_width;
 			m_heightMapHeight = heightMap->m_height;
 			m_heightMap.resize( heightMap->m_width*heightMap->m_height, 0.0f );
@@ -207,9 +213,9 @@ struct HeightMapCollider
 		for( int i=0;i<numSegments;++i )
 		{
 			float u = (float)i/(float)numSegments;
-			float height = getHeight( u, 0.5f );
+			math::Vec3f p = math::Vec3f(u*m_extendX+m_offset.x, 0.0f, 0.5f + m_offset.z);
+			p.y = getHeight( p.x, p.z );
 
-			math::Vec3f p = math::Vec3f(u*m_extendX+m_offset.x, height, 0.0f);
 			pAttr->appendElement(p);
 
 			if( i > 0 )
@@ -217,17 +223,48 @@ struct HeightMapCollider
 		}
 
 		{
-			for( int j=0;j<m_heightMapHeight;++j )
-				for( int i=0;i<m_heightMapWidth;++i )
-				{
-					math::Vec3f p = math::Vec3f( (float)i/(float)m_heightMapWidth+m_offset.x, getHeight( i, j ), (float)j/(float)m_heightMapHeight+m_offset.z );
-					math::Vec3f n = getNormal( i, j );
-					int i0 = pAttr->appendElement(p);
-					int i1 = pAttr->appendElement(p+n*0.005f);
-					//m_previewGeometry->addLine( i0, i1 );
-				}
+			math::Vec3f s = math::slerp( math::Vec3f(-1.0, 1.0, 0.0f).normalized(), math::Vec3f(1.0f, 1.0f, 0.0f).normalized(), 0.5f );
+			std::cout << "tsst\n";
 		}
 
+		// preview normals...
+		{
+			if( m_make2d )
+			{
+				for( int i=0;i<m_heightMapWidth;++i )
+				{
+					int j = (int)(0.5f*this->m_heightMapHeight);
+					float u =(float)i/(float)m_heightMapWidth+m_offset.x;
+					float v = (float)j/(float)m_heightMapHeight+m_offset.z;
+					math::Vec3f p = math::Vec3f( u, getHeight( i, j ), v );
+					//math::Vec3f n = getNormal( i, j );
+					math::Vec3f n = getNormal_interp( u, v );
+
+					if( m_make2d )
+					{
+						n.z = 0.0f;
+						n.normalize();
+					}
+
+					int i0 = pAttr->appendElement(p);
+					int i1 = pAttr->appendElement(p+n*0.01f);
+					m_previewGeometry->addLine( i0, i1 );
+				}
+			}else
+			{
+				for( int j=0;j<m_heightMapHeight;++j )
+					for( int i=0;i<m_heightMapWidth;++i )
+					{
+						math::Vec3f p = math::Vec3f( (float)i/(float)m_heightMapWidth+m_offset.x, getHeight( i, j ), (float)j/(float)m_heightMapHeight+m_offset.z );
+						math::Vec3f n = getNormal( i, j );
+						int i0 = pAttr->appendElement(p);
+						int i1 = pAttr->appendElement(p+n*0.005f);
+						m_previewGeometry->addLine( i0, i1 );
+					}
+			}
+		}
+
+		// 
 		{
 			// get a grid...
 			m_terrain = base::geo_grid( 130, 130 );
@@ -241,7 +278,7 @@ struct HeightMapCollider
 				{
 					math::Vec3f p = pAttr->get<math::Vec3f>(i);
 
-					float h = this->getHeight_interp( p.x-m_offset.x, p.z-m_offset.z );
+					float h = this->getHeight_interp( p.x, p.z );
 					p.y = h;
 
 					pAttr->set<math::Vec3f>(i, p);
@@ -283,22 +320,46 @@ struct HeightMapCollider
 		if( y >= m_heightMapHeight )
 			return math::Vec3f( 0.0f, 1.0f, 0.0f );
 
-		return m_heightMapNormals[ y*this->m_heightMapWidth  + x ];
+		math::Vec3f n = m_heightMapNormals[ y*this->m_heightMapWidth  + x ];
+
+		return n;
+	}
+
+	math::Vec3f getNormal_interp( float u, float v )
+	{
+		// 
+		float _x = (u-m_offset.x)*m_heightMapWidth - 0.5f;
+		float _y = (v-m_offset.z)*m_heightMapHeight - 0.5f;
+
+		float tx = _x - floor(_x);
+		float ty = _y - floor(_y);
+		int x = (int)floor(_x);
+		int y = (int)floor(_y);
+
+		math::Vec3f a, b, c, d;
+		a = getNormal( x, y );
+		b = getNormal( x+1, y );
+		c = getNormal( x, y+1 );
+		d = getNormal( x+1, y+1 );
+
+		math::Vec3f n = math::slerp( math::slerp( a, b, tx ), math::slerp( b, c, tx ), ty );
+
+		return a;
 	}
 
 	float getHeight( float u, float v )
 	{
 		// nearest neighbour
-		int x = int(u*m_heightMapWidth);
-		int y = int(v*m_heightMapHeight);
+		int x = int((u-m_offset.x)*m_heightMapWidth);
+		int y = int((v-m_offset.z)*m_heightMapHeight);
 		return getHeight( x, y );
 	}
 
 	float getHeight_interp( float u, float v )
 	{
 		// bilinear interpolation
-		float _x = u*m_heightMapWidth - 0.5f;
-		float _y = v*m_heightMapHeight - 0.5f;
+		float _x = (u-m_offset.x)*m_heightMapWidth - 0.5f;
+		float _y = (v-m_offset.z)*m_heightMapHeight - 0.5f;
 
 		float tx = _x - floor(_x);
 		float ty = _y - floor(_y);
@@ -311,7 +372,7 @@ struct HeightMapCollider
 		c = getHeight( x, y+1 );
 		d = getHeight( x+1, y+1 );
 
-		float height = math::lerp( math::lerp( a, b, tx ), math::lerp( b, c, tx ), ty );
+		float height = math::lerp( math::lerp( a, b, tx ), math::lerp( c, d, tx ), ty );
 
 		return height;
 	}
@@ -326,11 +387,16 @@ struct HeightMapCollider
 			if( (p.position.x > m_offset.x)&&(p.position.x+m_offset.x < m_extendX) ) 
 			{
 				// query heightmap
-				float height = getHeight((p.position.x-m_offset.x) / m_extendX , 0.5f);
+				float height = getHeight_interp(p.position.x, 0.5f+m_offset.z);
 	
 				// compute gradient
-				//math::Vec3f n = getNormal((p.position.x-m_offsetX) / m_extendX, 0.5f );
+				math::Vec3f n = getNormal_interp(p.position.x, 0.5f+m_offset.z);
 
+				if( m_make2d )
+				{
+					n.z = 0.0f;
+					n.normalize();
+				}
 
 				
 				if( p.position.y < height )
@@ -338,16 +404,217 @@ struct HeightMapCollider
 					float d = height -p.position.y;
 					p.position = math::Vec3f( p.position.x, height, 0.0f );
 					//p.position += math::dotProduct(n, math::Vec3f(1.0f, 0.0f, 0.0f))*0.001f*math::Vec3f(1.0f, 0.0f, 0.0f);
-					//p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, n) )*n;
+					p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, n) )*n;
 				}
 			}
 		}
 	}
 };
 
+
+
+
+
+
+
+
+
+
+struct TerrainSDF
+{
+
+	TerrainSDF()
+	{
+		//base::ImagePtr heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1.tga" );
+		base::ImagePtr heightMap = base::Image::load( base::Path( SRC_PATH ) + "data/terrain_1_perlinnoise.tga" );
+	}
+
+	float operator()( const math::Vec3f &p )
+	{
+		math::Vec3f _p = p;
+
+		// sphere
+		math::Vec3f center( 0.5f, 0.5f, 0.0f );
+		float r = 0.3f;
+		float d = (_p-center).getLength() - r;
+		float sd = d;
+
+		// plane
+		float d2 = fabsf(_p.y-0.5f);
+		float sign2 = (_p.y-0.5f) > 0.0f ? 1.0f : -1.0f;
+		float sd2 = sign2*d2;
+
+
+		// mix
+		float sd3 = std::max( -sd, sd2 );
+		return sd3;
+
+		//return p.x;
+	}
+};
+
+
+
+struct SDFCollider
+{
+	TerrainSDF        terrainSDF;
+
+	std::vector<float> m_sdfGrid;
+	Domain           m_sdfWindow; // defines the window in sdf's local space which we are sampling
+	math::BoundingBox3d  m_bound; // defines the scale and offset of the sdf in worldspace
+
+	SDFCollider()
+	{
+		// define region in sdf local space and sampling rate
+		m_sdfWindow.bound = math::BoundingBox3d( math::Vec3f( 0.5f, 0.0f, 0.0f ), math::Vec3f( 1.5f, 1.0f, 1.0f ) );
+		m_sdfWindow.width = 30;
+		m_sdfWindow.height = 30;
+		m_sdfWindow.depth = 30;
+		distanceTransform( m_sdfWindow, m_sdfGrid, terrainSDF );
+
+		m_bound = math::BoundingBox3d( math::Vec3f(-2.0f, -2.0f, -2.0f),  math::Vec3f(2.0f, 2.0f, 2.0f) );
+	}
+
+	// returns sdf from voxelcoords
+	float signedDistance( int x, int y, int z )
+	{
+		int _x = x;
+		int _y = y;
+		int _z = z;
+
+		if( x < 0 )
+			_x = 0;
+		if( x >= m_sdfWindow.width )
+			_x = m_sdfWindow.width - 1;
+		if( y < 0 )
+			_y = 0;
+		if( y >= m_sdfWindow.height )
+			_y = m_sdfWindow.height - 1;
+		if( z < 0 )
+			_z = 0;
+		if( z >= m_sdfWindow.depth )
+			_z = m_sdfWindow.depth - 1;
+
+		return m_sdfGrid[ _z*m_sdfWindow.width*m_sdfWindow.height + _y*m_sdfWindow.width + _x ];
+	}
+
+	// evaluates sdf using baked grid; p is in localspace
+	float signedDistance( const math::Vec3f &p )
+	{
+		math::Vec3f vs;
+
+
+
+		// convert from local to voxelspace
+		vs.x = p.x * m_sdfWindow.width;
+		vs.y = p.y * m_sdfWindow.height;
+		vs.z = p.z * m_sdfWindow.depth;
+
+		float tx = vs.x - floor(vs.x);
+		float ty = vs.y - floor(vs.y);
+		float tz = vs.z - floor(vs.z);
+		int x = (int)floor(vs.x);
+		int y = (int)floor(vs.y);
+		int z = (int)floor(vs.z);
+
+		float a, b, c, d, e, f, g, h;
+		a = signedDistance( x, y, z );
+		b = signedDistance( x+1, y, z );
+		c = signedDistance( x, y+1, z );
+		d = signedDistance( x+1, y+1, z );
+		e = signedDistance( x, y, z+1 );
+		f = signedDistance( x+1, y, z+1 );
+		g = signedDistance( x, y+1, z+1 );
+		h = signedDistance( x+1, y+1, z+1 );
+
+		float sdf0 = math::lerp( math::lerp( a, b, tx ), math::lerp( c, d, tx ), ty );
+		float sdf1 = math::lerp( math::lerp( e, f, tx ), math::lerp( g, h, tx ), ty );
+
+		return math::lerp( sdf0, sdf1, tz );
+	}
+/*
+	math::Vec3f gradient( const math::Vec3f &p )
+	{
+		math::Vec3f grad;
+
+		// plane
+		grad = math::Vec3f(0.0f, 1.0f, 0.0f);
+
+		return grad;
+	}
+	*/
+	void operator()( ParticleContainer &container )
+	{
+		math::Vec3f s = m_bound.size();
+		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
+		{
+			Particle &p = *it;
+
+			// convert from world into local space
+			math::Vec3f _p;
+			_p.x = (p.position.x-m_bound.minPoint.x)/s.x;
+			_p.y = (p.position.y-m_bound.minPoint.y)/s.y;
+			//_p.z = (p.position.z-m_bound.minPoint.z)/s.z;
+			_p.z = 0.0f;
+
+			float sd = signedDistance( _p );
+
+			float proximityThreshold = 0.001f;
+
+			// if particle is within proximity
+			if( sd-proximityThreshold < 0.0f )
+			{
+				// move to surface
+				//math::Vec3f grad = gradient(p.position);
+				math::Vec3f grad = math::Vec3f(0.0f, 1.0f, 0.0f);
+				_p -= grad*(sd-proximityThreshold);
+
+				// transform from local to world space
+				p.position.x = _p.x*s.x+m_bound.minPoint.x;
+				p.position.y = _p.y*s.y+m_bound.minPoint.y;
+				//p.position.z = _p.z*s.z+m_bound.minPoint.z;
+				p.position.z = 0.0f;
+
+				// adjust velocity
+				p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, grad) )*grad;
+			}
+		}
+	}
+
+
+	// samples slice along z=0 plane in localspace
+	base::Texture2dPtr createSlice(int width, int height )
+	{
+		float *data = (float*)malloc( width*height*sizeof(float) );
+		for( int j=0;j<height;++j )
+			for( int i=0;i<width;++i )
+			{
+				float u=(float)i/(float)width;
+				float v=(float)j/(float)height;
+				float sdf = signedDistance(math::Vec3f(u, v, 0.0f));
+				data[ j*width + i ] = fabs(sdf);
+			}
+
+
+		base::Texture2dPtr tex = base::Texture2d::createFloat32(width, height);
+		tex->uploadFloat32( width, height, data );
+		free(data);
+		return tex;
+	}
+
+};
+
+
+
+
+
+
+
+
 HeightMapCollider *heightMap;
 
 HalfPlaneCollider bottom, bottom2;
+SDFCollider                  sdf1;
 
 void timeIntegration()
 {
@@ -390,7 +657,9 @@ void handleCollisions()
 	bottom2.m_normal = math::Vec3f( 1.0f, 1.0f, 0.0f ).normalized();
 	bottom2( m_particles );
 	*/
-	(*heightMap)( m_particles );
+	//(*heightMap)( m_particles );
+
+	sdf1( m_particles );
 }
 
 void advance()
@@ -461,7 +730,7 @@ void advance()
 
 		//gravity
 		math::Vec3f f_gravity( 0.0f, 0.0f, 0.0f );
-		f_gravity = -math::Vec3f( 0.05f, 1.0f, 0.0f ).normalized()*0.98f;
+		f_gravity = -math::Vec3f( 0.0f, 1.0f, 0.0f ).normalized()*0.98f;
 
 
 		// compute acceleration
@@ -528,7 +797,7 @@ void initialize()
 			{
 				Particle p;
 				p.id = m_numParticles;
-				p.position = math::Vec3f( 0.5f + i * spacing, 0.8f + j * spacing, 0.0f );
+				p.position = math::Vec3f( -1.5f + i * spacing, 0.8f + j * spacing, 0.0f );
 				p.positionPrev = p.position;
 				p.color = math::Vec3f( 0.54f, 0.85f, 1.0f );
 				//p.mass = 0.02f; // water
@@ -555,6 +824,8 @@ void initialize()
 	m_particleShader = base::Shader::load( base::Path( SRC_PATH ) + "src/SPH.particle" );
 	m_particleShader->setUniform( "scale", 10.0f );
 	m_particleShader->setUniform( "alpha", 1.0f );
+
+
 }
 
 
@@ -572,10 +843,12 @@ void render( base::CameraPtr cam )
 	context->render( grid, greyShader );
 
 	//context->renderScreen( heightMap->m_heightMap );
-	context->render( heightMap->m_previewGeometry, heightMap->m_shader );
-
-	context->render( heightMap->m_terrain, heightMap->m_geometryShader );
+	//context->render( heightMap->m_previewGeometry, heightMap->m_shader );
+	//context->render( heightMap->m_terrain, heightMap->m_geometryShader );
+	context->render( sdfGeo, sdfShader );
 	glDisable( GL_DEPTH_TEST );
+
+
 
 	// advance sph system
 	advance();
@@ -586,7 +859,14 @@ void render( base::CameraPtr cam )
 	glEnable( GL_POINT_SPRITE );
 	context->render( m_renderParticles, m_particleShader );
 	glDisable( GL_POINT_SPRITE );
+
+
 }
+
+
+
+
+
 
 
 
@@ -618,6 +898,13 @@ void init()
 
 
 	heightMap = new HeightMapCollider();
+
+	// sdf test
+	sdfGeo = base::geo_quad();
+	base::apply_transform( sdfGeo, math::Matrix44f::ScaleMatrix(2.0f)*math::Matrix44f::TranslationMatrix(0.0f, 0.0f, 0.0f) );
+	slice = sdf1.createSlice( 512, 512 );
+	sdfShader = base::Shader::createSimpleTextureShader(slice);
+
 }
 
 void shutdown()
