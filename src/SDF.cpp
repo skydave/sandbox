@@ -1,6 +1,11 @@
 #include "SDF.h"
 
 
+// SDF ======================================================
+ScalarFieldPtr ScalarField::create()
+{
+	return ScalarFieldPtr( new ScalarField() );
+}
 
 
 // DOMAIN ===================================================
