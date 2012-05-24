@@ -17,21 +17,35 @@ struct SPH
 {
 	struct Particle
 	{
+		struct Neighbour
+		{
+			float distance;
+			Particle    *p;
+
+			// used for predictive-correction-scheme
+			float predictedDistance;
+		};
 		math::Vec3f                                          position;
 		math::Vec3f                                      positionPrev;
 		math::Vec3f                                          velocity;
-		math::Vec3f                                      acceleration;
+		math::Vec3f                                            forces; // combined external and internal forces
 		float                                                    mass; // in kg
 		float                                             massDensity; // in kg/m³
 		float                                                pressure; // in ? pascal ?
 
-		typedef std::vector< std::pair<float, Particle*> > Neighbours;
+		typedef std::vector< Neighbour > Neighbours;
 		Neighbours                                         neighbours; // list of particles within support radius and their distances; computed once per timestep
+
+		// used for predictive-correction-scheme
+		math::Vec3f                                 predictedPosition;
+		float                                    predictedMassDensity;
+		math::Vec3f                                  pciPressureForce;
 
 		// used for debugging:
 		int                                                        id;
 		math::Vec3f                                             color;
 	};
+
 
 
 
@@ -60,14 +74,22 @@ struct SPH
 	float                           m_idealGasConstant; // nRT - expresses amount of substance per mol plus temperature
 	float                                m_restDensity;
 
-
-
+	// solver parameters
+	float                               m_particleMass; // in kg
 	float                              m_supportRadius;
-	int                                 m_numParticles;
 	float                                   m_timeStep;
+	float                                    m_damping;
+
+	float                                   m_pciDelta; // used for PCISPH
+
+
+
+	int                                 m_numParticles;
 
 	// internal
 	float                    m_supportRadiusSquared;
+
+
 
 
 };

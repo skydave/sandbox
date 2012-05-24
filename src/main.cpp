@@ -135,7 +135,8 @@ void render( base::CameraPtr cam )
 	//context->renderScreen( heightMap->m_heightMap );
 	//context->render( heightMap->m_previewGeometry, heightMap->m_shader );
 	context->render( terrainGeo, terrainShader );
-	context->render( sdfGeo, sdfShader );
+	if( sdfGeo )
+		context->render( sdfGeo, sdfShader );
 	glDisable( GL_DEPTH_TEST );
 
 
@@ -199,6 +200,7 @@ void init()
 	sph = SPH::create();
 	sph->initialize();
 
+
 	// add collisionobject (SDF)
 	TerrainSDF terrainSDF;
 	Domain m_sdfWindow; // defines the window in sdf's local space which we are sampling
@@ -214,6 +216,8 @@ void init()
 	// TODO: sdf1->transform( ... );
 
 	sph->addCollider( sdf1 );
+
+
 
 
 
@@ -240,6 +244,7 @@ void init()
 	terrainShader = base::Shader::createSimpleLambertShader();
 
 
+	/*
 	// sdf test
 	sdfGeo = base::geo_quad();
 	//base::apply_transform( sdfGeo, math::Matrix44f::ScaleMatrix(2.0f)*math::Matrix44f::TranslationMatrix(0.0f, 0.0f, 0.0f) );
@@ -247,6 +252,7 @@ void init()
 	base::apply_transform( sdfGeo, math::Matrix44f::ScaleMatrix(0.5f)*math::Matrix44f::TranslationMatrix(0.0f, 0.5f, 0.0f) );
 	slice = sdf1->createSlice( math::Vec2f(-0.5f, 0.0f), math::Vec2f(.5f, 1.0f), 0.5f, 512, 512 );
 	sdfShader = base::Shader::createSimpleTextureShader(slice);
+	*/
 
 }
 
