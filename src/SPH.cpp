@@ -214,12 +214,19 @@ void SPH::advance()
 			for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
 				p.predictedMassDensity += it2->p->mass*W_poly6(it2->predictedDistance);
 
-			// predict density variation
-			float predictedDensityVariation = p.predictedMassDensity - m_restDensity;
-			maxDensityFluctuation = std::max(predictedDensityVariation, maxDensityFluctuation);
+			if( (p.predictedMassDensity > m_cricitalDensity) || !m_unilateralIncompressibility )
+			{
+				// predict density variation
+				float predictedDensityVariation = p.predictedMassDensity - m_restDensity;
+				maxDensityFluctuation = std::max(predictedDensityVariation, maxDensityFluctuation);
 
-			// update pressure
-			p.pressure += m_pciDelta*predictedDensityVariation;
+				// update pressure
+				p.pressure += m_pciDelta*predictedDensityVariation;
+			}else
+			{
+				// TODO: low stiffness discrete particle forces
+
+			}
 		}
 
 		// for each particle
@@ -291,10 +298,17 @@ void SPH::initialize()
 	m_numParticles = 0;
 
 
+	// granular
+	m_cricitalDensity = 1000.0f;
+
+
 	// solver parameters ---
 	m_particleMass = 3.8125f; // 0.02f for water
 	m_timeStep = 0.01f;
 	m_damping = 0.01f;
+
+	// switches for different solvertypes
+	m_unilateralIncompressibility = true;
 
 
 	// compute pci delta

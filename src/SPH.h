@@ -64,23 +64,30 @@ struct SPH
 
 
 
-	// simulation scene content
+	// simulation scene content===========================
 	typedef std::vector<Particle>    ParticleContainer;
 	ParticleContainer                      m_particles;
 	ScalarFieldPtr                          m_collider;
 
 
-	// material properties
+	// material properties================================
 	float                           m_idealGasConstant; // nRT - expresses amount of substance per mol plus temperature
 	float                                m_restDensity;
 
-	// solver parameters
+	// granular
+	float                            m_cricitalDensity;
+
+	// solver parameters =================================
 	float                               m_particleMass; // in kg
 	float                              m_supportRadius;
 	float                                   m_timeStep;
 	float                                    m_damping;
 
-	float                                   m_pciDelta; // used for PCISPH
+	// PCISPH
+	float                                   m_pciDelta;
+
+	// switches for different solvertypes----
+	bool                 m_unilateralIncompressibility;
 
 
 
