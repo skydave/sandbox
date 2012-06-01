@@ -50,7 +50,7 @@ base::ShaderPtr  greyShader;
 
 // SPH stuff ======================
 SPHPtr sph;
-
+bool                            g_pause = false;
 // rendering
 base::GeometryPtr             m_renderParticles;
 base::ShaderPtr                m_particleShader;
@@ -132,6 +132,41 @@ base::ShaderPtr     terrainShader;
 
 
 
+void step()
+{
+	sph->advance();
+
+	// update renderparticles
+	base::AttributePtr positions = m_renderParticles->getAttr( "P" );
+	base::AttributePtr colors = m_renderParticles->getAttr( "Cd" );
+	for( std::vector<int>::iterator it = m_renderIds.begin(); it != m_renderIds.end();++it )
+	{
+		int &id =*it;
+		positions->set<math::Vec3f>( id, sph->m_particles[id].position );
+		colors->set<math::Vec3f>( id, sph->m_particles[id].color );
+	}
+
+
+	// update debug info
+	static int check = 0;
+	if( ++check % 1000 )
+	{
+		sph->updateTrajectories();
+
+		for( int i=0;i<sph->m_numParticles;++i )
+		{
+			SPH::Particle &p = sph->m_particles[i];
+			if( p.trajectory )
+			{
+				visualizer->color( 0.1f, 0.8f, 0.1f );
+				visualizer->line(p.positionPrev, p.position);
+				visualizer->point(p.position);
+			}
+		}
+	}
+
+	glviewer->setCaption( base::toString(sph->m_currentTimeStep) );
+}
 
 
 
@@ -158,17 +193,9 @@ void render( base::CameraPtr cam )
 
 
 	// advance sph system
-	sph->advance();
+	if( !g_pause )
+		step();
 
-	// update renderparticles
-	base::AttributePtr positions = m_renderParticles->getAttr( "P" );
-	base::AttributePtr colors = m_renderParticles->getAttr( "Cd" );
-	for( std::vector<int>::iterator it = m_renderIds.begin(); it != m_renderIds.end();++it )
-	{
-		int &id =*it;
-		positions->set<math::Vec3f>( id, sph->m_particles[id].position );
-		colors->set<math::Vec3f>( id, sph->m_particles[id].color );
-	}
 
 	// render sph
 	glEnable( GL_VERTEX_PROGRAM_POINT_SIZE );
@@ -178,28 +205,8 @@ void render( base::CameraPtr cam )
 	glDisable( GL_POINT_SPRITE );
 
 
-
 	// render debug stuff
-	static int check = 0;
-	if( ++check % 1000 )
-	{
-		sph->updateTrajectories();
-
-		for( int i=0;i<sph->m_numParticles;++i )
-		{
-			SPH::Particle &p = sph->m_particles[i];
-			if( p.trajectory )
-			{
-				visualizer->color( 0.1f, 0.8f, 0.1f );
-				visualizer->line(p.positionPrev, p.position);
-				visualizer->point(p.position);
-			}
-		}
-	}
-
-
 	context->render( circle_supportRadius, context->m_constantShader );
-	
 	visualizer->render();
 }
 
@@ -312,7 +319,14 @@ void shutdown()
 }
 
 
+void keypress( int key )
+{
+	if( key == KEY_SPACE )
+		g_pause = !g_pause;
+	if( key == KEY_RIGHT )
+		step();
 
+}
 
 
 int main(int argc, char ** argv)
@@ -322,5 +336,6 @@ int main(int argc, char ** argv)
 	glviewer->getCamera()->m_znear = 0.0001f;
 	glviewer->getCamera()->update();
 	glviewer->show();
+	glviewer->setKeyPressCallback( keypress );
 	return app.exec();
 }

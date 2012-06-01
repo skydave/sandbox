@@ -16,6 +16,11 @@ SPHPtr SPH::create()
 	return SPHPtr( new SPH() );
 }
 
+// constructor
+SPH::SPH() : m_currentTimeStep(0)
+{
+}
+
 
 // assumes that previous position is tracked outside
 void integrate_verlet( const math::Vec3f &p, const math::Vec3f &v, const math::Vec3f &pOld, const math::Vec3f &a, const math::Vec3f &i, float dt, float damping, math::Vec3f &pOut, math::Vec3f &vOut )
@@ -409,6 +414,8 @@ void SPH::advance()
 
 	// 
 	timeIntegration();
+
+	m_currentTimeStep++;
 }
 
 

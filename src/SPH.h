@@ -81,6 +81,7 @@ struct SPH
 
 
 	// public
+	SPH();                                                                    // constructor
 	static SPHPtr                                                   create();
 	void                                                        initialize();
 	void      initializeParticle( Particle &p, const math::Vec3f &position );
@@ -131,6 +132,7 @@ struct SPH
 
 	// internal
 	float                    m_supportRadiusSquared;
+	int                              m_currentTimeStep;
 
 
 
