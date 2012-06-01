@@ -1,6 +1,14 @@
 
 #include "SPH.h"
 
+
+
+
+// constructor
+SPH::Particle::Particle() : trajectory(0)
+{
+}
+
 // SPH =====================================================
 
 SPHPtr SPH::create()
@@ -14,7 +22,9 @@ void integrate_verlet( const math::Vec3f &p, const math::Vec3f &v, const math::V
 {
 	// Position = Position + (1.0f - Damping) * (Position - PositionOld) + dt * dt * a;
 	math::Vec3f nextOldPos = p;
-	pOut = p + (1.0f - damping) * (p - pOld) + dt*dt*a;
+	//pOut = p + (1.0f - damping) * (p - pOld) + dt*dt*a;
+
+	pOut = (2.0f-damping)*p - (1.0f-damping)*pOld + dt*dt*a;
 
 	// Velocity = (Position - PositionOld) / dt;
 	vOut = (pOut - nextOldPos) / dt;
@@ -29,7 +39,7 @@ void integrate_leapfrog( const math::Vec3f &p, const math::Vec3f &v, const math:
 
 void integrate_explicit_euler( const math::Vec3f &p, const math::Vec3f &v, const math::Vec3f &pOld, const math::Vec3f &a, const math::Vec3f &i, float dt, float damping, math::Vec3f &pOut, math::Vec3f &vOut )
 {
-	pOut = p + v*dt*(1.0f-damping);
+	pOut = p + (v+i)*dt*(1.0f-damping);
 	vOut = v + a*dt*(1.0f-damping);
 
 	/*
@@ -65,10 +75,32 @@ void SPH::timeIntegration()
 
 		math::Vec3f oldPos = p.position;
 
+
 		integrate_verlet( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
-		// adding impulse for verlet means just adding it to position. we need to adjust positionPrev to keep velocty intact
+		p.positionPrev = oldPos;
+
 		p.position += impuls*m_timeStep;
-		p.positionPrev += impuls*m_timeStep;
+		p.positionPrev = p.positionPrev + impuls*m_timeStep;
+		/*
+
+		math::Vec3f v0 = p.velocity;
+
+		// adding impulse for verlet means just adding it to position. we need to adjust positionPrev to keep velocty intact
+		if( impuls.getLength() > 0.0f )
+		{
+			math::Vec3f d = p.position - p.positionPrev;
+			//p.position = p.temp1;
+			//p.positionPrev = p.position - d;
+			p.position = p.temp1;
+			p.positionPrev = p.position - d;
+
+		}else
+		{
+		}
+		*/
+
+
+		math::Vec3f v1 = (p.position - p.positionPrev) / m_timeStep;
 
 		//integrate_leapfrog( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
 		//integrate_explicit_euler( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
@@ -90,6 +122,8 @@ void SPH::advance()
 
 		// debug
 		p.color = math::Vec3f( 0.54f, 0.85f, 1.0f );
+		if( p.trajectory )
+			p.trajectory->m_steps.push_back( p );
 
 		// update neighbour information - we look them up once and reuse them throughout the timestep
 		p.neighbours.clear();
@@ -167,13 +201,16 @@ void SPH::advance()
 		p.pciBoundaryForce = math::Vec3f( 0.0f, 0.0f, 0.0f );
 
 		p.pciBoundaryImpulse = math::Vec3f( 0.0f, 0.0f, 0.0f );
+
+		p.predictedPositionPrev = p.positionPrev;
 	}
 	int minIterations = 3;
 	int iteration = 0;
 	float densityFluctuationThreshold = 0.03f*m_restDensity;
 	float maxDensityFluctuation = FLT_MIN;
 	float maxStressTensorComponentDifference = FLT_MIN;
-	while( (maxDensityFluctuation<densityFluctuationThreshold)&&(iteration++ < minIterations) )
+	//while( (maxDensityFluctuation<densityFluctuationThreshold)&&(iteration++ < minIterations) )
+	while( iteration++ < 1 )
 	{
 		maxDensityFluctuation = FLT_MIN;
 		maxStressTensorComponentDifference = FLT_MIN;
@@ -202,9 +239,11 @@ void SPH::advance()
 			impuls += p.pciBoundaryImpulse;
 
 			// verlet
-			integrate_verlet( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+			integrate_verlet( p.position, p.velocity, p.predictedPositionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+			//integrate_explicit_euler( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
 			// for verlet, adding impulses is just about adding it to position (and prevPosition, to keep velocity intact)
-			p.predictedPosition += impuls*m_timeStep;
+			//p.predictedPosition += impuls*m_timeStep;
+			//p.predictedPositionPrev = p.positionPrev + impuls*m_timeStep;
 
 			//integrate_leapfrog( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
 			//integrate_explicit_euler( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
@@ -323,7 +362,13 @@ void SPH::advance()
 				if( c )
 				{
 					f_boundary = -p.predictedVelocity*(p.mass/(m_timeStep));
-					p.pciBoundaryImpulse = -p.predictedVelocity.normalized()*((boundaryRadius + fluidRadius)-d)*(1.0f/m_timeStep);
+
+					float o = boundaryRadius + fluidRadius -d;
+					math::Vec3f cp = p.predictedPosition - o*p.predictedVelocity.normalized();
+					p.temp1 = cp;
+
+					//p.pciBoundaryImpulse = -p.predictedVelocity.normalized()*((boundaryRadius + fluidRadius)-d)*(1.0f/m_timeStep)*1.0f;
+					p.pciBoundaryImpulse = -o*p.predictedVelocity.normalized()*(1.0f/m_timeStep);
 				}
 			}
 
@@ -476,10 +521,14 @@ void SPH::initialize()
 			}
 	}
 
+	// debug
+	m_particles[90].trajectory = new Trajectory();
+
 	// some wall 
 	if(1)
 	{
 		math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
+		//math::Matrix44f xform = math::Matrix44f::Identity();
 		spacing *= 0.5f;
 		int n = 50;
 		for( int i=0;i<n;++i )
@@ -518,6 +567,18 @@ void SPH::addCollider( ScalarFieldPtr sdf )
 }
 
 
+// just for debugging
+void SPH::updateTrajectories()
+{
+	// update particle properties =========================================
+	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
+	{
+		Particle &p = *it;
+
+		if( p.trajectory )
+			p.trajectory->m_steps.push_back( p );
+	}
+}
 
 
 

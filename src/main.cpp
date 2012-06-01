@@ -36,6 +36,7 @@
 #include "SPH.h"
 #include "SDF.h"
 #include "Terrain.h"
+#include "Visualizer.h"
 
 
 base::GLViewer    *glviewer;
@@ -61,7 +62,9 @@ base::Texture2dPtr                        slice;
 base::ShaderPtr                       sdfShader;
 
 base::GeometryPtr          circle_supportRadius;
+base::GeometryPtr                         point;
 
+VisualizerPtr                        visualizer;
 
 
 
@@ -141,7 +144,7 @@ void render( base::CameraPtr cam )
 	context->setCamera( cam );
 
 	glEnable( GL_DEPTH_TEST );
-	context->render( grid, greyShader );
+	//context->render( grid, greyShader );
 
 	//context->renderScreen( heightMap->m_heightMap );
 	//context->render( heightMap->m_previewGeometry, heightMap->m_shader );
@@ -175,10 +178,29 @@ void render( base::CameraPtr cam )
 	glDisable( GL_POINT_SPRITE );
 
 
+
 	// render debug stuff
+	static int check = 0;
+	if( ++check % 1000 )
+	{
+		sph->updateTrajectories();
+
+		for( int i=0;i<sph->m_numParticles;++i )
+		{
+			SPH::Particle &p = sph->m_particles[i];
+			if( p.trajectory )
+			{
+				visualizer->color( 0.1f, 0.8f, 0.1f );
+				visualizer->line(p.positionPrev, p.position);
+				visualizer->point(p.position);
+			}
+		}
+	}
+
+
 	context->render( circle_supportRadius, context->m_constantShader );
 	
-
+	visualizer->render();
 }
 
 
@@ -277,6 +299,11 @@ void init()
 	// debug stuff
 	circle_supportRadius = base::geo_circle( 20, sph->m_supportRadius );
 	base::apply_transform(circle_supportRadius, math::Matrix44f::RotationMatrixX( math::degToRad(90.0f) ));
+
+
+
+	visualizer = Visualizer::create();
+
 }
 
 void shutdown()
@@ -292,6 +319,8 @@ int main(int argc, char ** argv)
 {
 	base::Application app;
 	glviewer = new base::GLViewer( 800, 600, "app", init, render );
+	glviewer->getCamera()->m_znear = 0.0001f;
+	glviewer->getCamera()->update();
 	glviewer->show();
 	return app.exec();
 }

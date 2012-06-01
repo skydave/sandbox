@@ -16,6 +16,7 @@
 BASE_DECL_SMARTPTR_STRUCT(SPH);
 struct SPH
 {
+	struct Trajectory;
 	struct Particle
 	{
 		struct Neighbour
@@ -32,6 +33,9 @@ struct SPH
 			STATE_NONE,
 			STATE_BOUNDARY
 		};
+
+		Particle();                                                    // constructor
+
 		base::Flags<States>                                    states;
 
 		math::Vec3f                                          position;
@@ -48,6 +52,7 @@ struct SPH
 
 		// used for predictive-correction-scheme
 		math::Vec3f                                 predictedPosition;
+		math::Vec3f                             predictedPositionPrev;
 		math::Vec3f                                 predictedVelocity;
 		float                                    predictedMassDensity;
 		math::Vec3f                                  pciPressureForce;
@@ -59,10 +64,19 @@ struct SPH
 		math::Vec3f                                pciBoundaryImpulse;
 
 		// used for debugging:
+		Trajectory                                        *trajectory;
 		int                                                        id;
 		math::Vec3f                                             color;
+
+		math::Vec3f                                             temp1;
 	};
 
+
+	// list of all steps for one particle
+	struct Trajectory
+	{
+		std::vector<Particle> m_steps;
+	};
 
 
 
@@ -72,6 +86,7 @@ struct SPH
 	void      initializeParticle( Particle &p, const math::Vec3f &position );
 	void                                   addCollider( ScalarFieldPtr sdf );
 	void                                                           advance();
+	void                                                updateTrajectories(); // just for debugging
 
 
 	// private
