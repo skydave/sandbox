@@ -60,6 +60,8 @@ base::GeometryPtr                        sdfGeo;
 base::Texture2dPtr                        slice;
 base::ShaderPtr                       sdfShader;
 
+base::GeometryPtr          circle_supportRadius;
+
 
 
 
@@ -113,6 +115,15 @@ struct TerrainSDF
 	}
 };
 
+struct PlaneSDF
+{
+	float operator()( const math::Vec3f &p )
+	{
+		float t = p.y - 0.5f;
+		return t;
+	}
+};
+
 base::GeometryPtr      terrainGeo;
 base::ShaderPtr     terrainShader;
 
@@ -134,7 +145,8 @@ void render( base::CameraPtr cam )
 
 	//context->renderScreen( heightMap->m_heightMap );
 	//context->render( heightMap->m_previewGeometry, heightMap->m_shader );
-	context->render( terrainGeo, terrainShader );
+	if( terrainGeo )
+		context->render( terrainGeo, terrainShader );
 	if( sdfGeo )
 		context->render( sdfGeo, sdfShader );
 	glDisable( GL_DEPTH_TEST );
@@ -163,6 +175,9 @@ void render( base::CameraPtr cam )
 	glDisable( GL_POINT_SPRITE );
 
 
+	// render debug stuff
+	context->render( circle_supportRadius, context->m_constantShader );
+	
 
 }
 
@@ -202,7 +217,8 @@ void init()
 
 
 	// add collisionobject (SDF)
-	TerrainSDF terrainSDF;
+	//TerrainSDF terrainSDF;
+	PlaneSDF terrainSDF;
 	Domain m_sdfWindow; // defines the window in sdf's local space which we are sampling
 
 	// define region in sdf local space and sampling rate
@@ -216,6 +232,7 @@ void init()
 	// TODO: sdf1->transform( ... );
 
 	sph->addCollider( sdf1 );
+
 
 
 
@@ -238,10 +255,12 @@ void init()
 	m_particleShader->setUniform( "scale", 10.0f );
 	m_particleShader->setUniform( "alpha", 1.0f );
 
+	/*
 	// terrain (collider)
 	terrainGeo = Terrain::createGeometry( (base::Path( SRC_PATH ) + "data/terrain_1_perlinnoise.tga").str(), 30, 30 );
 	//base::apply_transform( terrainGeo, math::Matrix44f::TranslationMatrix(0.5f, 0.0f, 0.5f) );
 	terrainShader = base::Shader::createSimpleLambertShader();
+	*/
 
 
 	/*
@@ -254,6 +273,10 @@ void init()
 	sdfShader = base::Shader::createSimpleTextureShader(slice);
 	*/
 
+
+	// debug stuff
+	circle_supportRadius = base::geo_circle( 20, sph->m_supportRadius );
+	base::apply_transform(circle_supportRadius, math::Matrix44f::RotationMatrixX( math::degToRad(90.0f) ));
 }
 
 void shutdown()

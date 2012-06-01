@@ -4,6 +4,7 @@
 
 #include <math/Math.h>
 #include <util/shared_ptr.h>
+#include <util/Flags.h>
 #include <gfx/Geometry.h>
 #include <gfx/Shader.h>
 
@@ -25,10 +26,19 @@ struct SPH
 			// used for predictive-correction-scheme
 			float predictedDistance;
 		};
+
+		enum States
+		{
+			STATE_NONE,
+			STATE_BOUNDARY
+		};
+		base::Flags<States>                                    states;
+
 		math::Vec3f                                          position;
 		math::Vec3f                                      positionPrev;
 		math::Vec3f                                          velocity;
 		math::Vec3f                                            forces; // combined external and internal forces
+		math::Vec3f                                          impulses; // combined impulses (comming from boundary condition)
 		float                                                    mass; // in kg
 		float                                             massDensity; // in kg/m³
 		float                                                pressure; // in ? pascal ?
@@ -38,8 +48,15 @@ struct SPH
 
 		// used for predictive-correction-scheme
 		math::Vec3f                                 predictedPosition;
+		math::Vec3f                                 predictedVelocity;
 		float                                    predictedMassDensity;
 		math::Vec3f                                  pciPressureForce;
+		// used for granular material
+		math::Vec3f                                  pciFrictionForce; // friction force is computed within PCI scheme (no PCI, no friction)
+		math::Matrix33f                                  stressTensor;
+		// boundary handling
+		math::Vec3f                                  pciBoundaryForce;
+		math::Vec3f                                pciBoundaryImpulse;
 
 		// used for debugging:
 		int                                                        id;
@@ -50,17 +67,17 @@ struct SPH
 
 
 	// public
-	static SPHPtr                             create();
-	void                                  initialize();
-	void             addCollider( ScalarFieldPtr sdf );
-	void                                     advance();
+	static SPHPtr                                                   create();
+	void                                                        initialize();
+	void      initializeParticle( Particle &p, const math::Vec3f &position );
+	void                                   addCollider( ScalarFieldPtr sdf );
+	void                                                           advance();
 
 
 	// private
-	void                             timeIntegration();
-	void                            handleCollisions();
+	void                                                   timeIntegration();
 
-	void updateSupportRadius( float newSupportRadius );
+	void                       updateSupportRadius( float newSupportRadius );
 
 
 
@@ -76,6 +93,7 @@ struct SPH
 
 	// granular
 	float                            m_cricitalDensity;
+	float                        m_frictionCoefficient;
 
 	// solver parameters =================================
 	float                               m_particleMass; // in kg
@@ -85,9 +103,12 @@ struct SPH
 
 	// PCISPH
 	float                                   m_pciDelta;
+	// granular
+	math::Matrix33f            m_pciStressDeltaInverse;
 
 	// switches for different solvertypes----
 	bool                 m_unilateralIncompressibility;
+	bool                                    m_friction;
 
 
 

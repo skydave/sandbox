@@ -9,11 +9,29 @@ SPHPtr SPH::create()
 }
 
 
-
-
-
-void SPH::timeIntegration()
+// assumes that previous position is tracked outside
+void integrate_verlet( const math::Vec3f &p, const math::Vec3f &v, const math::Vec3f &pOld, const math::Vec3f &a, const math::Vec3f &i, float dt, float damping, math::Vec3f &pOut, math::Vec3f &vOut )
 {
+	// Position = Position + (1.0f - Damping) * (Position - PositionOld) + dt * dt * a;
+	math::Vec3f nextOldPos = p;
+	pOut = p + (1.0f - damping) * (p - pOld) + dt*dt*a;
+
+	// Velocity = (Position - PositionOld) / dt;
+	vOut = (pOut - nextOldPos) / dt;
+}
+
+void integrate_leapfrog( const math::Vec3f &p, const math::Vec3f &v, const math::Vec3f &pOld, const math::Vec3f &a, const math::Vec3f &i, float dt, float damping, math::Vec3f &pOut, math::Vec3f &vOut )
+{
+	vOut = v + a*dt*(1.0f-damping);
+	pOut = p + vOut*dt*(1.0f-damping);
+}
+
+
+void integrate_explicit_euler( const math::Vec3f &p, const math::Vec3f &v, const math::Vec3f &pOld, const math::Vec3f &a, const math::Vec3f &i, float dt, float damping, math::Vec3f &pOut, math::Vec3f &vOut )
+{
+	pOut = p + v*dt*(1.0f-damping);
+	vOut = v + a*dt*(1.0f-damping);
+
 	/*
 	// semi-implicit euler
 	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
@@ -26,60 +44,42 @@ void SPH::timeIntegration()
 		p.position = p.position + p.velocity*m_timeStep;
 	}
 	*/
-	// verlet
+
+}
+
+
+void SPH::timeIntegration()
+{
 	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 	{
 		Particle &p = *it;
+
+		// handle fixed particles
+		if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+			continue;
 
 		// compute acceleration
 		// TODO:  check if we need to divide by mass or massDensity
 		math::Vec3f acceleration = p.forces*(1.0f/p.mass);
+		math::Vec3f impuls = p.impulses;
 
-		// Position = Position + (1.0f - Damping) * (Position - PositionOld) + dt * dt * a;
 		math::Vec3f oldPos = p.position;
-		p.position = p.position + (1.0f - m_damping) * (p.position - p.positionPrev) + m_timeStep*m_timeStep*acceleration;
+
+		integrate_verlet( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
+		// adding impulse for verlet means just adding it to position. we need to adjust positionPrev to keep velocty intact
+		p.position += impuls*m_timeStep;
+		p.positionPrev += impuls*m_timeStep;
+
+		//integrate_leapfrog( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
+		//integrate_explicit_euler( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
+
+
+
 		p.positionPrev = oldPos;
-
-		// Velocity = (Position - PositionOld) / dt;
-		p.velocity = (p.position - p.positionPrev) / m_timeStep;
-
-
-	}
-
-	// TODO: leapfrog
-}
-
-
-
-void SPH::handleCollisions()
-{
-	if( !m_collider )
-		return;
-
-	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
-	{
-		Particle &p = *it;
-
-		math::Vec3f _p = p.position;
-
-		float sd = m_collider->value( _p );
-
-		float proximityThreshold = 0.001f;
-
-		// if particle is within proximity
-		if( sd-proximityThreshold < 0.0f )
-		{
-			// move to surface
-			math::Vec3f grad = m_collider->gradient(p.position);
-			_p -= grad*(sd-proximityThreshold);
-
-			p.position = _p;
-
-			// adjust velocity
-			p.velocity = p.velocity - 2.0f*( math::dotProduct(p.velocity, grad) )*grad;
-		}
 	}
 }
+
+
 
 void SPH::advance()
 {
@@ -88,13 +88,22 @@ void SPH::advance()
 	{
 		Particle &p = *it;
 
+		// debug
+		p.color = math::Vec3f( 0.54f, 0.85f, 1.0f );
+
 		// update neighbour information - we look them up once and reuse them throughout the timestep
 		p.neighbours.clear();
 		// bruteforce for now - use efficient lookup structure later
 		for( ParticleContainer::iterator it2 = m_particles.begin(); it2 != m_particles.end();++it2 )
 		{
 			if( it == it2 )continue;
+
 			Particle &p2 = *it2;
+
+			// this will make sure boundary particles dont affect fluid particles (pressure etc.)
+			if( p2.states.testFlag( Particle::STATE_BOUNDARY ) )
+				continue;
+
 			float distanceSquared = (p.position - p2.position).getSquaredLength();
 			if( distanceSquared < m_supportRadiusSquared )
 			{
@@ -110,6 +119,9 @@ void SPH::advance()
 		for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
 			p.massDensity += it2->p->mass*W_poly6(it2->distance);
 
+		// TODO: add weight function
+		//p.massDensity += wallWeightFunction( it2->distance );
+
 		// compute pressure at particle
 		p.pressure = m_idealGasConstant*(p.massDensity-m_restDensity);
 	}
@@ -121,6 +133,7 @@ void SPH::advance()
 		Particle &p = *it;
 
 		p.forces = math::Vec3f(0.0f, 0.0f, 0.0f);
+		p.impulses = math::Vec3f(0.0f, 0.0f, 0.0f);
 
 		// TODO: viscosity
 
@@ -143,9 +156,6 @@ void SPH::advance()
 		}
 		p.forces += f_pressure;
 		*/
-
-
-
 	}
 
 	// PCISPH pressure force --- 
@@ -153,45 +163,55 @@ void SPH::advance()
 	{
 		Particle &p = *it;
 		p.pciPressureForce = math::Vec3f( 0.0f, 0.0f, 0.0f );
+		p.pciFrictionForce = math::Vec3f( 0.0f, 0.0f, 0.0f );
+		p.pciBoundaryForce = math::Vec3f( 0.0f, 0.0f, 0.0f );
+
+		p.pciBoundaryImpulse = math::Vec3f( 0.0f, 0.0f, 0.0f );
 	}
 	int minIterations = 3;
 	int iteration = 0;
 	float densityFluctuationThreshold = 0.03f*m_restDensity;
 	float maxDensityFluctuation = FLT_MIN;
-	while( (maxDensityFluctuation<densityFluctuationThreshold)&&(iteration++ < minIterations) ) // TODO: add threshold
+	float maxStressTensorComponentDifference = FLT_MIN;
+	while( (maxDensityFluctuation<densityFluctuationThreshold)&&(iteration++ < minIterations) )
 	{
 		maxDensityFluctuation = FLT_MIN;
+		maxStressTensorComponentDifference = FLT_MIN;
 
-		// for each particle
+		// compute predicted position/velocity ===================================================
 		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 		{
 			Particle &p = *it;
 
+			if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+			{
+				p.predictedPosition = p.position;
+				p.predictedVelocity = math::Vec3f(0.0f, 0.0f, 0.0f);
+				continue;
+			}
+
 			// predict velocity/position
-			math::Vec3f acceleration = (p.forces+p.pciPressureForce)*(1.0f/p.mass);
+			math::Vec3f f = p.forces;
+			f += p.pciPressureForce;
+			if( m_friction )
+				f += p.pciFrictionForce;
+			f += p.pciBoundaryForce;
+			math::Vec3f acceleration = f*(1.0f/p.mass);
+
+			math::Vec3f impuls = p.impulses;
+			impuls += p.pciBoundaryImpulse;
 
 			// verlet
-			p.predictedPosition = p.position + (1.0f - m_damping) * (p.position - p.positionPrev) + m_timeStep*m_timeStep*acceleration;
+			integrate_verlet( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+			// for verlet, adding impulses is just about adding it to position (and prevPosition, to keep velocity intact)
+			p.predictedPosition += impuls*m_timeStep;
 
-			// handle collisions
-			if( m_collider )
-			{
-				float sd = m_collider->value( p.predictedPosition );
-
-				float proximityThreshold = 0.001f;
-
-				// if particle is within proximity
-				if( sd-proximityThreshold < 0.0f )
-				{
-					// move to surface
-					math::Vec3f grad = m_collider->gradient(p.position);
-					p.predictedPosition -= grad*(sd-proximityThreshold);
-				}
-			}
+			//integrate_leapfrog( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+			//integrate_explicit_euler( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
 		}
 
 
-		// for each particle
+		// update neighbours ===================================================
 		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 		{
 			Particle &p = *it;
@@ -205,7 +225,7 @@ void SPH::advance()
 		}
 
 
-		// for each particle
+		// compute predicted massDensity and pressure ===================================================
 		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 		{
 			Particle &p = *it;
@@ -229,30 +249,102 @@ void SPH::advance()
 			}
 		}
 
-		// for each particle
+
+
+		// compute correction forces ===================================================
 		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 		{
 			Particle &p = *it;
 
-			// compute PCI pressure force
+			// ignore boundary particles
+			if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+				continue;
+
+			// corrective pressure force
 			math::Vec3f f_pressure( 0.0f, 0.0f, 0.0f );
+
+			// corrective friction force (only used when m_friction is true)
+			math::Vec3f f_friction( 0.0f, 0.0f, 0.0f );
+
+			// corrective boundary condition force
+			math::Vec3f f_boundary( 0.0f, 0.0f, 0.0f );
+
+
 			for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
 			{
 				Particle &n = *(it2->p);
 				float distance = it2->distance;
 
 				math::Vec3f gradW = gradW_spiky( distance, p.predictedPosition - n.predictedPosition );
+
+				// pressure force ---
 				f_pressure += n.mass * ( p.pressure/(p.predictedMassDensity*p.predictedMassDensity) + n.pressure/(n.predictedMassDensity*n.predictedMassDensity) ) * gradW;
+
+				// friction force ---
+				//if( m_friction )
+				//{
+				//	f_friction += n.mass * math::transform( gradW, p.stressTensor/(p.predictedMassDensity*p.predictedMassDensity) + n.stressTensor/(n.predictedMassDensity*n.predictedMassDensity) );
+				//}
+
 			}
+
+
+			// boundary condition force --- (using direct forcing)
+			if(1)
+			{
+				float fluidRadius = 0.3f*m_supportRadius;
+				float boundaryRadius = 0.3f*m_supportRadius;
+				float d = FLT_MAX;
+				Particle *c = 0;
+				// test against all other particles for collision with boundary particles
+				// TODO: optimize
+				for( ParticleContainer::iterator bit = m_particles.begin(); bit != m_particles.end();++bit )
+				{
+					Particle &n = *bit;
+
+					// dont test against yourself
+					if( p.id == n.id )
+						continue;
+
+					// if other particle is boundary
+					if( n.states.testFlag( Particle::STATE_BOUNDARY ) )
+					{
+						// test collision
+						float dist = (n.predictedPosition - p.predictedPosition).getLength();
+						if( (dist < boundaryRadius + fluidRadius)&&(dist < d) )
+						{
+							c = &n;
+							d = dist;
+							p.color = math::Vec3f(1.0f, 0.0f, 0.0f);
+						}
+					}
+				}
+				// any collision?
+				if( c )
+				{
+					f_boundary = -p.predictedVelocity*(p.mass/(m_timeStep));
+					p.pciBoundaryImpulse = -p.predictedVelocity.normalized()*((boundaryRadius + fluidRadius)-d)*(1.0f/m_timeStep);
+				}
+			}
+
+
+
 			p.pciPressureForce = f_pressure;
+			//p.pciFrictionForce = f_friction;
+			p.pciBoundaryForce = f_boundary;
 		}
 	};
 	// for each particle
 	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 	{
 		Particle &p = *it;
-		// add pressure force which we got fom pci
+		// add forces which we got fom pci-scheme
 		p.forces += p.pciPressureForce;
+		p.forces += p.pciBoundaryForce;
+		if( m_friction )
+			p.forces += p.pciFrictionForce;
+
+		p.impulses += p.pciBoundaryImpulse;
 	}
 
 
@@ -266,14 +358,12 @@ void SPH::advance()
 		maxpressure = std::max( maxpressure, p.pressure );
 	}
 	//std::cout << "maxDensityFluctuation " << maxDensityFluctuation << std::endl;
-	std::cout << "maxpressure " << maxpressure << std::endl;
+	//std::cout << "maxpressure " << maxpressure << std::endl;
 
 
 
 	// 
 	timeIntegration();
-
-	handleCollisions();
 }
 
 
@@ -300,6 +390,7 @@ void SPH::initialize()
 
 	// granular
 	m_cricitalDensity = 1000.0f;
+	m_frictionCoefficient = 1.0f;
 
 
 	// solver parameters ---
@@ -309,16 +400,11 @@ void SPH::initialize()
 
 	// switches for different solvertypes
 	m_unilateralIncompressibility = true;
+	m_friction = false;
 
 
-	// compute pci delta
+	// compute pci delta and stress delta
 	{
-		float beta = (m_particleMass*m_timeStep)/m_restDensity;
-		beta = beta*beta;
-
-
-		math::Vec3f sumGrad = 0.0f;
-		float sumGradDots = 0.0f;
 
 		// TODO: find out how many particles we are supposed to put into the neighbourhood and where to put them
 
@@ -329,6 +415,16 @@ void SPH::initialize()
 		int res = 5;
 		float s = m_supportRadius;
 
+
+		// PCI - pressure delta
+		float beta = (m_particleMass*m_timeStep)/m_restDensity;
+		beta = beta*beta;
+		math::Vec3f sumGrad = 0.0f;
+		float sumGradDots = 0.0f;
+
+		// granular - corrective stress coefficient
+		math::Matrix33f outerproduct_gradW = math::Matrix33f::Zero();
+
 		for( int k=0;k<res;++k )
 			for( int j=0;j<res;++j )
 				for( int i=0;i<res;++i )
@@ -338,13 +434,30 @@ void SPH::initialize()
 					float w = (float)k/(float)res;
 					math::Vec3f pn = math::Vec3f(u*s-0.5f*s, v*s-0.5f*s, w*s-0.5f*s);
 					float distance = (p0 - pn).getLength();		
+
 					math::Vec3f gradW = gradW_spiky( distance, p0 - pn );
+
+					// pci - pressure delta
 					sumGrad += gradW;
 					sumGradDots += math::dot( gradW, gradW );
+
+					// granular - corrective stress coefficient
+					outerproduct_gradW += (1.0f/m_restDensity)*math::outerProduct( gradW, gradW );
 				}
 
 		m_pciDelta = (-1.0f)/(beta*(math::dot(sumGrad, sumGrad) - sumGradDots ));
+
+		// if 2d#
+		outerproduct_gradW._13 = 0.0f;
+		outerproduct_gradW._23 = 0.0f;
+		outerproduct_gradW._33 = 0.0f;
+		outerproduct_gradW._32 = 0.0f;
+		outerproduct_gradW._31 = 0.0f;
+
+		m_pciStressDeltaInverse = (2.0f*m_particleMass*m_particleMass*m_timeStep)/(m_restDensity*m_restDensity)*outerproduct_gradW;
+		m_pciStressDeltaInverse.invert();
 	}
+
 
 
 	// initial fluid
@@ -356,12 +469,27 @@ void SPH::initialize()
 			for( int j=0;j<n;++j, ++m_numParticles )
 			{
 				Particle p;
-				p.id = m_numParticles;
-				p.position = math::Vec3f( -1.5f + i * spacing, 1.0f + j * spacing, 0.0f );
-				p.positionPrev = p.position;
-				p.color = math::Vec3f( 0.54f, 0.85f, 1.0f );
-				//p.mass = 0.02f; // water
-				p.mass = m_particleMass; // ?
+
+				initializeParticle(p, math::Vec3f( -1.5f + i * spacing, 1.0f + j * spacing, 0.0f ));
+
+				m_particles.push_back(p);
+			}
+	}
+
+	// some wall 
+	if(1)
+	{
+		math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
+		spacing *= 0.5f;
+		int n = 50;
+		for( int i=0;i<n;++i )
+			for( int j=0;j<2;++j, ++m_numParticles )
+			{
+				Particle p;
+
+				initializeParticle(p, math::transform( math::Vec3f( -2.5f + i * spacing, 0.5f - j * spacing, 0.0f ), xform ) );
+				p.states = Particle::STATE_BOUNDARY;
+
 				m_particles.push_back(p);
 			}
 	}
@@ -370,6 +498,18 @@ void SPH::initialize()
 
 
 
+}
+
+
+void SPH::initializeParticle( Particle &p, const math::Vec3f &position )
+{
+	p.id = m_numParticles;
+	p.position = position;
+	p.positionPrev = p.position;
+	p.color = math::Vec3f( 0.54f, 0.85f, 1.0f );
+	p.mass = m_particleMass;
+	p.stressTensor = math::Matrix33f::Zero();
+	p.states = Particle::STATE_NONE;
 }
 
 void SPH::addCollider( ScalarFieldPtr sdf )
