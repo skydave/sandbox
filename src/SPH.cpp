@@ -214,8 +214,8 @@ void SPH::advance()
 	float densityFluctuationThreshold = 0.03f*m_restDensity;
 	float maxDensityFluctuation = FLT_MIN;
 	float maxStressTensorComponentDifference = FLT_MIN;
-	//while( (maxDensityFluctuation<densityFluctuationThreshold)&&(iteration++ < minIterations) )
-	while( iteration++ < 1 )
+	while( (maxDensityFluctuation<densityFluctuationThreshold)&&(iteration++ < minIterations) )
+	//while( iteration++ < 10 )
 	{
 		maxDensityFluctuation = FLT_MIN;
 		maxStressTensorComponentDifference = FLT_MIN;
@@ -310,10 +310,6 @@ void SPH::advance()
 			// corrective friction force (only used when m_friction is true)
 			math::Vec3f f_friction( 0.0f, 0.0f, 0.0f );
 
-			// corrective boundary condition force
-			math::Vec3f f_boundary( 0.0f, 0.0f, 0.0f );
-
-
 			for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
 			{
 				Particle &n = *(it2->p);
@@ -333,68 +329,88 @@ void SPH::advance()
 			}
 
 
-			// boundary condition force --- (using direct forcing)
-			if(1)
-			{
-				float fluidRadius = 0.3f*m_supportRadius;
-				float boundaryRadius = 0.3f*m_supportRadius;
-				float d = FLT_MAX;
-				Particle *c = 0;
-				// test against all other particles for collision with boundary particles
-				// TODO: optimize
-				for( ParticleContainer::iterator bit = m_particles.begin(); bit != m_particles.end();++bit )
-				{
-					Particle &n = *bit;
-
-					// dont test against yourself
-					if( p.id == n.id )
-						continue;
-
-					// if other particle is boundary
-					if( n.states.testFlag( Particle::STATE_BOUNDARY ) )
-					{
-						// test collision
-						float dist = (n.predictedPosition - p.predictedPosition).getLength();
-						if( (dist < boundaryRadius + fluidRadius)&&(dist < d) )
-						{
-							c = &n;
-							d = dist;
-							p.color = math::Vec3f(1.0f, 0.0f, 0.0f);
-						}
-					}
-				}
-				// any collision?
-				if( c )
-				{
-					f_boundary = -p.predictedVelocity*(p.mass/(m_timeStep));
-
-					float o = boundaryRadius + fluidRadius -d;
-					math::Vec3f cp = p.predictedPosition - o*p.predictedVelocity.normalized();
-					p.temp1 = cp;
-
-					//p.pciBoundaryImpulse = -p.predictedVelocity.normalized()*((boundaryRadius + fluidRadius)-d)*(1.0f/m_timeStep)*1.0f;
-					p.pciBoundaryImpulse = -o*p.predictedVelocity.normalized()*(1.0f/m_timeStep);
-				}
-			}
-
 
 
 			p.pciPressureForce = f_pressure;
 			//p.pciFrictionForce = f_friction;
-			p.pciBoundaryForce = f_boundary;
 		}
 	};
 	// for each particle
 	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 	{
 		Particle &p = *it;
+
+
+		if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+			continue;
+
+
 		// add forces which we got fom pci-scheme
 		p.forces += p.pciPressureForce;
-		p.forces += p.pciBoundaryForce;
 		if( m_friction )
 			p.forces += p.pciFrictionForce;
 
-		p.impulses += p.pciBoundaryImpulse;
+
+
+		if(1)
+		{
+			// predict velocity/position
+			math::Vec3f f = p.forces;
+			math::Vec3f acceleration = f*(1.0f/p.mass);
+
+			math::Vec3f impuls = p.impulses;
+
+			// verlet
+			integrate_verlet( p.position, p.velocity, p.predictedPositionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+
+
+
+			float fluidRadius = 0.3f*m_supportRadius;
+			float boundaryRadius = 0.3f*m_supportRadius;
+			float d = FLT_MAX;
+			Particle *c = 0;
+			// test against all other particles for collision with boundary particles
+			// TODO: optimize
+			for( ParticleContainer::iterator bit = m_particles.begin(); bit != m_particles.end();++bit )
+			{
+				Particle &n = *bit;
+
+				// dont test against yourself
+				if( p.id == n.id )
+					continue;
+
+				// if other particle is boundary
+				if( n.states.testFlag( Particle::STATE_BOUNDARY ) )
+				{
+					// test collision
+					float dist = (n.predictedPosition - p.predictedPosition).getLength();
+					if( (dist < boundaryRadius + fluidRadius)&&(dist < d) )
+					{
+						c = &n;
+						d = dist;
+						p.color = math::Vec3f(1.0f, 0.0f, 0.0f);
+					}
+				}
+			}
+			// any collision?
+			if( c )
+			{
+				math::Vec3f f_boundary = -p.predictedVelocity*(p.mass/(m_timeStep));
+
+				float o = boundaryRadius + fluidRadius -d;
+				math::Vec3f cp = p.predictedPosition - o*p.predictedVelocity.normalized();
+				p.temp1 = cp;
+
+				//math::Vec3f p.pciBoundaryImpulse
+				//p.pciBoundaryImpulse = -p.predictedVelocity.normalized()*((boundaryRadius + fluidRadius)-d)*(1.0f/m_timeStep)*1.0f;
+				//p.pciBoundaryImpulse = -o*p.predictedVelocity.normalized()*(1.0f/m_timeStep);
+
+				p.forces += f_boundary;
+				//p.impulses += p.pciBoundaryImpulse;
+			}
+		}
+
+
 	}
 
 
@@ -534,8 +550,8 @@ void SPH::initialize()
 	// some wall 
 	if(1)
 	{
-		math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
-		//math::Matrix44f xform = math::Matrix44f::Identity();
+		//math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
+		math::Matrix44f xform = math::Matrix44f::Identity();
 		spacing *= 0.5f;
 		int n = 50;
 		for( int i=0;i<n;++i )
