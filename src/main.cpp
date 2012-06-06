@@ -38,6 +38,7 @@
 #include "Terrain.h"
 #include "Visualizer.h"
 
+#include "eigen/Eigen"
 
 base::GLViewer    *glviewer;
 base::ContextPtr    context;
@@ -65,6 +66,8 @@ base::GeometryPtr          circle_supportRadius;
 base::GeometryPtr                         point;
 
 VisualizerPtr                        visualizer;
+Visualizer::Handle               m_stressVector;
+Visualizer::Handle               m_visVector;
 
 
 
@@ -146,7 +149,7 @@ void step()
 		colors->set<math::Vec3f>( id, sph->m_particles[id].color );
 	}
 
-
+	/*
 	// update debug info
 	static int check = 0;
 	if( ++check % 1000 )
@@ -164,6 +167,62 @@ void step()
 			}
 		}
 	}
+	*/
+
+	//visualizer->line( m_stressVector, sph->m_particles[81].position, sph->m_particles[81].position + sph->m_particles[81].pciFrictionForce);
+
+
+	// test for visualizing strain tensor
+	if(1)
+	{
+		{
+			SPH::Particle &p = sph->m_particles[9];
+
+			SPH::Tensor pt = p.strainRate;
+			Eigen::Matrix<float, 2, 2> t;
+			t( 0, 0 ) = pt.m[0][0];
+			t( 0, 1 ) = pt.m[0][1];
+			t( 1, 0 ) = pt.m[1][0];
+			t( 1, 1 ) = pt.m[1][1];
+
+			Eigen::EigenSolver<Eigen::Matrix<float, 2, 2> > es( t, true );
+
+			float ev0 = es.eigenvalues()(0).real();
+			float ev1 = es.eigenvalues()(1).real();
+
+			math::Vec3f e0( es.eigenvectors().col(0)(0).real(), es.eigenvectors().col(0)(1).real(), 0.0f);
+			math::Vec3f e1( es.eigenvectors().col(1)(0).real(), es.eigenvectors().col(1)(1).real(), 0.0f);
+
+			//
+			visualizer->line( p.strainRateVisHandle1, p.position, p.position + e0*ev0);
+			visualizer->line( p.strainRateVisHandle2, p.position, p.position + e1*ev1);
+		}
+
+		//visualizer->line( m_stressVector, p.position, p.position + p.pciFrictionForce*1000.0f);
+		SPH::Particle &p2 = sph->m_particles[1];
+		//visualizer->line( m_visVector, p2.position, p2.position + p2.pciFrictionForce*1000.0f);
+		//std::cout << "pciFrictionForce: " << p.pciFrictionForce.x << " " << p.pciFrictionForce.y << " " << p.pciFrictionForce.z << std::endl;
+		//std::cout << "eigenvalues are: " << ev0 << " " << ev1 << std::endl;
+		//std::cout << "strain rate: " << pt.m[0][0] << " " << pt.m[0][1] << std::endl;
+		//std::cout << "             " << pt.m[1][0] << " " << pt.m[1][1] << std::endl;
+		for( int i=0;i<sph->numParticles();++i )
+		{
+			SPH::Particle &pp = sph->m_particles[i];
+			//visualizer->line( pp.frictionForceVisHandle, pp.position, pp.position + pp.pciFrictionForce*1.001f);
+
+			/*
+			for( int j=0;j<pp.neighbours.size();++j )
+			{
+				SPH::Particle::Neighbour &n = pp.neighbours[j];
+				SPH::Particle::NeighbourDebug &nd = pp.neighbourDebug[j];
+				//visualizer->line( nd.gradVisHandle, pp.position, pp.position+nd.gradW*0.0001f);
+			}
+			*/
+
+		}
+	}
+
+
 
 	glviewer->setCaption( base::toString(sph->m_currentTimeStep) );
 }
@@ -206,8 +265,8 @@ void render( base::CameraPtr cam )
 
 
 	// render debug stuff
-	context->render( circle_supportRadius, context->m_constantShader );
 	visualizer->render();
+	context->render( circle_supportRadius, context->m_constantShader, math::Matrix44f::RotationMatrixX(math::degToRad(90.0f))*math::Matrix44f::ScaleMatrix( sph->m_supportRadius )*math::Matrix44f::TranslationMatrix(sph->m_particles[0].position)  );
 }
 
 
@@ -304,13 +363,32 @@ void init()
 
 
 	// debug stuff
-	circle_supportRadius = base::geo_circle( 20, sph->m_supportRadius );
-	base::apply_transform(circle_supportRadius, math::Matrix44f::RotationMatrixX( math::degToRad(90.0f) ));
+	//circle_supportRadius = base::geo_circle( 20, sph->m_supportRadius );
+	circle_supportRadius = base::geo_circle( 20, 1.0f );
+	//base::apply_transform(circle_supportRadius, math::Matrix44f::RotationMatrixX( math::degToRad(90.0f) ));
 
 
 
 	visualizer = Visualizer::create();
-
+	//m_stressVector = visualizer->line( math::Vec3f(0.0f, 0.0f, 0.0f), math::Vec3f(1.0f, 0.0f, 0.0f) );
+	//m_visVector = visualizer->line( math::Vec3f(0.0f, 0.0f, 0.0f), math::Vec3f(1.0f, 0.0f, 0.0f) );
+	//visualizer->point( math::Vec3f(0.0f, 0.0f, 0.0f) );
+	for( int i=0;i<sph->numParticles();++i )
+	{
+		SPH::Particle &p = sph->m_particles[i];
+		p.frictionForceVisHandle = visualizer->line( p.position, p.position );
+		/*
+		for( int i=0;i<p.neighbourDebug.size();++i )
+		{
+			SPH::Particle::NeighbourDebug &nd = p.neighbourDebug[i];
+			nd.gradVisHandle = visualizer->line( math::Vec3f(0.0f, 0.0f, 0.0f), math::Vec3f(0.0f, 0.0f, 0.0f));
+		}
+		*/
+	}
+	//visualizer->color( 0.7f, 0.9f, 0.7f );
+	visualizer->color( 1.9f, 0.0f, 0.0f );
+	sph->m_particles[1].strainRateVisHandle1 = visualizer->line( sph->m_particles[1].position, sph->m_particles[1].position );
+	sph->m_particles[1].strainRateVisHandle2 = visualizer->line( sph->m_particles[1].position, sph->m_particles[1].position );
 }
 
 void shutdown()

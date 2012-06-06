@@ -10,7 +10,7 @@
 
 
 
-Visualizer::Visualizer() : m_currentColor(1.0f, 1.0f, 1.0f), m_currentPointSize(5.0f)
+Visualizer::Visualizer() : m_currentColor(1.0f, 1.0f, 1.0f), m_currentPointSize(5.0f), m_numLines(0)
 {
 	m_points = base::Geometry::createPointGeometry();
 	m_points->setAttr( "Cd", base::Attribute::createVec3f());
@@ -75,8 +75,9 @@ void Visualizer::point( const math::Vec3f p0 )
 
 
 // add a line
-void Visualizer::line( const math::Vec3f p0, const math::Vec3f &p1 )
+Visualizer::Handle Visualizer::line( const math::Vec3f p0, const math::Vec3f &p1 )
 {
+	Handle h = m_numLines++;
 	base::AttributePtr c, p;
 	p = m_lines->getAttr("P");
 	c = m_lines->getAttr("Cd");
@@ -85,4 +86,20 @@ void Visualizer::line( const math::Vec3f p0, const math::Vec3f &p1 )
 	c->appendElement(m_currentColor);
 	c->appendElement(m_currentColor);
 	m_lines->addLine( i0, i1 );
+
+	m_lineAttributeIndices[h] = i0;
+	return h;
+}
+
+void Visualizer::line( Visualizer::Handle h, const math::Vec3f p0, const math::Vec3f &p1 )
+{
+	std::map<Handle, int>::iterator it = m_lineAttributeIndices.find(h);
+	if( it != m_lineAttributeIndices.end() )
+	{
+		int attrIndex = it->second;
+		base::AttributePtr p;
+		p = m_lines->getAttr("P");
+		p->set<math::Vec3f>( attrIndex, p0 );
+		p->set<math::Vec3f>( attrIndex+1, p1 );
+	}
 }

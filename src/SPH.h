@@ -16,16 +16,28 @@
 BASE_DECL_SMARTPTR_STRUCT(SPH);
 struct SPH
 {
+	typedef math::Matrix22f Tensor;
+	typedef math::Vec3f Vector;
+	typedef float Real;
+
 	struct Trajectory;
 	struct Particle
 	{
+		struct NeighbourDebug
+		{
+			Vector gradW;
+			size_t gradVisHandle;
+		};
+
 		struct Neighbour
 		{
-			float distance;
+			Real distance;
 			Particle    *p;
 
 			// used for predictive-correction-scheme
-			float predictedDistance;
+			Real predictedDistance;
+
+			NeighbourDebug *nd;
 		};
 
 		enum States
@@ -38,37 +50,45 @@ struct SPH
 
 		base::Flags<States>                                    states;
 
-		math::Vec3f                                          position;
-		math::Vec3f                                      positionPrev;
-		math::Vec3f                                          velocity;
-		math::Vec3f                                            forces; // combined external and internal forces
-		math::Vec3f                                          impulses; // combined impulses (comming from boundary condition)
-		float                                                    mass; // in kg
-		float                                             massDensity; // in kg/m³
-		float                                                pressure; // in ? pascal ?
+		Vector                                          position;
+		Vector                                      positionPrev;
+		Vector                                          velocity;
+		Vector                                      velocityPrev;
+		Vector                                            forces; // combined external and internal forces
+		Vector                                          impulses; // combined impulses (comming from boundary condition)
+		Real                                                    mass; // in kg
+		Real                                             massDensity; // in kg/m³
+		Real                                                pressure; // in ? pascal ?
 
 		typedef std::vector< Neighbour > Neighbours;
 		Neighbours                                         neighbours; // list of particles within support radius and their distances; computed once per timestep
 
 		// used for predictive-correction-scheme
-		math::Vec3f                                 predictedPosition;
-		math::Vec3f                             predictedPositionPrev;
-		math::Vec3f                                 predictedVelocity;
-		float                                    predictedMassDensity;
-		math::Vec3f                                  pciPressureForce;
+		Vector                                 predictedPosition;
+		Vector                             predictedPositionPrev;
+		Vector                                 predictedVelocity;
+		Real                                    predictedMassDensity;
+		Vector                                  pciPressureForce;
 		// used for granular material
-		math::Vec3f                                  pciFrictionForce; // friction force is computed within PCI scheme (no PCI, no friction)
-		math::Matrix33f                                  stressTensor;
+		Vector                                  pciFrictionForce; // friction force is computed within PCI scheme (no PCI, no friction)
+		//Matrix33f                                  stressTensor;
+		Tensor                                           stressTensor;
 		// boundary handling
-		math::Vec3f                                  pciBoundaryForce;
-		math::Vec3f                                pciBoundaryImpulse;
+		Vector                                  pciBoundaryForce;
+		Vector                                pciBoundaryImpulse;
 
 		// used for debugging:
 		Trajectory                                        *trajectory;
-		int                                                        id;
-		math::Vec3f                                             color;
+		size_t                                                     id;
+		Vector                                             color;
 
-		math::Vec3f                                             temp1;
+		std::vector<NeighbourDebug>                    neighbourDebug;
+		Vector                                             temp1;
+		Vector                                             temp2;
+		size_t                                                  frictionForceVisHandle;
+		size_t                                                  strainRateVisHandle1;
+		size_t                                                  strainRateVisHandle2;
+		Tensor                                             strainRate;
 	};
 
 
@@ -84,16 +104,18 @@ struct SPH
 	SPH();                                                                    // constructor
 	static SPHPtr                                                   create();
 	void                                                        initialize();
-	void      initializeParticle( Particle &p, const math::Vec3f &position );
+	void      initializeParticle( Particle &p, const Vector &position );
 	void                                   addCollider( ScalarFieldPtr sdf );
 	void                                                           advance();
+	size_t                                               numParticles()const;
 	void                                                updateTrajectories(); // just for debugging
+
 
 
 	// private
 	void                                                   timeIntegration();
 
-	void                       updateSupportRadius( float newSupportRadius );
+	void                       updateSupportRadius( Real newSupportRadius );
 
 
 
@@ -104,39 +126,67 @@ struct SPH
 
 
 	// material properties================================
-	float                           m_idealGasConstant; // nRT - expresses amount of substance per mol plus temperature
-	float                                m_restDensity;
+	Real                           m_idealGasConstant; // nRT - expresses amount of substance per mol plus temperature
+	Real                                m_restDensity;
 
 	// granular
-	float                            m_cricitalDensity;
-	float                        m_frictionCoefficient;
+	Real                            m_cricitalDensity;
+	Real                        m_frictionCoefficient;
 
 	// solver parameters =================================
-	float                               m_particleMass; // in kg
-	float                              m_supportRadius;
-	float                                   m_timeStep;
-	float                                    m_damping;
+	Real                               m_particleMass; // in kg
+	Real                              m_supportRadius;
+	Real                                   m_timeStep;
+	Real                                    m_damping;
 
 	// PCISPH
-	float                                   m_pciDelta;
+	Real                                   m_pciDelta;
 	// granular
-	math::Matrix33f            m_pciStressDeltaInverse;
+	Tensor                     m_pciStressDeltaInverse;
 
 	// switches for different solvertypes----
 	bool                 m_unilateralIncompressibility;
 	bool                                    m_friction;
+	bool                                    m_pressure;
+	bool                                    m_boundary;
 
 
-
-	int                                 m_numParticles;
 
 	// internal
-	float                    m_supportRadiusSquared;
+	Real                    m_supportRadiusSquared;
 	int                              m_currentTimeStep;
 
+	void *debug1;
+
+	// weighting functions =========================
+
+	//6th degree polynomial
+	void W_poly6_3d_precompute( Real supportRadius );
+	Real W_poly6_3d( Real distance );
+
+	void W_poly6_2d_precompute( Real supportRadius );
+	Real W_poly6_2d( Real distance );
+	Vector gradW_poly6_2d( Real distance, Vector dir );
 
 
+	//spiky (gradient doesnt vanish near center)
+	void W_spiky_3d_precompute( Real supportRadius );
+	Real W_spiky_3d( Real distance );
+	Vector gradW_spiky_3d( Real distance, Vector dir );
 
+	void W_spiky_2d_precompute( Real supportRadius );
+	Real W_spiky_2d( Real distance );
+	Vector gradW_spiky_2d( Real distance, Vector dir );
+
+	// viscosity kernel (see mueller03)
+	void W_viscosity_precompute( Real supportRadius );
+	Real W_viscosity( Real distance );
+	Vector gradW_viscosity( Real distance, Vector dir );
+
+	// integrators =========================
+	void integrate_verlet( const Vector &p, const Vector &v, const Vector &pOld, const Vector &a, const Vector &i, Real dt, Real damping, Vector &pOut, Vector &vOut );
+	void integrate_leapfrog( const Vector &p, const Vector &v, const Vector &pOld, const Vector &a, const Vector &i, Real dt, Real damping, Vector &pOut, Vector &vOut );
+	void integrate_explicit_euler( const Vector &p, const Vector &v, const Vector &pOld, const Vector &a, const Vector &i, Real dt, Real damping, Vector &pOut, Vector &vOut );
 };
 
 
@@ -145,14 +195,3 @@ struct SPH
 
 
 
-// weighting functions =========================
-
-//6th degree polynomial
-void W_poly6_precompute( float supportRadius );
-float W_poly6( float distance );
-
-
-//spiky (gradient doesnt vanish near center)
-void W_spiky_precompute( float supportRadius );
-float W_spiky( float distance );
-math::Vec3f gradW_spiky( float distance, math::Vec3f dir );
