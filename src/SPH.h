@@ -149,6 +149,8 @@ struct SPH
 	bool                                    m_friction;
 	bool                                    m_pressure;
 	bool                                    m_boundary;
+	bool                                     m_gravity;
+	bool                                  m_deformtest;
 
 
 

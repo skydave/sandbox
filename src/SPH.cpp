@@ -145,11 +145,13 @@ void SPH::advance()
 		//gravity
 		Vector f_gravity( 0.0f, 0.0f, 0.0f );
 		f_gravity = -Vector( 0.0f, 1.0f, 0.0f ).normalized()*0.98f;
-		//p.forces += f_gravity;
+		if( m_gravity )
+			p.forces += f_gravity;
 
 		// deformation test force
 		Vector f_deformtest = -Vector( 0.0f, p.position.x - (test_diff*0.5f), 0.0f )*1.0f;
-		p.forces += f_deformtest;
+		if( m_deformtest )
+			p.forces += f_deformtest;
 		/*
 		if( p.id == 0 )
 			p.forces += -Vector( 0.0f, -0.075, 0.0f )*1.0f;
@@ -314,13 +316,14 @@ void SPH::advance()
 						p.neighbourDebug[c].gradW = gradW;
 				}
 
-				Tensor strainRate_0 = 0.5f*(outer_product_0+outer_product_0.transposed());
-				strainRate_0._11 = 0.0f;
+				//Tensor strainRate_0 = 0.5f*(outer_product_0+outer_product_0.transposed());
+				Tensor strainRate_0 = outer_product_0;
+				//strainRate_0._11 = 0.0f;
 				//strainRate_0._12 = 0.0f;
-				strainRate_0._12 = 0.0f;
+				//strainRate_0._12 = 0.0f;
 				//strainRate_0._22 = 0.0f;
 				//p.strainRate = outer_product_0;
-				p.strainRate = strainRate_0;
+				p.strainRate = outer_product_0;
 				Tensor strain_rate_dissipation = outer_product_predicted - outer_product_0;
 				//p.strainRate = 0.5f*(outer_product+outer_product.transposed());
 				//std::cout << "strain rate: " << strain_rate.m[0][0] << " " << strain_rate.m[0][1] << std::endl;
@@ -344,15 +347,16 @@ void SPH::advance()
 				//Tensor ds = D_inverse*(-1.0f*strainRate_0);
 				*/
 				Tensor ds = (-1.0f*strainRate_0)*m_pciStressDeltaInverse;
+				//ds._11 = 0.0f;
 				//Tensor s_friction = p.stressTensor + ds*(1.0f/m_timeStep);
-				Tensor s_friction = p.stressTensor  + ds*10.0f;
+				Tensor s_friction = p.stressTensor  + ds*1.0f;
 
 				//s_friction = s_friction - (1.0f/3.0f)*s_friction.trace()*Tensor::Identity();
 
 				// yield conditionon s_friction
 				Real t = m_frictionCoefficient*p.pressure;
-				for( int j=0;j<3;++j )
-					for( int i=0;i<3;++i )
+				for( int j=0;j<2;++j )
+					for( int i=0;i<2;++i )
 					{
 						// yield constrain
 						//if( fabsf(s_friction.m[j][i]) < t )
@@ -418,8 +422,8 @@ void SPH::advance()
 				Particle &n = *(it2->p);
 				Real distance = it2->distance;
 
-				//Vector gradW = gradW_spiky_2d( distance, p.predictedPosition - n.predictedPosition );
-				Vector gradW = gradW_poly6_2d( distance, p.predictedPosition - n.predictedPosition );
+				Vector gradW = gradW_spiky_2d( distance, p.predictedPosition - n.predictedPosition );
+				//Vector gradW = gradW_poly6_2d( distance, p.predictedPosition - n.predictedPosition );
 
 				// pressure force ---
 				if(m_pressure)
@@ -568,12 +572,13 @@ void SPH::updateSupportRadius( Real newSupportRadius )
 
 void SPH::initialize()
 {
-	//updateSupportRadius( .190625f );
+	updateSupportRadius( .190625f );
 	//updateSupportRadius( .31f );
-	updateSupportRadius( .21f );
+	//updateSupportRadius( .21f );
 
 	m_idealGasConstant = 0.1f;
 	//m_restDensity = 998.29;
+	//m_restDensity = 1000.0f;
 	m_restDensity = 1000.0f;
 
 	m_particles.clear();
@@ -592,10 +597,15 @@ void SPH::initialize()
 
 	// switches for different solvertypes
 
-	m_unilateralIncompressibility = false;
 	m_friction = true;
 	m_pressure = false;
+	m_unilateralIncompressibility = false;
 	m_boundary = false;
+
+
+	m_gravity = false;
+	m_deformtest = true;
+
 
 
 	// compute pci delta and stress delta
@@ -627,7 +637,7 @@ void SPH::initialize()
 					Real u = (Real)i/(Real)res;
 					Real v = (Real)j/(Real)res;
 					Real w = (Real)k/(Real)res;
-					Vector pn = Vector(u*s-0.5f*s, v*s-0.5f*s, w*s-0.5f*s);
+					Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s);
 					Real distance = (p0 - pn).getLength();		
 
 					Vector gradW = gradW_spiky_2d( distance, p0 - pn );
@@ -651,7 +661,7 @@ void SPH::initialize()
 		*/
 
 
-
+		res = 10;
 		Tensor testDing = Tensor::Zero();
 		for( int k=0;k<res;++k )
 			for( int j=0;j<res;++j )
@@ -660,14 +670,14 @@ void SPH::initialize()
 					Real u = (Real)i/(Real)res;
 					Real v = (Real)j/(Real)res;
 					Real w = (Real)k/(Real)res;
-					Vector pn = Vector(u*s-0.5f*s, v*s-0.5f*s, w*s-0.5f*s);
+					Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s);
 					Real distance = (p0 - pn).getLength();		
 
 					//Vector gradW = gradW_spiky_2d( distance, p0 - pn );
 					Vector gradW = gradW_poly6_2d( distance, p0 - pn );
 
 					// granular - corrective stress coefficient
-					testDing += (m_particleMass/m_restDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(gradW.x, gradW.y) );
+					testDing += (1.0f/m_restDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(gradW.x, gradW.y) );
 				}
 		Tensor D_inverse = -2.0f*m_timeStep*m_particleMass*m_particleMass*(1.0f/(m_restDensity*m_restDensity))*testDing;
 		D_inverse.invert();
@@ -678,7 +688,7 @@ void SPH::initialize()
 
 	// initial fluid
 	Real spacing = 0.19f;
-	if(1)
+	if(0)
 	{
 		int n = 10;
 		for( int i=0;i<n;++i )
@@ -693,7 +703,7 @@ void SPH::initialize()
 	}
 
 	// stress debug setup
-	if(0)
+	if(1)
 	{
 		Real d = test_diff;
 
@@ -705,13 +715,22 @@ void SPH::initialize()
 		initializeParticle(p, Vector( d, 0.0f, 0.0f ));// debug particle 2
 		m_particles.push_back(p);
 
+
 		///*
 		initializeParticle(p, Vector( 0.5f*d, 0.75f*d, 0.0f ));// debug particle 2
 		m_particles.push_back(p);
-
-		initializeParticle(p, Vector( -0.5f*d, 0.75f*d, 0.0f ));// debug particle 2
-		m_particles.push_back(p);
+		//initializeParticle(p, Vector( 0.5f*d, -0.75f*d, 0.0f ));// debug particle 2
+		//m_particles.push_back(p);
 		//*/
+
+		
+		//initializeParticle(p, Vector( 0.0f, 0.5f*d, 0.0f )); // debug particle 1
+		//m_particles.push_back(p);
+		//initializeParticle(p, Vector( d, 0.5f*d, 0.0f ));// debug particle 2
+		//m_particles.push_back(p);
+
+
+
 
 		/*
 		initializeParticle(p, Vector( -d, 0.0f, 0.0f ));m_particles.push_back(p);
@@ -745,10 +764,10 @@ void SPH::initialize()
 	//m_particles[90].trajectory = new Trajectory();
 
 	// some wall 
-	if(0)
+	if(m_boundary)
 	{
-		math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
-		//math::Matrix44f xform = math::Matrix44f::Identity();
+		//math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
+		math::Matrix44f xform = math::Matrix44f::Identity();
 		spacing *= 0.5f;
 		int n = 50;
 		for( int i=0;i<n;++i )

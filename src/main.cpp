@@ -52,6 +52,7 @@ base::ShaderPtr  greyShader;
 // SPH stuff ======================
 SPHPtr sph;
 bool                            g_pause = false;
+
 // rendering
 base::GeometryPtr             m_renderParticles;
 base::ShaderPtr                m_particleShader;
@@ -65,6 +66,7 @@ base::ShaderPtr                       sdfShader;
 base::GeometryPtr          circle_supportRadius;
 base::GeometryPtr                         point;
 
+bool                  g_renderVisualiser = true;
 VisualizerPtr                        visualizer;
 Visualizer::Handle               m_stressVector;
 Visualizer::Handle               m_visVector;
@@ -176,7 +178,7 @@ void step()
 	if(1)
 	{
 		{
-			SPH::Particle &p = sph->m_particles[9];
+			SPH::Particle &p = sph->m_particles[0];
 
 			SPH::Tensor pt = p.strainRate;
 			Eigen::Matrix<float, 2, 2> t;
@@ -194,8 +196,8 @@ void step()
 			math::Vec3f e1( es.eigenvectors().col(1)(0).real(), es.eigenvectors().col(1)(1).real(), 0.0f);
 
 			//
-			visualizer->line( p.strainRateVisHandle1, p.position, p.position + e0*ev0);
-			visualizer->line( p.strainRateVisHandle2, p.position, p.position + e1*ev1);
+			visualizer->line( p.strainRateVisHandle1, p.position, p.position + e0*ev0*100000.0f);
+			visualizer->line( p.strainRateVisHandle2, p.position, p.position + e1*ev1*100000.0f);
 		}
 
 		//visualizer->line( m_stressVector, p.position, p.position + p.pciFrictionForce*1000.0f);
@@ -208,7 +210,7 @@ void step()
 		for( int i=0;i<sph->numParticles();++i )
 		{
 			SPH::Particle &pp = sph->m_particles[i];
-			//visualizer->line( pp.frictionForceVisHandle, pp.position, pp.position + pp.pciFrictionForce*1.001f);
+			visualizer->line( pp.frictionForceVisHandle, pp.position, pp.position + pp.pciFrictionForce*1.001f);
 
 			/*
 			for( int j=0;j<pp.neighbours.size();++j )
@@ -265,7 +267,8 @@ void render( base::CameraPtr cam )
 
 
 	// render debug stuff
-	visualizer->render();
+	if(g_renderVisualiser)
+		visualizer->render();
 	context->render( circle_supportRadius, context->m_constantShader, math::Matrix44f::RotationMatrixX(math::degToRad(90.0f))*math::Matrix44f::ScaleMatrix( sph->m_supportRadius )*math::Matrix44f::TranslationMatrix(sph->m_particles[0].position)  );
 }
 
@@ -372,7 +375,7 @@ void init()
 	visualizer = Visualizer::create();
 	//m_stressVector = visualizer->line( math::Vec3f(0.0f, 0.0f, 0.0f), math::Vec3f(1.0f, 0.0f, 0.0f) );
 	//m_visVector = visualizer->line( math::Vec3f(0.0f, 0.0f, 0.0f), math::Vec3f(1.0f, 0.0f, 0.0f) );
-	//visualizer->point( math::Vec3f(0.0f, 0.0f, 0.0f) );
+	visualizer->point( math::Vec3f(0.0f, 0.0f, 0.0f) );
 	for( int i=0;i<sph->numParticles();++i )
 	{
 		SPH::Particle &p = sph->m_particles[i];
@@ -401,6 +404,8 @@ void keypress( int key )
 {
 	if( key == KEY_SPACE )
 		g_pause = !g_pause;
+	if( key == KEY_V )
+		g_renderVisualiser = !g_renderVisualiser;
 	if( key == KEY_RIGHT )
 		step();
 
