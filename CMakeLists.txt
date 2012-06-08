@@ -4,6 +4,14 @@ project("app")
 
 cmake_minimum_required(VERSION 2.8)
 
+# this changes per project ===========
+set( CMAKE_CURRENT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/base )
+
+
+add_definitions(-DSRC_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}\")
+add_definitions(-DBASE_PATH=\"${CMAKE_CURRENT_BASE_DIR}\")
+
+
 #
 # assigns sourcegroup from path
 #

@@ -806,7 +806,7 @@ void init()
 
 
 
-	skyShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/sky.vs.glsl", base::Path( SRC_PATH ) + "/src/sky.ps.glsl" );
+	skyShader = base::Shader::load( base::Path( SRC_PATH ) + "/src/Sky.vs.glsl", base::Path( SRC_PATH ) + "/src/Sky.ps.glsl" );
 	skyShader->setUniform( "transmittanceSampler", sky_transmittanceTexture->getUniform() );
 	skyShader->setUniform( "innerRadius", innerRadius );
 	skyShader->setUniform( "outerRadius", outerRadius );
