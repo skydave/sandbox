@@ -16,7 +16,7 @@ Terrain::Terrain( base::Path filename )
 
 	float minHeight, maxHeight;
 	minHeight = FLT_MAX;
-	maxHeight = FLT_MIN;
+	maxHeight = -FLT_MAX;
 
 	m_heightMap.resize( m_width*m_height, 0.0f );
 	for( int j=0;j<heightMap->m_height;++j )
