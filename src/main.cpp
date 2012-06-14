@@ -22,6 +22,7 @@
 
 #include <util/StringManip.h>
 #include <util/Path.h>
+#include <util/fs.h>
 
 #include <gfx/Geometry.h>
 #include <gfx/ObjIO.h>
@@ -51,7 +52,7 @@ base::ShaderPtr  greyShader;
 
 // SPH stuff ======================
 SPHPtr sph;
-bool                            g_pause = false;
+bool                            g_pause = true;
 
 // rendering
 base::GeometryPtr             m_renderParticles;
@@ -177,6 +178,7 @@ void step()
 	// test for visualizing strain tensor
 	if(1)
 	{
+		if(0)
 		{
 			SPH::Particle &p = sph->m_particles[0];
 
@@ -306,6 +308,33 @@ void init()
 	sph = SPH::create();
 	sph->initialize();
 
+	///*
+	// test for checking support radius
+	base::fs::File *f_W_poly6_2d = base::fs::open( "W_poly6_2d.dat", "w" );
+	base::fs::File *f_gradW_spiky_2d = base::fs::open( "gradW_spiky_2d.dat", "w" );
+	base::fs::File *f_W_spiky_2d = base::fs::open( "W_spiky_2d.dat", "w" );
+	
+
+	int numSamples = 100;
+	for( int i=0;i<numSamples;++i )
+	{
+		float t = (float)i/(float)numSamples;
+		float d = t * sph->m_supportRadius;
+		float W_poly6_2d = sph->W_poly6_2d(d);
+		float W_spiky_2d = sph->W_spiky_2d(d);
+		//float gradW_spiky_2d = sph->gradW_spiky_2d(d);
+
+		base::fs::write( f_W_poly6_2d, base::toString(d) + " " + base::toString(W_poly6_2d) + "\n" );
+		base::fs::write( f_W_spiky_2d, base::toString(d) + " " + base::toString(W_spiky_2d) + "\n" );
+		//base::fs::write( f_gradW_spiky_2d, base::toString(d) + " " + base::toString(gradW_spiky_2d) + "\n" );
+	}
+
+	base::fs::close(f_W_poly6_2d);
+	base::fs::close(f_W_spiky_2d);
+	base::fs::close(f_gradW_spiky_2d);
+	//*/
+
+
 
 	// add collisionobject (SDF)
 	//TerrainSDF terrainSDF;
@@ -396,7 +425,23 @@ void init()
 
 void shutdown()
 {
+	/*
 	// put your deinitialization stuff here
+	base::fs::File *f_0_pressure = base::fs::open( "0_pressure.dat", "w" );
+	base::fs::File *f_0_massDensity = base::fs::open( "0_massDensity.dat", "w" );
+	
+
+	int numSamples = sph->m_particles[0].trajectory->m_steps.size();
+	for( int i=0;i<numSamples;++i )
+	{
+		SPH::Particle &step = sph->m_particles[0].trajectory->m_steps[i];
+		base::fs::write( f_0_pressure, base::toString(i) + " " + base::toString(step.pressure) + "\n" );
+		base::fs::write( f_0_massDensity, base::toString(i) + " " + base::toString(step.massDensity) + "\n" );
+	}
+
+	base::fs::close(f_0_pressure);
+	base::fs::close(f_0_massDensity);
+	*/
 }
 
 
@@ -420,5 +465,6 @@ int main(int argc, char ** argv)
 	glviewer->getCamera()->update();
 	glviewer->show();
 	glviewer->setKeyPressCallback( keypress );
+	glviewer->setShutdownCallback( shutdown );
 	return app.exec();
 }

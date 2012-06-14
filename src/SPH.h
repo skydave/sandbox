@@ -147,7 +147,8 @@ struct SPH
 	// switches for different solvertypes----
 	bool                 m_unilateralIncompressibility;
 	bool                                    m_friction;
-	bool                                    m_pressure;
+	bool                             m_classicPressure;
+	bool                                 m_pciPressure;
 	bool                                    m_boundary;
 	bool                                     m_gravity;
 	bool                                  m_deformtest;
@@ -155,7 +156,7 @@ struct SPH
 
 
 	// internal
-	Real                    m_supportRadiusSquared;
+	Real                        m_supportRadiusSquared;
 	int                              m_currentTimeStep;
 
 	void *debug1;
@@ -168,17 +169,17 @@ struct SPH
 
 	void W_poly6_2d_precompute( Real supportRadius );
 	Real W_poly6_2d( Real distance );
-	Vector gradW_poly6_2d( Real distance, Vector dir );
+	Real gradW_poly6_2d( Real distance );
 
 
 	//spiky (gradient doesnt vanish near center)
 	void W_spiky_3d_precompute( Real supportRadius );
 	Real W_spiky_3d( Real distance );
-	Vector gradW_spiky_3d( Real distance, Vector dir );
+	Real W_spiky_derivative_3d( Real distance );
 
 	void W_spiky_2d_precompute( Real supportRadius );
 	Real W_spiky_2d( Real distance );
-	Vector gradW_spiky_2d( Real distance, Vector dir );
+	Real W_spiky_derivative_2d( Real distance );
 
 	// viscosity kernel (see mueller03)
 	void W_viscosity_precompute( Real supportRadius );

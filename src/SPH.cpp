@@ -1,7 +1,7 @@
 
 #include "SPH.h"
 
-float test_diff = 0.01f;
+float test_diff = 0.2f;
 
 
 // constructor
@@ -44,39 +44,11 @@ void SPH::timeIntegration()
 
 
 		integrate_verlet( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
-		p.positionPrev = oldPos;
-
-		p.position += impuls*m_timeStep;
-		p.positionPrev = p.positionPrev + impuls*m_timeStep;
-
-		p.velocityPrev = p.velocityPrev;
-		/*
-
-		Vector v0 = p.velocity;
-
-		// adding impulse for verlet means just adding it to position. we need to adjust positionPrev to keep velocty intact
-		if( impuls.getLength() > 0.0f )
-		{
-			Vector d = p.position - p.positionPrev;
-			//p.position = p.temp1;
-			//p.positionPrev = p.position - d;
-			p.position = p.temp1;
-			p.positionPrev = p.position - d;
-
-		}else
-		{
-		}
-		*/
-
-
-		Vector v1 = (p.position - p.positionPrev) / m_timeStep;
-
 		//integrate_leapfrog( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
-		//integrate_explicit_euler( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.position, p.velocity );
-
 
 
 		p.positionPrev = oldPos;
+		p.velocityPrev = p.velocityPrev;
 	}
 }
 
@@ -89,6 +61,10 @@ void SPH::advance()
 	{
 		Particle &p = *it;
 
+		// ignore bounary particles
+		if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+			continue;
+
 		// debug
 		p.color = Vector( 0.54f, 0.85f, 1.0f );
 		if( p.trajectory )
@@ -99,10 +75,10 @@ void SPH::advance()
 		// update neighbour information - we look them up once and reuse them throughout the timestep
 		p.neighbours.clear();
 		// bruteforce for now - use efficient lookup structure later
+		// note that we add the current particle to its neighbour list. hoping that kernels will take care of
+		// canceling it out when it is not needed
 		for( ParticleContainer::iterator it2 = m_particles.begin(); it2 != m_particles.end();++it2 )
 		{
-			if( it == it2 )continue;
-
 			Particle &p2 = *it2;
 
 			// this will make sure boundary particles dont affect fluid particles (pressure etc.)
@@ -120,9 +96,9 @@ void SPH::advance()
 		}
 
 		// compute mass-densities of particles
-		p.massDensity = p.mass*W_poly6_2d(0.0f);
+		p.massDensity = 0.0f;
 		for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
-			p.massDensity += it2->p->mass*W_poly6_2d(it2->distance);
+			p.massDensity += it2->p->mass*W_poly6_3d(it2->distance);
 
 		// TODO: add weight function
 		//p.massDensity += wallWeightFunction( it2->distance );
@@ -136,6 +112,10 @@ void SPH::advance()
 	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 	{
 		Particle &p = *it;
+
+		// ignore bounary particles
+		if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+			continue;
 
 		p.forces = Vector(0.0f, 0.0f, 0.0f);
 		p.impulses = Vector(0.0f, 0.0f, 0.0f);
@@ -152,26 +132,23 @@ void SPH::advance()
 		Vector f_deformtest = -Vector( 0.0f, p.position.x - (test_diff*0.5f), 0.0f )*1.0f;
 		if( m_deformtest )
 			p.forces += f_deformtest;
-		/*
-		if( p.id == 0 )
-			p.forces += -Vector( 0.0f, -0.075, 0.0f )*1.0f;
-		if( p.id == 1 )
-			p.forces += -Vector( 0.0f, 0.075, 0.0f )*1.0f;
-		*/
+
 		// TODO: external forces (user interaction, dynamic objects etc.)
 
-		/*
-		// standard SPH pressure force 
-		Vector f_pressure( 0.0f, 0.0f, 0.0f );
-		for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
+		if(m_classicPressure)
 		{
-			Real distance = it2->distance;
-			Particle &n = *(it2->p);
-			Vector gradW = gradW_spiky( distance, p.position - n.position );
-			f_pressure +=  -(p.pressure + n.pressure)*0.5f*(n.mass/n.massDensity)*gradW;
+			// standard SPH pressure force 
+			Vector f_pressure( 0.0f, 0.0f, 0.0f );
+			for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
+			{
+				Real distance = it2->distance;
+				Particle &n = *(it2->p);
+				Vector gradW = W_spiky_derivative_3d( distance )*(p.position - n.position).normalized();
+				f_pressure += (p.pressure/(p.massDensity*p.massDensity) + n.pressure/(n.massDensity*n.massDensity))*gradW;
+			}
+
+			p.forces += -p.mass*p.mass*f_pressure;
 		}
-		p.forces += f_pressure;
-		*/
 	}
 
 	// PCISPH pressure force --- 
@@ -186,21 +163,25 @@ void SPH::advance()
 
 		p.predictedPositionPrev = p.positionPrev;
 
+		if( m_pciPressure )
+			p.pressure = 0.0f;
+
 		p.temp2 = Vector( 0.0f, 0.0f, 0.0f );
 	}
-	int minIterations = 3;
+	int minIterations =  30;
+	//int maxIterations = 3;
 	int iteration = 0;
 	Real densityFluctuationThreshold = 0.03f*m_restDensity;
-	Real maxDensityFluctuation = FLT_MIN;
-	Real maxStressTensorComponentDifference = FLT_MIN;
-	//while( (maxDensityFluctuation<densityFluctuationThreshold)&&(iteration++ < minIterations) )
-	//while( iteration++ < 50 )
-	while( iteration++ < 500 )
+	Real stressDeltaNormThreshold = 0.1f;
+	Real maxDensityFluctuation = -FLT_MAX;
+	Particle *maxDensityFluctuationParticle =0;
+	Real stressDeltaNorm = -FLT_MAX;
+	//while( 0 )
+	bool done = !m_pciPressure && !m_friction;
+	while( !done  )
 	{
-		maxDensityFluctuation = FLT_MIN;
-		maxStressTensorComponentDifference = FLT_MIN;
-
-		//std::cout << "dsg " << m_particles[81].pciPressureForce.x << " " << m_particles[81].pciPressureForce.y << " " << m_particles[81].pciPressureForce.z << std::endl;
+		maxDensityFluctuation = -FLT_MAX;
+		stressDeltaNorm = -FLT_MAX;
 
 		// compute predicted position/velocity ===================================================
 		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
@@ -216,24 +197,16 @@ void SPH::advance()
 
 			// predict velocity/position
 			Vector f = p.forces;
-			//std::cout << "f_pressure " << p.pciPressureForce.x << " " << p.pciPressureForce.y << " " << p.pciPressureForce.z << std::endl;
-			f += p.pciPressureForce;
+			if( m_pciPressure )
+				f += p.pciPressureForce;
 			if( m_friction )
 				f += p.pciFrictionForce;
 			Vector acceleration = f*(1.0f/p.mass);
-			p.temp2 = f;
-
 			Vector impuls = p.impulses;
 
 			// verlet
 			integrate_verlet( p.position, p.velocity, p.predictedPositionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
-			//integrate_explicit_euler( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
-			// for verlet, adding impulses is just about adding it to position (and prevPosition, to keep velocity intact)
-			//p.predictedPosition += impuls*m_timeStep;
-			//p.predictedPositionPrev = p.positionPrev + impuls*m_timeStep;
-
-			//integrate_leapfrog( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
-			//integrate_explicit_euler( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+			//integrate_leapfrog( p.position, p.velocity, p.predictedPositionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
 		}
 
 
@@ -248,8 +221,6 @@ void SPH::advance()
 			{
 				Particle::Neighbour &n = *it2;
 				n.predictedDistance = (p.predictedPosition - n.p->predictedPosition).getLength();
-				if(c < p.neighbourDebug.size() )
-					n.nd = &p.neighbourDebug[c];
 			}
 		}
 
@@ -258,148 +229,41 @@ void SPH::advance()
 		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 		{
 			Particle &p = *it;
+
+			// ignore boundary particles
+			if( p.states.testFlag( SPH::Particle::STATE_BOUNDARY ) )
+				continue;
+
 			// predict density
-			p.predictedMassDensity = p.mass*W_poly6_2d(0.0f);
+			p.predictedMassDensity = 0.0f;
 			for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
-				p.predictedMassDensity += it2->p->mass*W_poly6_2d(it2->predictedDistance);
-
-			if( (p.predictedMassDensity > m_cricitalDensity) || !m_unilateralIncompressibility )
 			{
-				// predict density variation
-				Real predictedDensityVariation = p.predictedMassDensity - m_restDensity;
-				maxDensityFluctuation = std::max(predictedDensityVariation, maxDensityFluctuation);
+				float w = W_poly6_2d(it2->predictedDistance);
+				p.predictedMassDensity += it2->p->mass*w;
+			}
 
-				// update pressure
-				p.pressure += m_pciDelta*predictedDensityVariation;
-			}else
+			if( m_pciPressure )
 			{
-				// TODO: low stiffness discrete particle forces
+				if( (p.predictedMassDensity > m_cricitalDensity) || !m_unilateralIncompressibility )
+				{
+					// predict density variation
+ 					Real predictedDensityVariation = p.predictedMassDensity - m_restDensity;
 
+					if(fabsf(predictedDensityVariation) > maxDensityFluctuation)
+						maxDensityFluctuationParticle = &p;
+
+
+					maxDensityFluctuation = std::max(fabsf(predictedDensityVariation), maxDensityFluctuation);
+
+					// update pressure
+					p.pressure += m_pciDelta*predictedDensityVariation;
+				}//else
+				{
+					// TODO: low stiffness discrete particle forces
+
+				}
 			}
 		}
-
-
-
-		//
-		if( m_friction )
-		{
-			for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
-			{
-				Particle &p = *it;
-
-
-
-
-				Tensor outer_product_predicted = Tensor::Zero();
-				Tensor outer_product_predicted_clean = Tensor::Zero();
-				Tensor outer_product_0 = Tensor::Zero();
-				//  predict strain rate
-				int c = 0;
-				for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2, ++c )
-				{
-					Particle &n = *(it2->p);
-					Real distance = it2->distance;
-
-					Vector gradW = gradW_spiky_2d( distance, p.predictedPosition - n.predictedPosition );
-					//Vector gradW = gradW_poly6_2d( distance, p.predictedPosition - n.predictedPosition );
-
-					//strain_rate_dissipation += (n.mass/n.massDensity)*math::outerProduct( gradW, (n.predictedVelocity - p.velocityPrev) );
-					//strain_rate_dissipation += (n.mass/n.massDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f((n.predictedVelocity - p.velocityPrev).x, (n.predictedVelocity - p.velocityPrev).y) );
-					//strain_rate_dissipation += (n.mass/n.massDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(n.predictedVelocity.x, n.predictedVelocity.y) );
-					outer_product_predicted += (n.mass/n.massDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(n.predictedVelocity.x, n.predictedVelocity.y) );
-					//outer_product_predicted_clean += math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(n.predictedVelocity.x, n.predictedVelocity.y) );
-					outer_product_predicted_clean += math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(n.predictedVelocity.x, n.predictedVelocity.y) );
-					//outer_product_0 += (n.mass/n.massDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(n.velocity.x, n.velocity.y) );
-					outer_product_0 += (n.mass/n.massDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(n.predictedVelocity.x, n.predictedVelocity.y) );
-
-					if( c < p.neighbourDebug.size() )
-						p.neighbourDebug[c].gradW = gradW;
-				}
-
-				//Tensor strainRate_0 = 0.5f*(outer_product_0+outer_product_0.transposed());
-				Tensor strainRate_0 = outer_product_0;
-				//strainRate_0._11 = 0.0f;
-				//strainRate_0._12 = 0.0f;
-				//strainRate_0._12 = 0.0f;
-				//strainRate_0._22 = 0.0f;
-				//p.strainRate = outer_product_0;
-				p.strainRate = outer_product_0;
-				Tensor strain_rate_dissipation = outer_product_predicted - outer_product_0;
-				//p.strainRate = 0.5f*(outer_product+outer_product.transposed());
-				//std::cout << "strain rate: " << strain_rate.m[0][0] << " " << strain_rate.m[0][1] << std::endl;
-				//std::cout << "             " << strain_rate.m[1][0] << " " << strain_rate.m[1][1] << std::endl;
-
-
-				/*
-				// test
-				Tensor testDing = Tensor::Zero();
-				for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
-				{
-					Particle &n = *(it2->p);
-					Real distance = it2->distance;
-
-					Vector gradW = gradW_spiky( distance, p.predictedPosition - n.predictedPosition );
-					testDing += (n.mass/n.massDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(gradW.x, gradW.y) );
-				}
-				Tensor D_inverse = -2.0f*m_timeStep*p.mass*p.mass*(1.0f/(p.massDensity*p.massDensity))*testDing;
-				D_inverse.invert();
-
-				//Tensor ds = D_inverse*(-1.0f*strainRate_0);
-				*/
-				Tensor ds = (-1.0f*strainRate_0)*m_pciStressDeltaInverse;
-				//ds._11 = 0.0f;
-				//Tensor s_friction = p.stressTensor + ds*(1.0f/m_timeStep);
-				Tensor s_friction = p.stressTensor  + ds*1.0f;
-
-				//s_friction = s_friction - (1.0f/3.0f)*s_friction.trace()*Tensor::Identity();
-
-				// yield conditionon s_friction
-				Real t = m_frictionCoefficient*p.pressure;
-				for( int j=0;j<2;++j )
-					for( int i=0;i<2;++i )
-					{
-						// yield constrain
-						//if( fabsf(s_friction.m[j][i]) < t )
-						//	s_friction.m[j][i] = math::sign(s_friction.m[j][i]) * t;
-					}
-
-				// cohesion on  ...
-
-				p.stressTensor = s_friction;
-				//p.stressTensor._11 = 0.0f;
-				//p.stressTensor._12 = 0.0f;
-				//p.stressTensor._21 = 0.0f;
-				
-
-				/*
-				// compute corrective dissipative stress
-				Tensor corrective_dissipative_stress = (strain_rate_dissipation);
-
-				// update dissipative stress
-				p.stressTensor += corrective_dissipative_stress;
-
-				// make stress Tensor traceless
-				//Tensor frictionStress;
-
-				// traceless deviatoric part
-				//frictionStress = p.stressTensor - (1.0f/3.0f)*p.stressTensor.trace()*Tensor::Identity();
-
-				// test yield and cohesion
-				Real t = m_frictionCoefficient*p.pressure;
-				for( int j=0;j<3;++j )
-					for( int i=0;i<3;++i )
-					{
-						// yield constrain
-						if( fabsf(frictionStress.m[j][i]) < t )
-							frictionStress.m[j][i] = math::sign(frictionStress.m[j][i]) * t;
-					}
-
-				//p.stressTensor = frictionStress;
-				*/
-			}
-		}
-
-
 
 
 		// compute correction forces ===================================================
@@ -414,40 +278,43 @@ void SPH::advance()
 			// corrective pressure force
 			Vector f_pressure( 0.0f, 0.0f, 0.0f );
 
-			// corrective friction force (only used when m_friction is true)
-			Vector f_friction( 0.0f, 0.0f, 0.0f );
-
 			for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
 			{
 				Particle &n = *(it2->p);
-				Real distance = it2->distance;
+				Real distance = it2->predictedDistance;
 
-				Vector gradW = gradW_spiky_2d( distance, p.predictedPosition - n.predictedPosition );
-				//Vector gradW = gradW_poly6_2d( distance, p.predictedPosition - n.predictedPosition );
+				Vector gradW = -W_spiky_derivative_2d( distance )*(p.predictedPosition - n.predictedPosition).normalized();
 
 				// pressure force ---
-				if(m_pressure)
-					f_pressure += n.mass * ( p.pressure/(p.predictedMassDensity*p.predictedMassDensity) + n.pressure/(n.predictedMassDensity*n.predictedMassDensity) ) * gradW;
-
-				// friction force ---
-				if( m_friction )
-				{
-					//f_friction += n.mass * math::transform( gradW, p.stressTensor/(p.predictedMassDensity*p.predictedMassDensity) + n.stressTensor/(n.predictedMassDensity*n.predictedMassDensity) );
-					math::Vec2f tmp = n.mass * math::transform( math::Vec2f(gradW.x, gradW.y), p.stressTensor/(p.predictedMassDensity*p.predictedMassDensity) + n.stressTensor/(n.predictedMassDensity*n.predictedMassDensity) );
-					f_friction += Vector( tmp.x, tmp.y, 0.0f );
-				}
-
+				if(m_pciPressure)
+					f_pressure += ( p.pressure/(p.predictedMassDensity*p.predictedMassDensity) + n.pressure/(n.predictedMassDensity*n.predictedMassDensity) ) * gradW;
 			}
 
 
 
-
-			p.pciPressureForce = p.mass*f_pressure;
-			p.pciFrictionForce = p.mass*f_friction*1.0f;
-
-			//std::cout << "f_pressure " << p.pciPressureForce.x << " " << p.pciPressureForce.y << " " << p.pciPressureForce.z << std::endl;
+			if(m_pciPressure)
+				p.pciPressureForce = -p.mass*p.mass*f_pressure;
 		}
-	};
+
+
+		// update criterion
+		done = true;
+		if( m_pciPressure )
+		{
+			std::cout<< "maxDensityFluctuation: " << maxDensityFluctuation  << " " << maxDensityFluctuationParticle->id << std::endl;
+			//done = done && (maxDensityFluctuation<densityFluctuationThreshold);
+			/*
+			if( maxDensityFluctuation > 60.0f )
+			{
+				std::cout << iteration << std::endl;
+				done = true;
+			}
+			*/
+		}
+		//done = done && (iteration++ > minIterations);
+		++iteration;
+		//done = done && (iteration > 10);
+	}; // pci while loop -> while(!criterion)
 	// for each particle
 	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 	{
@@ -455,13 +322,20 @@ void SPH::advance()
 
 
 		if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+		{
+			p.predictedPosition = p.position;
+			p.predictedVelocity = p.velocity;
+			p.predictedPositionPrev = p.position;
 			continue;
+		}
 
 
 		// add forces which we got fom pci-scheme
-		p.forces += p.pciPressureForce;
-		if( m_friction )
+		if( m_pciPressure )
+			p.forces += p.pciPressureForce;
+		if(	m_friction )
 			p.forces += p.pciFrictionForce;
+
 
 
 
@@ -475,6 +349,7 @@ void SPH::advance()
 
 			// verlet
 			integrate_verlet( p.position, p.velocity, p.predictedPositionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+			//integrate_verlet( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
 
 
 
@@ -527,32 +402,6 @@ void SPH::advance()
 	}
 
 
-	// xdebug
-	Real maxpressure = 0.0f;
-	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
-	{
-		Particle &p = *it;
-
-		//maxDensityFluctuation = std::max( maxDensityFluctuation, p.massDensity - m_restDensity );
-		maxpressure = std::max( maxpressure, p.pressure );
-
-		if( p.id == 81 )
-		{
-			//std::cout << "friction force " << p.pciFrictionForce.x << " " << p.pciFrictionForce.y << " " << p.pciFrictionForce.z << std::endl;
-			//std::cout << "friction force " << p.forces.x << " " << p.forces.y << " " << p.forces.z << std::endl;
-			//std::cout << "friction force " << p.temp2.x << " " << p.temp2.y << " " << p.temp2.z << std::endl;
-			/*
-			std::cout << "stress tensor" << p.stressTensor.m[0][0] << " " << p.stressTensor.m[0][1] << " " << p.stressTensor.m[0][2] << std::endl;
-			std::cout << "             " << p.stressTensor.m[1][0] << " " << p.stressTensor.m[1][1] << " " << p.stressTensor.m[1][2] << std::endl;
-			std::cout << "             " << p.stressTensor.m[2][0] << " " << p.stressTensor.m[2][1] << " " << p.stressTensor.m[2][2] << std::endl;
-			*/
-		}
-	}
-	//std::cout << "maxDensityFluctuation " << maxDensityFluctuation << std::endl;
-	//std::cout << "maxpressure " << maxpressure << std::endl;
-
-
-
 	// 
 	timeIntegration();
 
@@ -568,43 +417,49 @@ void SPH::updateSupportRadius( Real newSupportRadius )
 	// update weighting kernels
 	W_poly6_2d_precompute(m_supportRadius);
 	W_spiky_2d_precompute(m_supportRadius);
+
+	// for 3d case
+	W_poly6_3d_precompute(m_supportRadius);
+	W_spiky_3d_precompute(m_supportRadius);
 }
 
 void SPH::initialize()
 {
 	updateSupportRadius( .190625f );
 	//updateSupportRadius( .31f );
-	//updateSupportRadius( .21f );
+	//updateSupportRadius( 0.3f );
 
 	m_idealGasConstant = 0.1f;
 	//m_restDensity = 998.29;
 	//m_restDensity = 1000.0f;
+	//m_restDensity = 1000.0f;
 	m_restDensity = 1000.0f;
+	//m_restDensity = 100.0f;
 
 	m_particles.clear();
 
 	// granular
-	m_cricitalDensity = 1000.0f;
-	m_frictionCoefficient = 1.0f;
+	m_cricitalDensity = m_restDensity;
+	m_frictionCoefficient = 0.8f;
 
 
 	// solver parameters ---
 	m_particleMass = 3.8125f; // 0.02f for water
-	//m_particleMass = 3.0f; // testing
-	m_timeStep = 0.005f;
-	//m_damping = 0.01f;
-	m_damping = 0.01f; // testing
+	//m_particleMass = 24.6f;
+	m_timeStep = 0.01f;
+	m_damping = 0.01f;
 
 	// switches for different solvertypes
 
-	m_friction = true;
-	m_pressure = false;
+	m_friction = false;
+	m_classicPressure = true;
+	m_pciPressure = false;
 	m_unilateralIncompressibility = false;
-	m_boundary = false;
+	m_boundary = true;
 
 
-	m_gravity = false;
-	m_deformtest = true;
+	m_gravity = true;
+	m_deformtest = false;
 
 
 
@@ -617,19 +472,46 @@ void SPH::initialize()
 		Vector p0 = Vector(0.0f, 0.0f, 0.0f);
 
 		// completely random: number of particles per unit length in each dimension
-		int res = 5;
+		//int res = 251;
+		int res = 50;
 		Real s = m_supportRadius;
 
 
 		// PCI - pressure delta
-		Real beta = (m_particleMass*m_timeStep)/m_restDensity;
-		beta = beta*beta;
-		Vector sumGrad = 0.0f;
-		Real sumGradDots = 0.0f;
+		// prototype neighbourhood
+		std::vector<Vector> prototypeNeighbourhood;
+		float prototypeMassDensity = 0.0f;
+		/*
+		do
+		{
+			int newRes = res - 1;
+			// rebuild neighbourhood
+			prototypeNeighbourhood.clear();
+			for( int k=0;k<newRes;++k )
+				for( int j=0;j<newRes;++j )
+					for( int i=0;i<newRes;++i )
+					{
+						Real u = (Real)i/(Real)newRes;
+						Real v = (Real)j/(Real)newRes;
+						Real w = (Real)k/(Real)newRes;
+						Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s);
+						prototypeNeighbourhood.push_back(pn);
+					}
 
-		// granular - corrective stress coefficient
-		Tensor outerproduct_gradW = Tensor::Zero();
-
+			prototypeMassDensity = m_particleMass*W_poly6_2d( 0.0f );
+			// evaluate massDensity of prototype particle
+			for( std::vector<Vector>::iterator it = prototypeNeighbourhood.begin(); it != prototypeNeighbourhood.end();++it )
+				prototypeMassDensity += m_particleMass*W_poly6_2d( (p0 - *it).getLength() );
+			
+			// adjust res
+			if( (prototypeMassDensity < m_restDensity)||(res<6) )
+				// newres goes beneath restDensity
+				break;
+			else
+				--res;
+		}while( true );
+		// rebuild neighbourhood using res which was found
+		prototypeNeighbourhood.clear();
 		for( int k=0;k<res;++k )
 			for( int j=0;j<res;++j )
 				for( int i=0;i<res;++i )
@@ -638,20 +520,101 @@ void SPH::initialize()
 					Real v = (Real)j/(Real)res;
 					Real w = (Real)k/(Real)res;
 					Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s);
-					Real distance = (p0 - pn).getLength();		
-
-					Vector gradW = gradW_spiky_2d( distance, p0 - pn );
-
-					// pci - pressure delta
-					sumGrad += gradW;
-					sumGradDots += math::dot( gradW, gradW );
-
-					// granular - corrective stress coefficient
-					//outerproduct_gradW += (1.0f/m_restDensity)*math::outerProduct( gradW, gradW );
-					//outerproduct_gradW += (1.0f/m_restDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(gradW.x, gradW.y) );
+					prototypeNeighbourhood.push_back(pn);
 				}
 
-		m_pciDelta = (-1.0f)/(beta*(math::dot(sumGrad, sumGrad) - sumGradDots ));
+		// now find scaling of neighbourhood particles such that massDensity of our prototype particle (which is centered at origin)
+		// is close to restDensity
+		float scaling = 1.0f;
+		do
+		{
+			float newScaling = scaling += 0.001f;
+			prototypeMassDensity = m_particleMass*W_poly6_2d( 0.0f );
+			// evaluate massDensity of prototype particle
+			for( std::vector<Vector>::iterator it = prototypeNeighbourhood.begin(); it != prototypeNeighbourhood.end();++it )
+				prototypeMassDensity += m_particleMass*W_poly6_2d( (p0 - *it*scaling).getLength() );
+			
+			// adjust scaling
+			if( prototypeMassDensity < m_restDensity )
+				break;
+			else
+				scaling += 0.001f;
+			std::cout<<prototypeMassDensity<<std::endl;
+		}while( prototypeMassDensity > m_restDensity );
+		// rebuild neighbourhood using scale which was found
+		prototypeNeighbourhood.clear();
+		for( int k=0;k<res;++k )
+			for( int j=0;j<res;++j )
+				for( int i=0;i<res;++i )
+				{
+					Real u = (Real)i/(Real)res;
+					Real v = (Real)j/(Real)res;
+					Real w = (Real)k/(Real)res;
+					Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s);
+					prototypeNeighbourhood.push_back(pn*scaling);
+				}
+
+
+
+		*/
+
+		prototypeMassDensity = m_particleMass*W_poly6_2d( 0.0f );
+		res = 5;
+		prototypeNeighbourhood.clear();
+		for( int k=0;k<res;++k )
+			for( int j=0;j<res;++j )
+				for( int i=0;i<res;++i )
+				{
+					Real u = (Real)i/(Real)res;
+					Real v = (Real)j/(Real)res;
+					Real w = (Real)k/(Real)res;
+					Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s);
+					prototypeNeighbourhood.push_back(pn);
+					prototypeMassDensity += m_particleMass*W_poly6_2d( (p0 - pn).getLength() );
+				}
+
+
+		// compute pci delta
+		Vector s1v = Vector(0.0f, 0.0f, 0.0f);
+		Real s2 = 0.0f;
+		int check=0;
+		for( std::vector<Vector>::iterator it = prototypeNeighbourhood.begin(); it != prototypeNeighbourhood.end();++it )
+		{
+			Vector &pn = *it;
+			float distance = (p0 - pn).getLength();
+			Vector gradWV = -W_spiky_derivative_2d( distance )*(p0 - pn).normalized();
+
+			if( distance <s )
+				check++;
+
+			// pci - pressure delta
+			s1v += gradWV;
+			s2 += math::dot(gradWV,gradWV);
+		}
+		Real beta = (m_timeStep*m_timeStep*m_particleMass*m_particleMass)*(2.0f/(m_restDensity*m_restDensity));
+		m_pciDelta = (-1.0f)/(beta*(-math::dot(s1v, s1v ) - s2 ));
+		m_pciDelta = 0.5f;
+
+		/*
+		// compute stress delta
+		for( int k=0;k<res;++k )
+			for( int j=0;j<res;++j )
+				for( int i=0;i<res;++i )
+				{
+					Real u = (Real)i/(Real)res;
+					Real v = (Real)j/(Real)res;
+					Real w = (Real)k/(Real)res;
+					Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s);
+					Real distance = (p0 - pn).getLength();
+
+					Vector gradWV = -W_spiky_derivative_2d( distance )*(p0 - pn).normalized();
+
+					// pci - pressure delta
+					s1v += gradWV;
+					s2 += math::dot(gradWV,gradWV);
+				}
+
+		*/
 
 		/*
 		m_pciStressDeltaInverse = (2.0f*m_particleMass*m_particleMass*m_timeStep)/(m_restDensity*m_restDensity)*outerproduct_gradW;
@@ -660,7 +623,7 @@ void SPH::initialize()
 		std::cout << "                         " << m_pciStressDeltaInverse.m[1][0] << " " << m_pciStressDeltaInverse.m[1][1] << std::endl;
 		*/
 
-
+		/*
 		res = 10;
 		Tensor testDing = Tensor::Zero();
 		for( int k=0;k<res;++k )
@@ -674,21 +637,27 @@ void SPH::initialize()
 					Real distance = (p0 - pn).getLength();		
 
 					//Vector gradW = gradW_spiky_2d( distance, p0 - pn );
-					Vector gradW = gradW_poly6_2d( distance, p0 - pn );
+					Vector gradW = -W_spiky_derivative_2d( distance  )*(p0 - pn).normalized();
+					Vector gradW2 = gradW_poly6_2d( distance  )*(p0 - pn).normalized();
 
 					// granular - corrective stress coefficient
-					testDing += (1.0f/m_restDensity)*math::outerProduct( math::Vec2f(gradW.x, gradW.y), math::Vec2f(gradW.x, gradW.y) );
+					testDing += (1.0f/m_restDensity)*math::outerProduct( math::Vec2f(gradW2.x, gradW2.y), math::Vec2f(gradW2.x, gradW2.y) );
 				}
-		Tensor D_inverse = -2.0f*m_timeStep*m_particleMass*m_particleMass*(1.0f/(m_restDensity*m_restDensity))*testDing;
+		Tensor D_inverse = 2.0f*m_timeStep*m_particleMass*m_particleMass*(1.0f/(m_restDensity*m_restDensity))*testDing*1.0f;
 		D_inverse.invert();
+		//D_inverse = Tensor::Zero();
 		m_pciStressDeltaInverse = D_inverse;
+		*/
+
 	}
 
 
 
 	// initial fluid
-	Real spacing = 0.19f;
-	if(0)
+	Real spacing = 0.15f;
+	//Real spacing = test_diff;
+	Vector offset( 0.0f, 2.0f, 0.0f );
+	if(1)
 	{
 		int n = 10;
 		for( int i=0;i<n;++i )
@@ -696,16 +665,17 @@ void SPH::initialize()
 			{
 				Particle p;
 
-				initializeParticle(p, Vector( -1.5f + i * spacing, 1.0f + j * spacing, 0.0f ));
+				initializeParticle(p, Vector( i * spacing, j * spacing, 0.0f ) + offset);
 
 				m_particles.push_back(p);
 			}
 	}
 
 	// stress debug setup
-	if(1)
+	if(0)
 	{
 		Real d = test_diff;
+		d = 0.15;
 
 		//Real d =0.05f;
 		Particle p;
@@ -717,8 +687,8 @@ void SPH::initialize()
 
 
 		///*
-		initializeParticle(p, Vector( 0.5f*d, 0.75f*d, 0.0f ));// debug particle 2
-		m_particles.push_back(p);
+		//initializeParticle(p, Vector( 0.5f*d, 0.75f*d, 0.0f ));// debug particle 2
+		//m_particles.push_back(p);
 		//initializeParticle(p, Vector( 0.5f*d, -0.75f*d, 0.0f ));// debug particle 2
 		//m_particles.push_back(p);
 		//*/
@@ -728,7 +698,6 @@ void SPH::initialize()
 		//m_particles.push_back(p);
 		//initializeParticle(p, Vector( d, 0.5f*d, 0.0f ));// debug particle 2
 		//m_particles.push_back(p);
-
 
 
 
@@ -761,7 +730,7 @@ void SPH::initialize()
 	}
 
 	// debug
-	//m_particles[90].trajectory = new Trajectory();
+	m_particles[0].trajectory = new Trajectory();
 
 	// some wall 
 	if(m_boundary)
@@ -769,13 +738,13 @@ void SPH::initialize()
 		//math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
 		math::Matrix44f xform = math::Matrix44f::Identity();
 		spacing *= 0.5f;
-		int n = 50;
+		int n = 80;
 		for( int i=0;i<n;++i )
 			for( int j=0;j<2;++j )
 			{
 				Particle p;
 
-				initializeParticle(p, math::transform( Vector( -2.5f + i * spacing, 0.5f - j * spacing, 0.0f ), xform ) );
+				initializeParticle(p, math::transform( Vector( -4.5f + i * spacing, 0.5f - j * spacing, 0.0f ), xform ) );
 				p.states = Particle::STATE_BOUNDARY;
 
 				m_particles.push_back(p);
@@ -862,83 +831,82 @@ void SPH::W_poly6_2d_precompute( Real supportRadius )
 {
 	W_poly6_2d_h = supportRadius;
 	W_poly6_2d_h2 = supportRadius*supportRadius;
-	W_poly6_2d_coeff = 4.0f/( MATH_PIf*powf(supportRadius, 8.0f) );
-	W_poly6_2d_grad_coeff = -24.0f/(MATH_PIf*powf(supportRadius, 8.0f));
-	//W_poly6_3d_precompute(supportRadius);
+
+	W_poly6_2d_coeff = 4.0f/( MATH_PIf*supportRadius*supportRadius );
+	W_poly6_2d_grad_coeff = -24.0f/(MATH_PIf*supportRadius*supportRadius);
 }
 SPH::Real SPH::W_poly6_2d( Real distance )
 {
-
-	if( distance > W_poly6_2d_h )
+	if( distance >= W_poly6_2d_h )
 		return 0.0f;
-	Real r2 = distance*distance;
-	Real t = (W_poly6_2d_h*W_poly6_2d_h)-r2;
-	return W_poly6_2d_coeff*t*t*t;
 
-	//return W_poly6_3d( distance );
+	float t =  1.0f - (distance*distance)/W_poly6_2d_h2;
+	return W_poly6_2d_coeff*t*t*t;
 }
 
-SPH::Vector SPH::gradW_poly6_2d( Real distance, Vector dir )
+float SPH::gradW_poly6_2d( Real distance )
 {
-	Real t = W_poly6_2d_h2 - distance*distance;
-	return W_poly6_2d_grad_coeff*t*t*dir;
+	if( distance >= W_poly6_2d_h )
+		return 0.0f;
+	float t = 1.0f - (distance*distance)/W_poly6_2d_h2;
+	return W_poly6_2d_grad_coeff * (distance/W_poly6_2d_h2)*t*t;
 }
 
 
 // spiky =====================================================
-SPH::Real W_spiky_h;
-SPH::Real W_spiky_coeff;
-SPH::Real W_spiky_grad_coeff;
 
+SPH::Real W_spiky_3d_h;
+SPH::Real W_spiky_3d_h2;
+SPH::Real W_spiky_3d_coeff;
+SPH::Real W_spiky_3d_derivative_coeff;
 
 void SPH::W_spiky_3d_precompute( Real supportRadius )
 {
-	W_spiky_h = supportRadius;
-	W_spiky_coeff = 15.0f/( MATH_PIf*powf(supportRadius, 6.0f) );
-	W_spiky_grad_coeff = -45.0f / (MATH_PIf*powf(supportRadius, 6.0f));
+	W_spiky_3d_h = supportRadius;
+	W_spiky_3d_h2 = supportRadius*supportRadius;
+
+	W_spiky_3d_derivative_coeff = -(45.0f / (MATH_PIf*powf(supportRadius, 3.0f)))*(1.0f/supportRadius);
 }
-SPH::Real SPH::W_spiky_3d( Real distance )
+
+SPH::Real SPH::W_spiky_derivative_3d( Real distance )
 {
-	if( distance > W_spiky_h )
+	float d2 = distance*distance;
+	if (d2 > W_spiky_3d_h2)
 		return 0.0f;
-	Real t = W_spiky_h - distance;
-	return W_spiky_coeff*t*t*t;
+	float t = 1.0f - distance/W_spiky_3d_h;
+	return W_spiky_3d_derivative_coeff*t*t;
 }
-SPH::Vector SPH::gradW_spiky_3d( Real distance, Vector dir )
-{
-	Real t = (W_spiky_h - distance );
-	return W_spiky_grad_coeff*dir*(1.0f/distance)*t*t;
-}
+
 
 
 SPH::Real W_spiky_2d_h;
 SPH::Real W_spiky_2d_coeff;
-SPH::Real W_spiky_2d_grad_coeff;
+SPH::Real W_spiky_2d_derivative_coeff;
 
 void SPH::W_spiky_2d_precompute( Real supportRadius )
 {
-	//W_spiky_3d_precompute(supportRadius);
 	W_spiky_2d_h = supportRadius;
-	W_spiky_2d_coeff = 10.0f/(MATH_PIf*powf(supportRadius, 5.0f));
-	W_spiky_2d_grad_coeff = -30.0f/(MATH_PIf*supportRadius*supportRadius*supportRadius*supportRadius);
+	W_spiky_2d_coeff = 10.0f/( MATH_PIf*W_spiky_2d_h*W_spiky_2d_h );
+	W_spiky_2d_derivative_coeff = -30.0f/( MATH_PIf*W_spiky_2d_h*W_spiky_2d_h )*(1.0f/W_spiky_2d_h);
 }
 SPH::Real SPH::W_spiky_2d( Real distance )
 {
-	//return W_spiky_3d(distance);
-	if( distance > W_spiky_2d_h )
+	if( distance >= W_spiky_2d_h )
 		return 0.0f;
-	Real t=W_spiky_2d_h-distance;
-	return W_spiky_2d_coeff*( t*t*t );
+
+	float t = 1.0f-(distance/W_spiky_2d_h);
+	return W_spiky_2d_coeff*t*t*t;
+
 }
-SPH::Vector SPH::gradW_spiky_2d( Real distance, Vector dir )
+SPH::Real SPH::W_spiky_derivative_2d( Real distance )
 {
-	//return gradW_spiky_3d(distance, dir);
 	if( distance > W_spiky_2d_h )
 		return 0.0f;
-	Real q = distance/W_spiky_2d_h;
-	Real t = 1.0f - q;
-	return W_spiky_2d_grad_coeff*((t*t)/q)*dir;
+
+	float t = 1.0f-(distance/W_spiky_2d_h);
+	return W_spiky_2d_derivative_coeff*t*t;
 }
+
 
 // viscosity =====================================================
 /*
@@ -995,7 +963,14 @@ void SPH::integrate_verlet( const Vector &p, const Vector &v, const Vector &pOld
 
 void SPH::integrate_leapfrog( const Vector &p, const Vector &v, const Vector &pOld, const Vector &a, const Vector &i, Real dt, Real damping, Vector &pOut, Vector &vOut )
 {
-	vOut = v + a*dt*(1.0f-damping);
+	//vOut = v + a*dt*(1.0f-damping);
+	//pOut = p + vOut*dt*(1.0f-damping);
+	Vector v_ = v;
+	if( m_currentTimeStep == 0 )
+		// move velocity half step backwards
+		v_ = v-0.5f*m_timeStep*a;
+
+	vOut = v_ + a*dt*(1.0f-damping);
 	pOut = p + vOut*dt*(1.0f-damping);
 }
 
