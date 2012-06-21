@@ -79,8 +79,10 @@ struct SPH
 
 		// used for debugging:
 		Trajectory                                        *trajectory;
+		Trajectory                                     *pciTrajectory;
 		size_t                                                     id;
 		Vector                                             color;
+		float                                                 rho_err;
 
 		std::vector<NeighbourDebug>                    neighbourDebug;
 		Vector                                             temp1;
@@ -89,6 +91,7 @@ struct SPH
 		size_t                                                  strainRateVisHandle1;
 		size_t                                                  strainRateVisHandle2;
 		Tensor                                             strainRate;
+		float                                                      dd;
 	};
 
 
@@ -163,9 +166,15 @@ struct SPH
 
 	// weighting functions =========================
 
+	//kernel function as given in monaghan92
+	void W_mon92_3d_precompute( Real supportRadius );
+	Real W_mon92_3d( Real distance );
+	Real W_mon92_derivative_3d( Real distance );
+
 	//6th degree polynomial
 	void W_poly6_3d_precompute( Real supportRadius );
 	Real W_poly6_3d( Real distance );
+	Real W_poly6_derivative_3d( Real distance );
 
 	void W_poly6_2d_precompute( Real supportRadius );
 	Real W_poly6_2d( Real distance );

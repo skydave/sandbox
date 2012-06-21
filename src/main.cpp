@@ -53,6 +53,7 @@ base::ShaderPtr  greyShader;
 // SPH stuff ======================
 SPHPtr sph;
 bool                            g_pause = true;
+int                                 pciStep = 90;
 
 // rendering
 base::GeometryPtr             m_renderParticles;
@@ -137,20 +138,60 @@ base::GeometryPtr      terrainGeo;
 base::ShaderPtr     terrainShader;
 
 
+// update renderparticles
+void updateParticles()
+{
+	base::AttributePtr positions = m_renderParticles->getAttr( "P" );
+	base::AttributePtr colors = m_renderParticles->getAttr( "Cd" );
+	for( std::vector<int>::iterator it = m_renderIds.begin(); it != m_renderIds.end();++it )
+	{
+		int &id =*it;
+		SPH::Particle &p = sph->m_particles[id];
+		positions->set<math::Vec3f>( id, sph->m_particles[id].position );
+		colors->set<math::Vec3f>( id, sph->m_particles[id].color );
+		/*
+		float s = 30.0f;
+		float tt = sph->m_particles[id].massDensity-sph->m_restDensity;
+		float t = fabsf(tt)/s;
+		math::Vec3f c;
+
+		if( tt>0.0f )
+			c = math::Vec3f( 1.0f, t, t );
+		else
+			c = math::Vec3f( t, 1.0f, t );
+
+		colors->set<math::Vec3f>( id, c );
+
+		*/
+		//pciStep
+		if( p.pciTrajectory )
+		{
+			if( (pciStep >= 0)&&(pciStep<p.pciTrajectory->m_steps.size()) )
+			{
+				positions->set<math::Vec3f>( id, p.pciTrajectory->m_steps[pciStep].predictedPosition );
+
+				/*
+				float f = fabsf(p.pciTrajectory->m_steps[pciStep].rho_err)/100.0f;
+				std::cout << p.pciTrajectory->m_steps[pciStep].rho_err << std::endl;
+
+				if( p.pciTrajectory->m_steps[pciStep].rho_err > 0.0f )
+					colors->set<math::Vec3f>( id, math::Vec3f(f, 0.0f, 0.0f) );
+				else
+					colors->set<math::Vec3f>( id, math::Vec3f(0.0f,f, 0.0f) );
+				*/
+			}
+		}
+
+	}
+
+}
 
 void step()
 {
 	sph->advance();
 
 	// update renderparticles
-	base::AttributePtr positions = m_renderParticles->getAttr( "P" );
-	base::AttributePtr colors = m_renderParticles->getAttr( "Cd" );
-	for( std::vector<int>::iterator it = m_renderIds.begin(); it != m_renderIds.end();++it )
-	{
-		int &id =*it;
-		positions->set<math::Vec3f>( id, sph->m_particles[id].position );
-		colors->set<math::Vec3f>( id, sph->m_particles[id].color );
-	}
+	updateParticles();
 
 	/*
 	// update debug info
@@ -228,7 +269,7 @@ void step()
 
 
 
-	glviewer->setCaption( base::toString(sph->m_currentTimeStep) );
+	glviewer->setCaption( base::toString(sph->m_currentTimeStep) + " " +  base::toString(pciStep) );
 }
 
 
@@ -271,7 +312,10 @@ void render( base::CameraPtr cam )
 	// render debug stuff
 	if(g_renderVisualiser)
 		visualizer->render();
-	context->render( circle_supportRadius, context->m_constantShader, math::Matrix44f::RotationMatrixX(math::degToRad(90.0f))*math::Matrix44f::ScaleMatrix( sph->m_supportRadius )*math::Matrix44f::TranslationMatrix(sph->m_particles[0].position)  );
+	int idx = 0;
+	if( 22 < sph->m_particles.size() )
+		idx = 22;
+	context->render( circle_supportRadius, context->m_constantShader, math::Matrix44f::RotationMatrixX(math::degToRad(90.0f))*math::Matrix44f::ScaleMatrix( sph->m_supportRadius )*math::Matrix44f::TranslationMatrix(sph->m_particles[idx].position)  );
 }
 
 
@@ -442,6 +486,9 @@ void shutdown()
 	base::fs::close(f_0_pressure);
 	base::fs::close(f_0_massDensity);
 	*/
+	///*
+
+	//*/
 }
 
 
@@ -453,7 +500,69 @@ void keypress( int key )
 		g_renderVisualiser = !g_renderVisualiser;
 	if( key == KEY_RIGHT )
 		step();
+	if( key == KEY_N )
+	{
+		pciStep--;
+		updateParticles();
+		glviewer->setCaption( base::toString(sph->m_currentTimeStep) + " " +  base::toString(pciStep) );
+	}
+	if( key == KEY_M )
+	{
+		pciStep++;
+		updateParticles();
+		glviewer->setCaption( base::toString(sph->m_currentTimeStep) + " " +  base::toString(pciStep) );
+	}
 
+	if( key == KEY_S )
+	{
+		std::vector<int> indices;
+		indices.push_back( 0 );
+		indices.push_back( 22 );
+		indices.push_back( 9);
+		indices.push_back( 99 );
+		for( std::vector<int>::iterator it = indices.begin(); it != indices.end(); ++it )
+		{
+			int index = *it;
+			if( (index < sph->m_particles.size())&&(sph->m_particles[index].pciTrajectory) )
+			{
+				base::fs::File *f_pressure = base::fs::open( "f_" + base::toString(index) + "_pressure.dat", "w" );
+				base::fs::File *f_rho_err = base::fs::open( "f_" + base::toString(index) + "_rho_err.dat", "w" );
+				base::fs::File *f_predictedMassDensity = base::fs::open( "f_" + base::toString(index) + "_predictedMassDensity.dat", "w" );
+				base::fs::File *f_pciPressureForceMag = base::fs::open( "f_" + base::toString(index) + "_pciPressureForceMag.dat", "w" );
+				base::fs::File *f_PredictedPosX = base::fs::open( "f_" + base::toString(index) + "_predictedPosX.dat", "w" );
+				base::fs::File *f_PredictedPosY = base::fs::open( "f_" + base::toString(index) + "_predictedPosY.dat", "w" );
+				base::fs::File *f_PredictedPosZ = base::fs::open( "f_" + base::toString(index) + "_predictedPosZ.dat", "w" );
+				base::fs::File *f_dd = base::fs::open( "f_" + base::toString(index) + "_dd.dat", "w" );
+	
+
+				int numSamples = sph->m_particles[index].pciTrajectory->m_steps.size();
+				for( int i=0;i<numSamples;++i )
+				{
+					SPH::Particle &step = sph->m_particles[index].pciTrajectory->m_steps[i];
+					base::fs::write( f_pressure, base::toString(i) + " " + base::toString(step.pressure) + "\n" );
+					base::fs::write( f_rho_err, base::toString(i) + " " + base::toString(step.rho_err) + "\n" );
+					base::fs::write( f_predictedMassDensity, base::toString(i) + " " + base::toString(step.predictedMassDensity) + "\n" );
+					base::fs::write( f_pciPressureForceMag, base::toString(i) + " " + base::toString(step.pciPressureForce.getLength()) + "\n" );
+
+					base::fs::write( f_PredictedPosX, base::toString(i) + " " + base::toString(step.predictedPosition.x) + "\n" );
+					base::fs::write( f_PredictedPosY, base::toString(i) + " " + base::toString(step.predictedPosition.y) + "\n" );
+					base::fs::write( f_PredictedPosZ, base::toString(i) + " " + base::toString(step.predictedPosition.z) + "\n" );
+
+					base::fs::write( f_dd, base::toString(i) + " " + base::toString(step.dd) + "\n" );
+
+				}
+
+				base::fs::close(f_pressure);
+				base::fs::close(f_rho_err);
+				base::fs::close(f_predictedMassDensity);
+				base::fs::close(f_pciPressureForceMag);
+				base::fs::close(f_PredictedPosX);
+				base::fs::close(f_PredictedPosY);
+				base::fs::close(f_PredictedPosZ);
+				base::fs::close(f_dd);
+			}
+		}
+	}
 }
 
 

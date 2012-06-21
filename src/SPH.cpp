@@ -5,7 +5,7 @@ float test_diff = 0.2f;
 
 
 // constructor
-SPH::Particle::Particle() : trajectory(0)
+SPH::Particle::Particle() : trajectory(0), pciTrajectory(0)
 {
 }
 
@@ -69,6 +69,8 @@ void SPH::advance()
 		p.color = Vector( 0.54f, 0.85f, 1.0f );
 		if( p.trajectory )
 			p.trajectory->m_steps.push_back( p );
+		if( p.pciTrajectory )
+			p.pciTrajectory->m_steps.clear();
 		if( p.id == 81 )
 			p.color = Vector( 1.0f, 0.0f, 0.0f );
 
@@ -164,14 +166,20 @@ void SPH::advance()
 		p.predictedPositionPrev = p.positionPrev;
 
 		if( m_pciPressure )
+		{
+			p.predictedMassDensity = 0.0f;
+			p.rho_err = 0.0f;
+			p.dd = 0.0f;
 			p.pressure = 0.0f;
+		}
 
 		p.temp2 = Vector( 0.0f, 0.0f, 0.0f );
 	}
-	int minIterations =  30;
+	int minIterations =  3;
 	//int maxIterations = 3;
 	int iteration = 0;
-	Real densityFluctuationThreshold = 0.03f*m_restDensity;
+	Real densityFluctuationThreshold = 0.3f*m_restDensity;
+	//Real densityFluctuationThreshold = 0.5f*m_restDensity;
 	Real stressDeltaNormThreshold = 0.1f;
 	Real maxDensityFluctuation = -FLT_MAX;
 	Particle *maxDensityFluctuationParticle =0;
@@ -180,7 +188,16 @@ void SPH::advance()
 	bool done = !m_pciPressure && !m_friction;
 	while( !done  )
 	{
-		maxDensityFluctuation = -FLT_MAX;
+		// for debugging
+		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
+		{
+			Particle &p = *it;
+
+			if( p.pciTrajectory  )
+				p.pciTrajectory->m_steps.push_back( p );
+		}
+
+		maxDensityFluctuation =  -FLT_MAX;
 		stressDeltaNorm = -FLT_MAX;
 
 		// compute predicted position/velocity ===================================================
@@ -225,7 +242,7 @@ void SPH::advance()
 		}
 
 
-		// compute predicted massDensity and pressure ===================================================
+		// compute predicted massDensity and density variation ===================================================
 		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 		{
 			Particle &p = *it;
@@ -238,71 +255,98 @@ void SPH::advance()
 			p.predictedMassDensity = 0.0f;
 			for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
 			{
-				float w = W_poly6_2d(it2->predictedDistance);
+				float w = W_poly6_3d(it2->predictedDistance);
 				p.predictedMassDensity += it2->p->mass*w;
 			}
 
-			if( m_pciPressure )
-			{
-				if( (p.predictedMassDensity > m_cricitalDensity) || !m_unilateralIncompressibility )
-				{
-					// predict density variation
- 					Real predictedDensityVariation = p.predictedMassDensity - m_restDensity;
+			// predict density variation
+ 			Real predictedDensityVariation = p.predictedMassDensity - m_restDensity;
+			//predictedDensityVariation *= exp( -0.25*(float)(iteration) );
+			//predictedDensityVariation *= exp( -0.25*(float)(iteration) );
 
-					if(fabsf(predictedDensityVariation) > maxDensityFluctuation)
-						maxDensityFluctuationParticle = &p;
+			if(predictedDensityVariation > maxDensityFluctuation)
+				maxDensityFluctuationParticle = &p;
 
+			//predictedDensityVariation = std::max( 0.0f, predictedDensityVariation ); 
 
-					maxDensityFluctuation = std::max(fabsf(predictedDensityVariation), maxDensityFluctuation);
+			maxDensityFluctuation = std::max(fabsf(predictedDensityVariation), maxDensityFluctuation);
+			//maxDensityFluctuation = std::max(predictedDensityVariation, maxDensityFluctuation);
 
-					// update pressure
-					p.pressure += m_pciDelta*predictedDensityVariation;
-				}//else
-				{
-					// TODO: low stiffness discrete particle forces
-
-				}
-			}
+			p.rho_err = predictedDensityVariation;
+			if( p.neighbours.size() > 1 )
+				p.dd = p.neighbours[1].predictedDistance;
 		}
 
-
-		// compute correction forces ===================================================
-		for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
+		//if( maxDensityFluctuation>densityFluctuationThreshold )
 		{
-			Particle &p = *it;
-
-			// ignore boundary particles
-			if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
-				continue;
-
-			// corrective pressure force
-			Vector f_pressure( 0.0f, 0.0f, 0.0f );
-
-			for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
+			// update pressures
+			for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
 			{
-				Particle &n = *(it2->p);
-				Real distance = it2->predictedDistance;
+				Particle &p = *it;
 
-				Vector gradW = -W_spiky_derivative_2d( distance )*(p.predictedPosition - n.predictedPosition).normalized();
+				// ignore boundary particles
+				if( p.states.testFlag( SPH::Particle::STATE_BOUNDARY ) )
+					continue;
 
-				// pressure force ---
-				if(m_pciPressure)
-					f_pressure += ( p.pressure/(p.predictedMassDensity*p.predictedMassDensity) + n.pressure/(n.predictedMassDensity*n.predictedMassDensity) ) * gradW;
+				p.pressure += m_pciDelta*p.rho_err*1.0f;
 			}
 
+			// compute correction forces ===================================================
+			for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
+			{
+				Particle &p = *it;
+
+				// ignore boundary particles
+				if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+					continue;
+
+				// corrective pressure force
+				Vector f_pressure( 0.0f, 0.0f, 0.0f );
+
+				for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
+				{
+					Particle &n = *(it2->p);
+					Real distance = it2->distance;
+
+					//Vector gradW = W_spiky_derivative_3d( distance )*(p.position - n.position).normalized();
+					//Vector gradW = W_poly6_derivative_3d( distance )*(p.position - n.position).normalized();
+					Vector gradW = W_mon92_derivative_3d( distance )*(p.position - n.position).normalized();
+					
 
 
-			if(m_pciPressure)
-				p.pciPressureForce = -p.mass*p.mass*f_pressure;
+					// pressure force ---
+					if(m_pciPressure)
+						f_pressure += ( p.pressure/(p.massDensity*p.massDensity) + n.pressure/(n.massDensity*n.massDensity) ) * gradW;
+				}
+
+
+
+				if(m_pciPressure)
+					p.pciPressureForce = -p.mass*p.mass*f_pressure*1.0f;
+
+				//if( p.id == 1 )
+				//	p.pciPressureForce = 0.0f;
+			}
 		}
+
+
 
 
 		// update criterion
 		done = true;
 		if( m_pciPressure )
 		{
-			std::cout<< "maxDensityFluctuation: " << maxDensityFluctuation  << " " << maxDensityFluctuationParticle->id << std::endl;
-			//done = done && (maxDensityFluctuation<densityFluctuationThreshold);
+			int pid = -1;
+			int numN = 0;
+
+			if( maxDensityFluctuationParticle )
+			{
+				pid = maxDensityFluctuationParticle->id;
+				numN = maxDensityFluctuationParticle->neighbours.size();
+			}
+
+			std::cout<< "maxDensityFluctuation: " << maxDensityFluctuation  << " " << iteration << " "  << pid << " " << numN << std::endl;
+			done = done && (maxDensityFluctuation<=densityFluctuationThreshold);
 			/*
 			if( maxDensityFluctuation > 60.0f )
 			{
@@ -311,9 +355,10 @@ void SPH::advance()
 			}
 			*/
 		}
-		//done = done && (iteration++ > minIterations);
+		done = done && (iteration > minIterations);
 		++iteration;
-		//done = done && (iteration > 10);
+		//done = done && (iteration > 100);
+		done = done || (iteration > 1000);
 	}; // pci while loop -> while(!criterion)
 	// for each particle
 	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
@@ -332,7 +377,7 @@ void SPH::advance()
 
 		// add forces which we got fom pci-scheme
 		if( m_pciPressure )
-			p.forces += p.pciPressureForce;
+			p.forces += p.pciPressureForce*1.0f;
 		if(	m_friction )
 			p.forces += p.pciFrictionForce;
 
@@ -406,6 +451,53 @@ void SPH::advance()
 	timeIntegration();
 
 	m_currentTimeStep++;
+
+
+
+
+
+
+
+
+
+
+	// test =========================================
+	for( ParticleContainer::iterator it = m_particles.begin(); it != m_particles.end();++it )
+	{
+		Particle &p = *it;
+
+		// ignore bounary particles
+		if( p.states.testFlag( Particle::STATE_BOUNDARY ) )
+			continue;
+
+		// update neighbour information - we look them up once and reuse them throughout the timestep
+		p.neighbours.clear();
+		// bruteforce for now - use efficient lookup structure later
+		// note that we add the current particle to its neighbour list. hoping that kernels will take care of
+		// canceling it out when it is not needed
+		for( ParticleContainer::iterator it2 = m_particles.begin(); it2 != m_particles.end();++it2 )
+		{
+			Particle &p2 = *it2;
+
+			// this will make sure boundary particles dont affect fluid particles (pressure etc.)
+			if( p2.states.testFlag( Particle::STATE_BOUNDARY ) )
+				continue;
+
+			Real distanceSquared = (p.position - p2.position).getSquaredLength();
+			if( distanceSquared < m_supportRadiusSquared )
+			{
+				Particle::Neighbour n;
+				n.distance = sqrt(distanceSquared);
+				n.p = &p2;
+				p.neighbours.push_back( n );
+			}
+		}
+
+		// compute mass-densities of particles
+		p.massDensity = 0.0f;
+		for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
+			p.massDensity += it2->p->mass*W_poly6_3d(it2->distance);
+	}
 }
 
 
@@ -421,19 +513,23 @@ void SPH::updateSupportRadius( Real newSupportRadius )
 	// for 3d case
 	W_poly6_3d_precompute(m_supportRadius);
 	W_spiky_3d_precompute(m_supportRadius);
+	W_mon92_3d_precompute(m_supportRadius);
 }
 
 void SPH::initialize()
 {
 	updateSupportRadius( .190625f );
+	//updateSupportRadius( .21f );
 	//updateSupportRadius( .31f );
 	//updateSupportRadius( 0.3f );
 
 	m_idealGasConstant = 0.1f;
+
+	// rest density is computed down below (prototype particle)
 	//m_restDensity = 998.29;
 	//m_restDensity = 1000.0f;
 	//m_restDensity = 1000.0f;
-	m_restDensity = 1000.0f;
+	//m_restDensity = 1000.0f;
 	//m_restDensity = 100.0f;
 
 	m_particles.clear();
@@ -446,19 +542,18 @@ void SPH::initialize()
 	// solver parameters ---
 	m_particleMass = 3.8125f; // 0.02f for water
 	//m_particleMass = 24.6f;
-	m_timeStep = 0.01f;
+	m_timeStep = 0.005f;
 	m_damping = 0.01f;
 
 	// switches for different solvertypes
 
 	m_friction = false;
-	m_classicPressure = true;
-	m_pciPressure = false;
+	m_classicPressure = false;
+	m_pciPressure = !m_classicPressure;
 	m_unilateralIncompressibility = false;
-	m_boundary = true;
 
-
-	m_gravity = true;
+	m_boundary = false;
+	m_gravity = false;
 	m_deformtest = false;
 
 
@@ -468,8 +563,6 @@ void SPH::initialize()
 
 		// TODO: find out how many particles we are supposed to put into the neighbourhood and where to put them
 
-		// prototype particle
-		Vector p0 = Vector(0.0f, 0.0f, 0.0f);
 
 		// completely random: number of particles per unit length in each dimension
 		//int res = 251;
@@ -558,9 +651,26 @@ void SPH::initialize()
 
 		*/
 
-		prototypeMassDensity = m_particleMass*W_poly6_2d( 0.0f );
-		res = 5;
+		// build prototype particle neighbourhood
+		res = 8;
+		//float scale = 3.2f;
+		//float scale = 3.2f;
+		//float scale = 1.2f;
+		float scale = 2.963f;
+		//float scale = 1.0f;
 		prototypeNeighbourhood.clear();
+
+		/*
+		for( int j=0;j<res;++j )
+			for( int i=0;i<res;++i )
+			{
+				Real u = (Real)i/(Real)res;
+				Real v = (Real)j/(Real)res;
+				Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 0.0f)*scale;
+
+				prototypeNeighbourhood.push_back(pn);
+			}
+		*/
 		for( int k=0;k<res;++k )
 			for( int j=0;j<res;++j )
 				for( int i=0;i<res;++i )
@@ -568,33 +678,60 @@ void SPH::initialize()
 					Real u = (Real)i/(Real)res;
 					Real v = (Real)j/(Real)res;
 					Real w = (Real)k/(Real)res;
-					Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s);
+					Vector pn = Vector(2.0f*u*s-s, 2.0f*v*s-s, 2.0f*w*s-s)*scale;
+
 					prototypeNeighbourhood.push_back(pn);
-					prototypeMassDensity += m_particleMass*W_poly6_2d( (p0 - pn).getLength() );
 				}
+
+
+		// select prototype particle (we the one which is closest to the center and therefore should have most neighbours)
+		int pi = -1;
+		float mind = FLT_MAX;
+		int index = 0;
+		for( std::vector<Vector>::iterator it = prototypeNeighbourhood.begin(); it != prototypeNeighbourhood.end();++it, ++index )
+		{
+			Vector &p = *it;
+			float d = (p-Vector(0.0f, 0.0f, 0.0f)).getLength();
+			if( d < mind )
+			{
+				pi = index;
+				mind = d;
+			}
+		}
+
+		// pi should not be -1 at this point
+		// compute prototypeMassDensity
+		prototypeMassDensity = 0.0f;
+		Vector prototypeParticle = prototypeNeighbourhood[pi];
+		for( std::vector<Vector>::iterator it = prototypeNeighbourhood.begin(); it != prototypeNeighbourhood.end();++it, ++index )
+		{
+			Vector &p = *it;
+			float d = (p-prototypeParticle).getLength();
+			prototypeMassDensity += m_particleMass*W_poly6_3d( d );
+		}
+
+		m_restDensity = prototypeMassDensity;
+
 
 
 		// compute pci delta
 		Vector s1v = Vector(0.0f, 0.0f, 0.0f);
 		Real s2 = 0.0f;
-		int check=0;
 		for( std::vector<Vector>::iterator it = prototypeNeighbourhood.begin(); it != prototypeNeighbourhood.end();++it )
 		{
 			Vector &pn = *it;
-			float distance = (p0 - pn).getLength();
-			Vector gradWV = -W_spiky_derivative_2d( distance )*(p0 - pn).normalized();
-
-			if( distance <s )
-				check++;
+			float distance = (prototypeParticle - pn).getLength();
+			Vector gradW = W_spiky_derivative_3d( distance )*(prototypeParticle - pn).normalized();
+			//Vector gradW = W_poly6_derivative_3d( distance )*(prototypeParticle - pn).normalized();
 
 			// pci - pressure delta
-			s1v += gradWV;
-			s2 += math::dot(gradWV,gradWV);
+			s1v += gradW;
+			s2 += math::dot(gradW,gradW);
 		}
 		Real beta = (m_timeStep*m_timeStep*m_particleMass*m_particleMass)*(2.0f/(m_restDensity*m_restDensity));
 		m_pciDelta = (-1.0f)/(beta*(-math::dot(s1v, s1v ) - s2 ));
-		m_pciDelta = 0.5f;
-
+		//m_pciDelta = -0.01f;
+		int debug=0;
 		/*
 		// compute stress delta
 		for( int k=0;k<res;++k )
@@ -654,7 +791,8 @@ void SPH::initialize()
 
 
 	// initial fluid
-	Real spacing = 0.15f;
+	//Real spacing = 0.15f;
+	Real spacing = 0.135f;
 	//Real spacing = test_diff;
 	Vector offset( 0.0f, 2.0f, 0.0f );
 	if(1)
@@ -675,7 +813,8 @@ void SPH::initialize()
 	if(0)
 	{
 		Real d = test_diff;
-		d = 0.15;
+		//d = 0.18f;
+		d = 0.123f;
 
 		//Real d =0.05f;
 		Particle p;
@@ -686,12 +825,16 @@ void SPH::initialize()
 		m_particles.push_back(p);
 
 
-		///*
-		//initializeParticle(p, Vector( 0.5f*d, 0.75f*d, 0.0f ));// debug particle 2
+		//initializeParticle(p, Vector( -d, 0.0f, 0.0f )); // debug particle 1
 		//m_particles.push_back(p);
-		//initializeParticle(p, Vector( 0.5f*d, -0.75f*d, 0.0f ));// debug particle 2
-		//m_particles.push_back(p);
-		//*/
+
+
+		/*
+		initializeParticle(p, Vector( 0.5f*d, 0.75f*d, 0.0f ));// debug particle 2
+		m_particles.push_back(p);
+		initializeParticle(p, Vector( 0.5f*d, -0.75f*d, 0.0f ));// debug particle 2
+		m_particles.push_back(p);
+		*/
 
 		
 		//initializeParticle(p, Vector( 0.0f, 0.5f*d, 0.0f )); // debug particle 1
@@ -701,11 +844,11 @@ void SPH::initialize()
 
 
 
-		/*
+		///*
 		initializeParticle(p, Vector( -d, 0.0f, 0.0f ));m_particles.push_back(p);
-		initializeParticle(p, Vector( -d*2.0f, 0.0f, 0.0f ));m_particles.push_back(p);
+		//initializeParticle(p, Vector( -d*2.0f, 0.0f, 0.0f ));m_particles.push_back(p);
 		initializeParticle(p, Vector( d*2.0f, 0.0f, 0.0f ));m_particles.push_back(p);
-		initializeParticle(p, Vector( d*3.0f, 0.0f, 0.0f ));m_particles.push_back(p);
+		//initializeParticle(p, Vector( d*3.0f, 0.0f, 0.0f ));m_particles.push_back(p);
 
 		// row +1
 		initializeParticle(p, Vector( -d, d, 0.0f ));m_particles.push_back(p);
@@ -720,13 +863,13 @@ void SPH::initialize()
 		initializeParticle(p, Vector( d*2.0f, -d, 0.0f ));m_particles.push_back(p);
 
 		// row 2
-		initializeParticle(p, Vector( 0.0f, d*2.0f, 0.0f ));m_particles.push_back(p);
-		initializeParticle(p, Vector( d, d*2.0f, 0.0f ));m_particles.push_back(p);
+		//initializeParticle(p, Vector( 0.0f, d*2.0f, 0.0f ));m_particles.push_back(p);
+		//initializeParticle(p, Vector( d, d*2.0f, 0.0f ));m_particles.push_back(p);
 
 		// row -2
-		initializeParticle(p, Vector( 0.0f, -d*2.0f, 0.0f ));m_particles.push_back(p);
-		initializeParticle(p, Vector( d, -d*2.0f, 0.0f ));m_particles.push_back(p);
-		*/
+		//initializeParticle(p, Vector( 0.0f, -d*2.0f, 0.0f ));m_particles.push_back(p);
+		//initializeParticle(p, Vector( d, -d*2.0f, 0.0f ));m_particles.push_back(p);
+		//*/
 	}
 
 	// debug
@@ -773,6 +916,11 @@ void SPH::initializeParticle( Particle &p, const Vector &position )
 
 	int maxNumNeihbours = 30;
 	//p.neighbourDebug.resize( maxNumNeihbours );
+
+	p.rho_err = 0.0f;
+
+	//p.pciTrajectory = new Trajectory();
+	p.dd = 0.0f;
 }
 
 size_t SPH::numParticles()const
@@ -805,11 +953,13 @@ void SPH::updateTrajectories()
 
 SPH::Real W_poly6_3d_h2;
 SPH::Real W_poly6_3d_coeff;
+SPH::Real W_poly6_3d_derivative_coeff;
 
 void SPH::W_poly6_3d_precompute( Real supportRadius )
 {
 	W_poly6_3d_h2 = supportRadius*supportRadius;
 	W_poly6_3d_coeff = 315.0f/( 64.0f*MATH_PIf*powf(supportRadius, 9.0f) );
+	W_poly6_3d_derivative_coeff = -945.0/( 32.0*MATH_PIf*powf(supportRadius, 3.0f) );
 }
 SPH::Real SPH::W_poly6_3d( Real distance )
 {
@@ -820,6 +970,15 @@ SPH::Real SPH::W_poly6_3d( Real distance )
 		t = 1.192092896e-07f;
 	t = W_poly6_3d_h2-t;
 	return W_poly6_3d_coeff*t*t*t;
+}
+
+SPH::Real SPH::W_poly6_derivative_3d( Real distance )
+{
+	float d2 = distance*distance;
+	if( d2>W_poly6_3d_h2 )
+		return 0.0f;
+	float t = (1.0 - (d2/W_poly6_3d_h2));
+	return W_poly6_3d_derivative_coeff*(distance/W_poly6_3d_h2)*t*t;
 }
 
 SPH::Real W_poly6_2d_h;
@@ -870,8 +1029,7 @@ void SPH::W_spiky_3d_precompute( Real supportRadius )
 
 SPH::Real SPH::W_spiky_derivative_3d( Real distance )
 {
-	float d2 = distance*distance;
-	if (d2 > W_spiky_3d_h2)
+	if (distance > W_spiky_3d_h)
 		return 0.0f;
 	float t = 1.0f - distance/W_spiky_3d_h;
 	return W_spiky_3d_derivative_coeff*t*t;
@@ -905,6 +1063,55 @@ SPH::Real SPH::W_spiky_derivative_2d( Real distance )
 
 	float t = 1.0f-(distance/W_spiky_2d_h);
 	return W_spiky_2d_derivative_coeff*t*t;
+}
+
+// mon92 =====================================================
+SPH::Real W_mon92_3d_h;
+SPH::Real W_mon92_3d_coeff;
+SPH::Real W_mon92_3d_derivative_coeff1;
+SPH::Real W_mon92_3d_derivative_coeff2;
+
+void SPH::W_mon92_3d_precompute( SPH::Real supportRadius )
+{
+	W_mon92_3d_h = supportRadius;
+	float h = W_mon92_3d_h;
+	W_mon92_3d_coeff = 1.0f/(MATH_PIf*h*h*h);
+	W_mon92_3d_derivative_coeff1 = 3.0f/(MATH_PIf*h*h*h*h*h);
+	W_mon92_3d_derivative_coeff2 = -3.0f/(4.0f*MATH_PIf*h*h*h*h);
+}
+
+SPH::Real SPH::W_mon92_3d( SPH::Real distance )
+{
+	float h = W_mon92_3d_h;
+	float d = 2.0f*distance;
+	float q = d/h;
+	if( d<h )
+	{
+		return W_mon92_3d_coeff*(1.0f - (3.0f/2.0f)*q*q + (3.0f/4.0f)*q*q*q);
+	}else
+	if( d<2.0f*h )
+	{
+		float t = (2.0-q);
+		return W_mon92_3d_coeff*(1.0/4.0)*t*t*t;
+	}
+	return 0.0f;
+}
+
+SPH::Real SPH::W_mon92_derivative_3d( SPH::Real distance )
+{
+	float h = W_mon92_3d_h;
+	float d = 2.0f*distance;
+
+	if( d<h )
+	{
+		return W_mon92_3d_derivative_coeff1*( (3.0f*d*d)/(4.0f*h) - d );
+	}else
+	if( d<2.0f*h )
+	{
+		float t = 2.0f-(d/h);
+		return W_mon92_3d_derivative_coeff2*t*t;
+	}
+	return 0.0f;
 }
 
 
