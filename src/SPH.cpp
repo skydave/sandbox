@@ -1,5 +1,7 @@
 
 #include "SPH.h"
+#include <util/fs.h>
+#include <util/StringManip.h>
 
 float test_diff = 0.2f;
 
@@ -288,7 +290,17 @@ void SPH::advance()
 				if( p.states.testFlag( SPH::Particle::STATE_BOUNDARY ) )
 					continue;
 
-				p.pressure += m_pciDelta*p.rho_err*1.0f;
+				float er = p.rho_err;
+				/*
+				if( er>densityFluctuationThreshold )
+					er-=densityFluctuationThreshold;
+				else
+				if( er<-densityFluctuationThreshold )
+					er+=densityFluctuationThreshold;
+				else
+					er = 0.0f;
+				*/
+				p.pressure += m_pciDelta*er*1.0f;
 			}
 
 			// compute correction forces ===================================================
@@ -498,6 +510,10 @@ void SPH::advance()
 		for( Particle::Neighbours::iterator it2 = p.neighbours.begin(); it2 != p.neighbours.end();++it2 )
 			p.massDensity += it2->p->mass*W_poly6_3d(it2->distance);
 	}
+
+	// test2
+	float dd = (m_particles[1].position - m_particles[0].position).getLength();
+	std::cout  << " testst  " << dd << std::endl;
 }
 
 
@@ -552,8 +568,8 @@ void SPH::initialize()
 	m_pciPressure = !m_classicPressure;
 	m_unilateralIncompressibility = false;
 
-	m_boundary = false;
-	m_gravity = false;
+	m_boundary = true;
+	m_gravity = true;
 	m_deformtest = false;
 
 
@@ -793,9 +809,10 @@ void SPH::initialize()
 	// initial fluid
 	//Real spacing = 0.15f;
 	Real spacing = 0.135f;
+	//Real spacing = 0.11712f;
 	//Real spacing = test_diff;
 	Vector offset( 0.0f, 2.0f, 0.0f );
-	if(1)
+	if(0)
 	{
 		int n = 10;
 		for( int i=0;i<n;++i )
@@ -807,6 +824,32 @@ void SPH::initialize()
 
 				m_particles.push_back(p);
 			}
+	}
+
+	// load positions from file
+	if(1)
+	{
+		base::fs::File *f_p = base::fs::open( "f_p.dat", "r" );
+
+		// numParticles
+		int numParticles = base::fromString<int>(base::fs::getLine(f_p));
+
+		for( int i=0;i<numParticles;++i )
+		{
+			std::string l = base::fs::getLine(f_p);
+			std::vector<std::string> split;
+			base::splitString( l, split );
+			float x = base::fromString<float>(split[0]);
+			float y = base::fromString<float>(split[1]);
+			float z = base::fromString<float>(split[2]);
+
+
+			Particle p;
+			initializeParticle(p, Vector( x, y, z ));
+			m_particles.push_back(p);
+		}
+
+		base::fs::close(f_p);
 	}
 
 	// stress debug setup
@@ -878,8 +921,8 @@ void SPH::initialize()
 	// some wall 
 	if(m_boundary)
 	{
-		//math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
-		math::Matrix44f xform = math::Matrix44f::Identity();
+		math::Matrix44f xform = math::Matrix44f::RotationMatrixZ( math::degToRad(-45.0f) );
+		//math::Matrix44f xform = math::Matrix44f::Identity();
 		spacing *= 0.5f;
 		int n = 80;
 		for( int i=0;i<n;++i )

@@ -515,6 +515,7 @@ void keypress( int key )
 
 	if( key == KEY_S )
 	{
+		/*
 		std::vector<int> indices;
 		indices.push_back( 0 );
 		indices.push_back( 22 );
@@ -561,6 +562,24 @@ void keypress( int key )
 				base::fs::close(f_PredictedPosZ);
 				base::fs::close(f_dd);
 			}
+		}
+		*/
+
+		// save positions
+		{
+			base::fs::File *f_p = base::fs::open( "f_p.dat", "w" );
+
+			// numParticles
+			base::fs::write( f_p, base::toString(sph->m_particles.size()) + "\n" );
+
+			for( std::vector<SPH::Particle>::iterator it = sph->m_particles.begin(); it != sph->m_particles.end(); ++it)
+			{
+				SPH::Particle &p = *it;
+				// positions
+				base::fs::write( f_p, base::toString(p.position.x) + " " + base::toString(p.position.y) + " " + base::toString(p.position.z) + "\n" );
+			}
+
+			base::fs::close(f_p);
 		}
 	}
 }
