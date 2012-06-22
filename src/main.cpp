@@ -254,7 +254,7 @@ void step()
 		{
 			SPH::Particle &pp = sph->m_particles[i];
 			//visualizer->line( pp.frictionForceVisHandle, pp.position, pp.position + pp.pciFrictionForce*1.001f);
-			visualizer->line( pp.frictionForceVisHandle, pp.position, pp.position + pp.temp1*1.0f);
+			//visualizer->line( pp.frictionForceVisHandle, pp.position, pp.position + pp.temp1*1.0f);
 
 			/*
 			for( int j=0;j<pp.neighbours.size();++j )
