@@ -226,6 +226,17 @@ void SPH::advance()
 			// verlet
 			integrate_verlet( p.position, p.velocity, p.predictedPositionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
 			//integrate_leapfrog( p.position, p.velocity, p.predictedPositionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+
+			// apply boundary condition
+			math::Vec3f outForce(0.0f, 0.0f, 0.0f);
+			math::Vec3f outImpulse(0.0f, 0.0f, 0.0f);
+			bool collision = applyBoundaryCondition( p, outForce, outImpulse );
+			if( collision )
+			{
+				acceleration = (f+outForce)*(1.0f/p.mass);
+				// verlet
+				integrate_verlet( p.position, p.velocity, p.predictedPositionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
+			}
 		}
 
 
@@ -409,50 +420,16 @@ void SPH::advance()
 			//integrate_verlet( p.position, p.velocity, p.positionPrev, acceleration, impuls, m_timeStep, m_damping, p.predictedPosition, p.predictedVelocity );
 
 
-
-			Real fluidRadius = 0.3f*m_supportRadius;
-			Real boundaryRadius = 0.3f*m_supportRadius;
-			Real d = FLT_MAX;
-			Particle *c = 0;
-			// test against all other particles for collision with boundary particles
-			// TODO: optimize
-			for( ParticleContainer::iterator bit = m_particles.begin(); bit != m_particles.end();++bit )
+			math::Vec3f outForce(0.0f, 0.0f, 0.0f);
+			math::Vec3f outImpulse(0.0f, 0.0f, 0.0f);
+			bool collision = applyBoundaryCondition( p, outForce, outImpulse );
+			if( collision )
 			{
-				Particle &n = *bit;
-
-				// dont test against yourself
-				if( p.id == n.id )
-					continue;
-
-				// if other particle is boundary
-				if( n.states.testFlag( Particle::STATE_BOUNDARY ) )
-				{
-					// test collision
-					Real dist = (n.predictedPosition - p.predictedPosition).getLength();
-					if( (dist < boundaryRadius + fluidRadius)&&(dist < d) )
-					{
-						c = &n;
-						d = dist;
-						p.color = Vector(1.0f, 0.0f, 0.0f);
-					}
-				}
+				p.color = math::Vec3f(1.0f, 0.0f, 0.0f);
+				p.forces += outForce;
 			}
-			// any collision?
-			if( c )
-			{
-				Vector f_boundary = -p.predictedVelocity*(p.mass/(m_timeStep));
 
-				Real o = boundaryRadius + fluidRadius -d;
-				Vector cp = p.predictedPosition - o*p.predictedVelocity.normalized();
-				p.temp1 = cp;
-
-				//Vector p.pciBoundaryImpulse
-				//p.pciBoundaryImpulse = -p.predictedVelocity.normalized()*((boundaryRadius + fluidRadius)-d)*(1.0f/m_timeStep)*1.0f;
-				//p.pciBoundaryImpulse = -o*p.predictedVelocity.normalized()*(1.0f/m_timeStep);
-
-				p.forces += f_boundary;
-				//p.impulses += p.pciBoundaryImpulse;
-			}
+			
 		}
 
 
@@ -516,6 +493,66 @@ void SPH::advance()
 	std::cout  << " testst  " << dd << std::endl;
 }
 
+
+bool SPH::applyBoundaryCondition( SPH::Particle &p, math::Vec3f &outForce, math::Vec3f &outImpulse )
+{
+	Real fluidRadius = 0.3f*m_supportRadius;
+	Real boundaryRadius = 0.3f*m_supportRadius;
+	Real d = FLT_MAX;
+	Particle *c = 0;
+
+	outForce = math::Vec3f(0.0f, 0.0f, 0.0f);
+
+	// test against all other particles for collision with boundary particles
+	// TODO: optimize
+	for( ParticleContainer::iterator bit = m_particles.begin(); bit != m_particles.end();++bit )
+	{
+		Particle &n = *bit;
+
+		// if other particle is boundary
+		if( n.states.testFlag( Particle::STATE_BOUNDARY ) )
+		{
+			// test collision
+			Real dist = (n.position - p.predictedPosition).getLength();
+			if( (dist < boundaryRadius + fluidRadius)&&(dist < d) )
+			{
+				c = &n;
+				d = dist;
+			}
+		}
+	}
+	// any collision?
+	if( c )
+	{
+		math::Vec3f n = -c->normal;
+		math::Vec3f vel_n = math::dot( p.predictedVelocity, n )*n;
+		math::Vec3f vel_t = p.predictedVelocity - vel_n;
+
+		float friction = 0.0f;
+		float inelasticCollision = 1.0f;
+
+		Vector f_boundary = -(inelasticCollision*vel_n+friction*vel_t)*(p.mass/m_timeStep);
+		p.temp1 = f_boundary;
+
+
+		Real o = boundaryRadius + fluidRadius -d;
+		Vector cp = p.predictedPosition - o*p.predictedVelocity.normalized();
+
+
+		outForce += f_boundary;
+
+
+		// the paper in addition suggest to add a correction impuls. I wasnt very successfull with this...
+		//Vector p.pciBoundaryImpulse
+		//p.pciBoundaryImpulse = -p.predictedVelocity.normalized()*((boundaryRadius + fluidRadius)-d)*(1.0f/m_timeStep)*1.0f;
+		//p.pciBoundaryImpulse = -o*p.predictedVelocity.normalized()*(1.0f/m_timeStep);
+		//p.impulses += p.pciBoundaryImpulse;
+
+
+		return true;
+	}
+	return false;
+}
 
 void SPH::updateSupportRadius( Real newSupportRadius )
 {
@@ -845,7 +882,7 @@ void SPH::initialize()
 
 
 			Particle p;
-			initializeParticle(p, Vector( x, y, z ));
+			initializeParticle(p, Vector( x-1.5f, y, z ));
 			m_particles.push_back(p);
 		}
 
@@ -931,7 +968,9 @@ void SPH::initialize()
 				Particle p;
 
 				initializeParticle(p, math::transform( Vector( -4.5f + i * spacing, 0.5f - j * spacing, 0.0f ), xform ) );
+
 				p.states = Particle::STATE_BOUNDARY;
+				p.normal = math::transform( Vector( 0.0f, 1.0f, 0.0f ), xform ); // TODO: use rotational part of xform only
 
 				m_particles.push_back(p);
 			}
@@ -959,6 +998,10 @@ void SPH::initializeParticle( Particle &p, const Vector &position )
 
 	int maxNumNeihbours = 30;
 	//p.neighbourDebug.resize( maxNumNeihbours );
+
+
+	p.normal = math::Vec3f(0.0f, 0.0f, 0.0f);
+
 
 	p.rho_err = 0.0f;
 

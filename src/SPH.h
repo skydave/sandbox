@@ -76,6 +76,7 @@ struct SPH
 		// boundary handling
 		Vector                                  pciBoundaryForce;
 		Vector                                pciBoundaryImpulse;
+		Vector                                            normal; // in case this particle is boundary particle
 
 		// used for debugging:
 		Trajectory                                        *trajectory;
@@ -163,6 +164,10 @@ struct SPH
 	int                              m_currentTimeStep;
 
 	void *debug1;
+
+	// misc functions =========================
+	bool applyBoundaryCondition( SPH::Particle &p, math::Vec3f &outForce, math::Vec3f &outImpulse );
+
 
 	// weighting functions =========================
 
