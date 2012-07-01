@@ -51,6 +51,7 @@ composer::widgets::GLViewer *glviewer;
 base::ContextPtr context;
 
 base::GeometryPtr geo;
+
 /*
 base::Texture2dPtr noisePermutationTableTex;
 base::Texture2dPtr colorBuffer;
@@ -66,7 +67,8 @@ base::GeometryPtr baseGeo;
 base::ShaderPtr skyShader;
 
 
-
+base::GeometryPtr testGeo;
+base::ShaderPtr testShader;
 
 
 using namespace std;
@@ -620,8 +622,10 @@ void render( base::CameraPtr cam )
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//context->render( geo, baseShader );
+	//context->render( baseGeo, baseShader );
 	context->renderScreen( skyShader );
+	//glPointSize(10.0f);
+	//context->render( testGeo, testShader );
 
 	/*
 
@@ -810,7 +814,8 @@ void init()
 	skyShader->setUniform( "transmittanceSampler", sky_transmittanceTexture->getUniform() );
 	skyShader->setUniform( "innerRadius", innerRadius );
 	skyShader->setUniform( "outerRadius", outerRadius );
-
+	float height = innerRadius + 0.0 * (outerRadius-innerRadius);
+	skyShader->setUniform( "height", height);
 
 
 
@@ -833,6 +838,27 @@ void init()
 
 
 
+	// test
+	testGeo = base::Geometry::createPointGeometry();
+	testShader = base::Shader::createSimpleConstantShader();
+
+	int numSamples = 100;
+	for( int j=0;j<numSamples;++j )
+		for( int i=0;i<numSamples;++i )
+		{
+			float u=(float)i/(float)(numSamples-1);
+			float v=(float)j/(float)(numSamples-1);
+
+			math::Vec3f p = math::Vec3f(u*2.0f-1.0f, 0.0f, v*2.0f-1.0f);
+
+			float r = 1.0f;
+			float d = r*r - p.x*p.x - p.z*p.z;
+			if(d>0.0f)
+			{
+				p.y = sqrt(d);
+				testGeo->addPoint( testGeo->getAttr("P")->appendElement(p) );
+			}
+		}
 
 	//CloudsUI *widget = new CloudsUI();
 	//glviewer->connect( widget->ui.playButton, SIGNAL(clicked(bool)), SLOT(setRenderInSeperateThread(bool)) );
@@ -869,8 +895,8 @@ int main(int argc, char ** argv)
 
 	glviewer = new composer::widgets::GLViewer(init, render);
 	glviewer->getCamera()->m_znear = .1f;
-	glviewer->getCamera()->m_zfar = 100000.0f;
-	glviewer->setView( math::Vec3f(0.0f, innerRadius + 0.0 * (outerRadius-innerRadius), 0.0f), 10.0f, 0.0f, 0.0f );
+	//glviewer->getCamera()->m_zfar = 100000.0f;
+	//glviewer->setView( math::Vec3f(0.0f, innerRadius + 0.0 * (outerRadius-innerRadius), 0.0f), 10.0f, 0.0f, 0.0f );
 
 	mainWin.setCentralWidget( glviewer );
 	mainWin.show();
